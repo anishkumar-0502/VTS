@@ -1,0 +1,48 @@
+{
+  "routes": [
+    {
+      "id": 1,
+      "name": "Route: Bengaluru → Chennai",
+      "start": { "lat": 12.971599, "lng": 77.594566 },
+      "end": { "lat": 13.082680, "lng": 80.270721 }
+    },
+    {
+      "id": 2,
+      "name": "Route: Chennai → Kolkata",
+      "start": { "lat": 13.082680, "lng": 80.270721 },
+      "end": { "lat": 22.572645, "lng": 88.363892 }
+    },
+    {
+      "id": 3,
+      "name": "Route: Kolkata → Haryana",
+      "start": { "lat": 22.572645, "lng": 88.363892 },
+      "end": { "lat": 29.058777, "lng": 76.085602 }
+    },
+    {
+      "id": 4,
+      "name": "Route: Bengaluru → Salem (US)",
+      "start": { "lat": 12.971599, "lng": 77.594566 },
+      "end": { "lat": 42.519539, "lng": -70.896713 }
+    }
+  ],
+  "devices": [
+    {
+      "id": 1,
+      "name": "GPS-Device-1",
+      "route_id": 1,
+      "tracker_id": "simulated-tracker-1"
+    },
+    {
+      "id": 2,
+      "name": "GPS-Device-2",
+      "route_id": 2,
+      "tracker_id": "simulated-tracker-2"
+    },
+    {
+      "id": 3,
+      "name": "GPS-Device-3",
+      "route_id": 3,
+      "tracker_id": "simulated-tracker-3"
+    }
+  ]
+}

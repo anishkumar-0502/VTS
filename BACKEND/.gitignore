@@ -1,0 +1,16 @@
+node_modules/
+logs/
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+dist/
+build/
+coverage/
+.nyc_output/
+package-lock.json
+yarn.lock
+.npm
+.eslintcache

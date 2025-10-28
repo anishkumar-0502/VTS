@@ -1,0 +1,21 @@
+// Add these imports after the LiveTracking import:
+import AppUsers from "./pages/Management/AppUsers";
+import SuperadminAppUsers from "./pages/Management/SuperadminAppUsers";
+
+// Add these routes inside the Routes section after driver-management:
+<Route
+  path="/management/app-users"
+  element={
+    <ProtectedRoute permission="manage_users">
+      <AppUsers />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/management/superadmin/app-users"
+  element={
+    <ProtectedRoute permission="manage_users">
+      <SuperadminAppUsers />
+    </ProtectedRoute>
+  }
+/>
