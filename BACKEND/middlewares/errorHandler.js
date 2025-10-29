@@ -1,7 +1,7 @@
 const logger = require('../utils/logger');
 
 const errorHandler = (err, req, res, next) => {
-  logger.error('Error occurred:', {
+  logger.loggerError('Error occurred:', {
     message: err.message,
     stack: err.stack,
     url: req.url,
@@ -11,14 +11,20 @@ const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
 
-  res.status(statusCode).json({
-    success: false,
-    error: {
-      message,
-      statusCode,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    }
-  });
+  const response = {
+    error: true,
+    message,
+    data: null,
+    statusCode
+  };
+
+  if (process.env.NODE_ENV === 'development') {
+    response.debug = {
+      stack: err.stack
+    };
+  }
+
+  res.status(statusCode).json(response);
 };
 
 class CustomError extends Error {

@@ -10,7 +10,6 @@ import polyline
 from typing import Dict, Any, TypedDict, List, Tuple
 from tqdm import tqdm
 
-# Existing GoogleMapsService class (unchanged)
 class LocationDict(TypedDict):
     lng: float
     lat: float
@@ -103,7 +102,6 @@ class GoogleMapsService:
             coordinates,
         )
 
-# Existing TrackerSim class (unchanged)
 class TrackerSim:
     def __init__(
         self,
@@ -141,7 +139,7 @@ class TrackerSim:
         lat, lng = self.get_coords(elapsed_time)
         target_segment_index = np.searchsorted(self.cumulative_times, elapsed_time)
         speed_ms = self.speeds[target_segment_index - 1] if target_segment_index > 0 and target_segment_index <= len(self.speeds) else 0
-        speed_kmh = speed_ms * 3.6  # Convert m/s to km/h
+        speed_kmh = speed_ms * 3.6
         course = 0.0
         if target_segment_index > 1:
             prev_lat, prev_lng = self.coordinates[target_segment_index - 2]
@@ -159,41 +157,37 @@ class TrackerSim:
             "hdop": 1.2
         }
 
-# Modified post function to log only the backend message for success
-def post(url: str, data: dict, api_key: str) -> requests.Response:
+def post(url: str, message_data: dict, api_key: str) -> requests.Response:
     headers = {"Authorization": api_key}
+    payload = [message_data]
+    
     try:
-        response = requests.post(url, json=data, headers=headers)
-        # Parse and log response
+        response = requests.post(url, json=payload, headers=headers)
+        
         if response.status_code >= 200 and response.status_code < 300:
             try:
                 response_data = response.json()
-                if isinstance(response_data, list) and len(response_data) >= 3:
-                    response_type, response_message_id, payload = response_data[0], response_data[1], response_data[2]
-                    if response_type == "3":
-                        # Success response: log only the message
-                        print(f"{data[2]}: {payload.get('message', 'No message')}")
-                    elif response_type == "4":
-                        # Error response
-                        print(f"Error for {data[2]} (ID: {response_message_id}): "
-                              f"ErrorCode={payload.get('errorCode', 'Unknown')}, "
-                              f"ErrorDescription={payload.get('errorDescription', 'No description')}")
-                    else:
-                        print(f"Unknown Response for {data[2]} (ID: {response_message_id}): {response_data}")
-                else:
-                    print(f"Invalid Response Format for {data[2]}: {response.text}")
+                if isinstance(response_data, dict):
+                    if 'responses' in response_data:
+                        for resp in response_data['responses']:
+                            status = resp.get('status', 'unknown')
+                            msg_type = resp.get('message_type', 'unknown')
+                            if status == 'success':
+                                data_msg = resp.get('data', {}).get('message', '')
+                                print(f"✓ {msg_type}: {data_msg}")
+                            elif status == 'error':
+                                error = resp.get('error', 'No error description')
+                                print(f"✗ Error for {msg_type}: {error}")
             except ValueError:
-                print(f"Non-JSON Response for {data[2]}: {response.text}")
+                print(f"Non-JSON Response: {response.text}")
         else:
-            print(f"Failed to POST {data[2]}: HTTP {response.status_code} - {response.text}")
+            print(f"✗ Failed to POST: HTTP {response.status_code}")
         return response
     except requests.RequestException as e:
-        print(f"Network Error for {data[2]}: {str(e)}")
-        return requests.Response()  # Return empty response to continue simulation
+        print(f"✗ Network Error: {str(e)}")
+        return requests.Response()
 
-# Main script with OCPP-like JSON frames and response handling
 if __name__ == "__main__":
-    # Load default values from config file
     with open("default.json") as f:
         config = json.load(f)
 
@@ -259,7 +253,6 @@ if __name__ == "__main__":
     trackerId = args.tracker_id
     webhook_api_key = args.webhook_api_key
 
-    # Initialize GoogleMapsService and get route data
     google_maps_service = GoogleMapsService(api_key)
     from_addr_feature = google_maps_service.get_coordinates(from_location)
     to_addr_feature = google_maps_service.get_coordinates(to_location)
@@ -288,75 +281,53 @@ TO EXIT, press Ctrl+C
 """
     )
 
-    # Send BootNotification
-    boot_message = [
-        "2",
-        f"{trackerId}_{int(datetime.now().timestamp())}",
-        "BootNotification",
-        {
-            "vehicle_id": trackerId,
-            "firmware_version": "GPS_v1.0",
-            "module_model": "Simulated-GPS",
-            "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-        }
-    ]
-    response = post(webhook_url, boot_message, webhook_api_key) # type: ignore
+    boot_message = {
+        "message_type": "boot_notification",
+        "tracker_id": trackerId,
+        "firmware_version": "GPS_v1.0",
+        "module_model": "Simulated-GPS",
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    }
+    post(webhook_url, boot_message, webhook_api_key)
 
-    # Main loop for LocationUpdate, Heartbeat, StatusNotification
     pbar = tqdm(range(0, duration, interval))
     for time in pbar:
         coords_data = tracker_sim.get_extended_coords(time)
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-        message_id = f"{trackerId}_{int(datetime.now().timestamp())}"
 
-        # LocationUpdate (like $GPGGA, $GPRMC)
-        location_message = [
-            "2",
-            message_id,
-            "LocationUpdate",
-            {
-                "vehicle_id": trackerId,
-                "latitude": coords_data["latitude"],
-                "longitude": coords_data["longitude"],
-                "altitude": coords_data["altitude"],
-                "speed_kmh": coords_data["speed_kmh"],
-                "course": coords_data["course"],
-                "satellites": coords_data["satellites"],
-                "fix_quality": coords_data["fix_quality"],
-                "hdop": coords_data["hdop"],
-                "timestamp": timestamp
-            }
-        ]
-        pbar.set_description(f"Elapsed time: {time}s, Coords: {coords_data['latitude']}, {coords_data['longitude']}")
-        response = post(webhook_url, location_message, webhook_api_key) # type: ignore
+        location_message = {
+            "message_type": "location_update",
+            "tracker_id": trackerId,
+            "latitude": coords_data["latitude"],
+            "longitude": coords_data["longitude"],
+            "altitude": coords_data["altitude"],
+            "speed_kmh": coords_data["speed_kmh"],
+            "course": coords_data["course"],
+            "satellites": coords_data["satellites"],
+            "fix_quality": coords_data["fix_quality"],
+            "hdop": coords_data["hdop"],
+            "timestamp": timestamp
+        }
+        pbar.set_description(f"Elapsed time: {time}s, Coords: {coords_data['latitude']:.4f}, {coords_data['longitude']:.4f}")
+        post(webhook_url, location_message, webhook_api_key)
 
-        # Heartbeat
-        heartbeat_message = [
-            "2",
-            f"{trackerId}_{int(datetime.now().timestamp())}",
-            "Heartbeat",
-            {
-                "vehicle_id": trackerId,
-                "status": "active",
-                "satellites": coords_data["satellites"],
-                "timestamp": timestamp
-            }
-        ]
-        response = post(webhook_url, heartbeat_message, webhook_api_key) # type: ignore
+        heartbeat_message = {
+            "message_type": "heartbeat",
+            "tracker_id": trackerId,
+            "status": "active",
+            "satellites": coords_data["satellites"],
+            "timestamp": timestamp
+        }
+        post(webhook_url, heartbeat_message, webhook_api_key)
 
-        # StatusNotification
-        status_message = [
-            "2",
-            f"{trackerId}_{int(datetime.now().timestamp())}",
-            "StatusNotification",
-            {
-                "vehicle_id": trackerId,
-                "fix_status": "valid" if coords_data["fix_quality"] > 0 else "invalid",
-                "satellites": coords_data["satellites"],
-                "hdop": coords_data["hdop"],
-                "timestamp": timestamp
-            }
-        ]
-        response = post(webhook_url, status_message, webhook_api_key) # type: ignore
+        status_message = {
+            "message_type": "status_notification",
+            "tracker_id": trackerId,
+            "fix_status": "valid" if coords_data["fix_quality"] > 0 else "invalid",
+            "satellites": coords_data["satellites"],
+            "hdop": coords_data["hdop"],
+            "timestamp": timestamp
+        }
+        post(webhook_url, status_message, webhook_api_key)
 
         sleep(interval)
