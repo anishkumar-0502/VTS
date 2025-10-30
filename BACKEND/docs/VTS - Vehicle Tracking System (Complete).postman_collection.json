@@ -1,0 +1,2249 @@
+{
+	"info": {
+		"_postman_id": "88d763a5-0f31-4c00-812f-9674908bedbc",
+		"name": "VTS - Vehicle Tracking System (Complete)",
+		"description": "Complete API collection for Vehicle Tracking System with all endpoints and accurate parameters",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "30185264",
+		"_collection_link": "https://anish6-8523.postman.co/workspace/Anish-Workspace~dc805d61-2a62-474f-84da-5520e7e56280/collection/30185264-88d763a5-0f31-4c00-812f-9674908bedbc?action=share&source=collection_link&creator=30185264"
+	},
+	"item": [
+		{
+			"name": "SUPER ADMIN",
+			"item": [
+				{
+					"name": "AUTH - C",
+					"item": [
+						{
+							"name": "POST Register",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@vts.com\",\n  \"phone_number\": \"+1234567890\",\n  \"password\": \"SecurePassword123!\",\n  \"role_name\": \"superadmin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/register",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"register"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "POST Log In",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    if (jsonData.data && jsonData.data.token) {",
+											"        pm.environment.set('superadmin_token', jsonData.data.token);",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVVNSLWI4ZTlmMGMwLTMyODktNDRjMy1iNTBjLTUwNDY2YjE0NzJiZCIsImVtYWlsIjoiYWRtaW5AdnRzLmNvbSIsInJvbGVfaWQiOjEsInJvbGVfbmFtZSI6InN1cGVyYWRtaW4iLCJpYXQiOjE3NjE4MDA4NTR9.gvuEr1hZfPXrhCixWG34EgWXImvAiHLCZiVi51ooris",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"{{superadmin_email}}\",\n  \"password\": \"{{superadmin_password}}\",\n  \"role_id\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Authentication endpoints for Super Admin"
+				},
+				{
+					"name": "PROFILE - C",
+					"item": [
+						{
+							"name": "GET Profile",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/auth/profile",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"profile"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Update Profile",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated Admin Name\",\n  \"phone_number\": \"+1987654321\",\n  \"sos_contact\": \"+1111111111\",\n  \"profile_image\": \"https://example.com/image.jpg\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/profile",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"profile"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "POST Change Password",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"oldPassword\": \"{{superadmin_password}}\",\n  \"newPassword\": \"NewSecurePassword123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/change-password",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"change-password"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Authentication endpoints for Super Admin"
+				},
+				{
+					"name": "MANAGE OPERATORS - C",
+					"item": [
+						{
+							"name": "POST Create Operator",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVVNSLWI4ZTlmMGMwLTMyODktNDRjMy1iNTBjLTUwNDY2YjE0NzJiZCIsImVtYWlsIjoiYWRtaW5AdnRzLmNvbSIsInJvbGVfaWQiOjEsInJvbGVfbmFtZSI6InN1cGVyYWRtaW4iLCJpYXQiOjE3NjE4MDA4NTR9.gvuEr1hZfPXrhCixWG34EgWXImvAiHLCZiVi51ooris",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Anish Kumar A\",\n  \"email\": \"anishkumarak8686@gmail.com\",\n  \"phone_number\": \"+918870208686\",\n  \"company_name\": \"ABC Transport Ltd\",\n  \"registration_number\": \"REG-2024-001\",\n  \"address\": \"123 Business Street\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"postal_code\": \"10001\",\n  \"country\": \"USA\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/operators/create",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"operators",
+										"create"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch All Operators",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/operators/list",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"operators",
+										"list"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch Operator By ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/operators/{{operator_id}}/view",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"operators",
+										"{{operator_id}}",
+										"view"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Update Operator",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated Operator Name\",\n  \"company_name\": \"ABC Transport Updated\",\n  \"city\": \"Los Angeles\",\n  \"phone_number\": \"+9876543210\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/operators/{{operator_id}}/update",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"operators",
+										"{{operator_id}}",
+										"update"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Toggle Operator Status",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/operators/{{operator_id}}/deactivate",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"operators",
+										"{{operator_id}}",
+										"deactivate"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Operator management endpoints"
+				},
+				{
+					"name": "MANAGE USERS",
+					"item": [
+						{
+							"name": "POST Create User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Jane Smith\",\n  \"email\": \"jane@example.com\",\n  \"phone_number\": \"+1234567891\",\n  \"role_id\": 2,\n  \"operator_id\": \"{{operator_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/users/create",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"users",
+										"create"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch All Users",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/users/list?role_id=2&status=true",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"users",
+										"list"
+									],
+									"query": [
+										{
+											"key": "role_id",
+											"value": "2"
+										},
+										{
+											"key": "status",
+											"value": "true"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch User By ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/users/{{user_id}}/view",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"users",
+										"{{user_id}}",
+										"view"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Update User",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Updated User Name\",\n  \"email\": \"updated@example.com\",\n  \"reset_password\": true\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/users/{{user_id}}/update",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"users",
+										"{{user_id}}",
+										"update"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Toggle User Status",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/users/{{user_id}}/deactivate",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"users",
+										"{{user_id}}",
+										"deactivate"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "User management endpoints"
+				},
+				{
+					"name": "MANAGE DEVICES - C",
+					"item": [
+						{
+							"name": "POST Create Device",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"device_id\": \"DEV-001\",\n  \"imei\": \"123456789012345\",\n  \"device_type\": \"gps_tracker\",\n  \"sim_number\": \"9876543210\",\n  \"firmware_version\": \"2.1.0\"\n//   \"assigned_operator_id\": \"{{operator_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/devices/create",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"devices",
+										"create"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch All Devices",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/devices/list",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"devices",
+										"list"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch Device By ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/devices/{{device_id}}/view",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"devices",
+										"{{device_id}}",
+										"view"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Update Device",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"firmware_version\": \"2.2.0\",\n  \"sim_number\": \"1234567890\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/devices/{{device_id}}/update",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"devices",
+										"{{device_id}}",
+										"update"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Toggle Device Status",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/devices/{{device_id}}/deactivate",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"devices",
+										"{{device_id}}",
+										"deactivate"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Device management endpoints"
+				},
+				{
+					"name": "MANAGE ASSGIN DEVICES TO OPERATORS - C",
+					"item": [
+						{
+							"name": "POST Assign Device to Operator",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"operator_id\": \"{{operator_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/devices/assign",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"devices",
+										"assign"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "POST Bulk Assign Devices",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"assignments\": [\n    {\n      \"device_id\": \"DEV-001\",\n      \"operator_id\": \"OP-001\"\n    },\n    {\n      \"device_id\": \"DEV-002\",\n      \"operator_id\": \"OP-002\"\n    }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/devices/bulk-assign",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"devices",
+										"bulk-assign"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Device management endpoints"
+				},
+				{
+					"name": "MANAGE ROLES - C",
+					"item": [
+						{
+							"name": "POST Create Role",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"role_name\": \"Manager\",\n  \"description\": \"Fleet Manager role for operators\",\n  \"permissions\": [\"read:vehicles\", \"write:vehicles\", \"read:drivers\", \"write:drivers\"]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/roles/create",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"roles",
+										"create"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch All Roles",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/roles/list",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"roles",
+										"list"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch Role By ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/roles/{{role_id}}/view",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"roles",
+										"{{role_id}}",
+										"view"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Update Role",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"description\": \"Updated Fleet Manager role\",\n  \"permissions\": [\"read:vehicles\", \"write:vehicles\", \"read:drivers\", \"write:drivers\", \"read:analytics\"]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/superadmin/roles/{{role_id}}/update",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"roles",
+										"{{role_id}}",
+										"update"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Role management endpoints"
+				},
+				{
+					"name": "ANALYTICS & DASHBOARD",
+					"item": [
+						{
+							"name": "GET Dashboard Analytics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/analytics/dashboard",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"analytics",
+										"dashboard"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Live Tracking Data",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/tracking/live-data?limit=50&vehicleId={{vehicle_id}}&deviceId={{device_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"tracking",
+										"live-data"
+									],
+									"query": [
+										{
+											"key": "limit",
+											"value": "50"
+										},
+										{
+											"key": "vehicleId",
+											"value": "{{vehicle_id}}"
+										},
+										{
+											"key": "deviceId",
+											"value": "{{device_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET System Stats",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{superadmin_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/superadmin/stats/system",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"superadmin",
+										"stats",
+										"system"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Dashboard and analytics endpoints"
+				}
+			],
+			"description": "Super Admin endpoints for system-wide management"
+		},
+		{
+			"name": "OPERATOR",
+			"item": [
+				{
+					"name": "AUTH - C",
+					"item": [
+						{
+							"name": "POST Log In",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    if (jsonData.data && jsonData.data.token) {",
+											"        pm.environment.set('operator_token', jsonData.data.token);",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"{{operator_email}}\",\n  \"password\": \"{{operator_password}}\",\n  \"role_id\": 2\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Profile",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/operator/profile",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"profile"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Authentication endpoints for Operator"
+				},
+				{
+					"name": "MANAGE DRIVERS",
+					"item": [
+						{
+							"name": "POST Create Driver",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Nagashree\",\n  \"email\": \"nagashreenaik@outdidtech.com\",\n  \"phone_number\": \"+8073207029\",\n  \"license_number\": \"DL123456\",\n  \"license_expiry\": \"2025-12-31\",\n  \"assigned_vehicle_id\": \"{{vehicle_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/operator/drivers/create",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"drivers",
+										"create"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch All Drivers",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/operator/drivers/list",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"drivers",
+										"list"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch Driver By ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/operator/drivers/{{driver_id}}/view",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"drivers",
+										"{{driver_id}}",
+										"view"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Driver management for operators"
+				},
+				{
+					"name": "MANAGE VEHICLES",
+					"item": [
+						{
+							"name": "POST Create Vehicle",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"vehicle_number\": \"ABC-1234\",\n  \"vehicle_type\": \"minibus\",\n  \"model\": \"Toyota Coaster\",\n  \"color\": \"White\",\n  \"capacity\": 25,\n  \"registration_date\": \"2023-01-15\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/operator/vehicles/create",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"vehicles",
+										"create"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch All Vehicles",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/operator/vehicles/list",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"vehicles",
+										"list"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch Vehicle By ID",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/operator/vehicles/{{vehicle_id}}/view",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"vehicles",
+										"{{vehicle_id}}",
+										"view"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Vehicle management for operators"
+				},
+				{
+					"name": "MANAGE DEVICES",
+					"item": [
+						{
+							"name": "POST Create Device",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"device_id\": \"DEV-OP-001\",\n  \"imei\": \"987654321098765\",\n  \"device_type\": \"gps_tracker\",\n  \"sim_number\": \"8765432109\",\n  \"firmware_version\": \"1.5.0\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/operator/devices/create",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"devices",
+										"create"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Fetch All Devices",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/operator/devices/list",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"devices",
+										"list"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Device management for operators"
+				},
+				{
+					"name": "ANALYTICS",
+					"item": [
+						{
+							"name": "GET Dashboard Analytics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/operator/analytics/dashboard",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"analytics",
+										"dashboard"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Live Tracking",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{operator_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/operator/tracking/live-data?limit=50",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"operator",
+										"tracking",
+										"live-data"
+									],
+									"query": [
+										{
+											"key": "limit",
+											"value": "50"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Analytics for operator"
+				}
+			],
+			"description": "Operator endpoints for fleet management"
+		},
+		{
+			"name": "DRIVER",
+			"item": [
+				{
+					"name": "AUTH",
+					"item": [
+						{
+							"name": "POST Log In",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    if (jsonData.data && jsonData.data.token) {",
+											"        pm.environment.set('driver_token', jsonData.data.token);",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"{{driver_email}}\",\n  \"password\": \"{{driver_password}}\",\n  \"role_id\": 3\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Profile",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/driver/profile",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"profile"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Authentication endpoints for Driver"
+				},
+				{
+					"name": "TRIPS",
+					"item": [
+						{
+							"name": "POST Start Trip",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"route_name\": \"Route A - Downtown\",\n  \"start_location\": {\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060\n  }\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/driver/trips/start",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"trips",
+										"start"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Active Trip",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/driver/trips/active",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"trips",
+										"active"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT End Trip",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"end_location\": {\n    \"latitude\": 40.7500,\n    \"longitude\": -73.9900\n  },\n  \"distance_traveled\": 15.5\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/driver/trips/{{trip_id}}/end",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"trips",
+										"{{trip_id}}",
+										"end"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Trip History",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/driver/trips",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"trips"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Trip Details",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/driver/trips/{{trip_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"trips",
+										"{{trip_id}}"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Trip management endpoints"
+				},
+				{
+					"name": "SPEED MONITORING",
+					"item": [
+						{
+							"name": "POST Record Speed",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"trip_id\": \"{{trip_id}}\",\n  \"speed\": 65,\n  \"location\": {\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060\n  }\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/driver/speed/record",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"speed",
+										"record"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "POST Report Speed Violation",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"trip_id\": \"{{trip_id}}\",\n  \"speed\": 95,\n  \"speed_limit\": 60\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/driver/speed-violation",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"speed-violation"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Speed and safety monitoring"
+				},
+				{
+					"name": "EMERGENCY",
+					"item": [
+						{
+							"name": "POST Report SOS",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{driver_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"trip_id\": \"{{trip_id}}\",\n  \"location\": {\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060\n  },\n  \"reason\": \"Vehicle breakdown\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/driver/sos",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"driver",
+										"sos"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "SOS and emergency endpoints"
+				}
+			],
+			"description": "Driver endpoints for trip and tracking management"
+		},
+		{
+			"name": "GARDIEN",
+			"item": [
+				{
+					"name": "AUTH",
+					"item": [
+						{
+							"name": "POST Log In",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    if (jsonData.data && jsonData.data.token) {",
+											"        pm.environment.set('guardian_token', jsonData.data.token);",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"{{guardian_email}}\",\n  \"password\": \"{{guardian_password}}\",\n  \"role_id\": 4\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Profile",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/profile",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"profile"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Authentication endpoints for Guardian"
+				},
+				{
+					"name": "LIVE TRACKING",
+					"item": [
+						{
+							"name": "GET Current Trip",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/current-trip?childId={{child_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"current-trip"
+									],
+									"query": [
+										{
+											"key": "childId",
+											"value": "{{child_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Track Child",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/track-child",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"track-child"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Passenger Status",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/passenger-status?tripId={{trip_id}}&childId={{child_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"passenger-status"
+									],
+									"query": [
+										{
+											"key": "tripId",
+											"value": "{{trip_id}}"
+										},
+										{
+											"key": "childId",
+											"value": "{{child_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Next Stop",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/next-stop?tripId={{trip_id}}&childId={{child_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"next-stop"
+									],
+									"query": [
+										{
+											"key": "tripId",
+											"value": "{{trip_id}}"
+										},
+										{
+											"key": "childId",
+											"value": "{{child_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Real-time child tracking"
+				},
+				{
+					"name": "CONFIRMATIONS",
+					"item": [
+						{
+							"name": "POST Confirm Pickup",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"tripId\": \"{{trip_id}}\",\n  \"childId\": \"{{child_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/parent/confirm-pickup",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"confirm-pickup"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "POST Confirm Dropoff",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"tripId\": \"{{trip_id}}\",\n  \"childId\": \"{{child_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/parent/confirm-dropoff",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"confirm-dropoff"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Pickup and dropoff confirmations"
+				},
+				{
+					"name": "COMMUNICATION",
+					"item": [
+						{
+							"name": "GET Driver Contact",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/driver-contact",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"driver-contact"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "POST Call Driver",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"trip_id\": \"{{trip_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/parent/call-driver",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"call-driver"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "POST Report SOS Alert",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"trip_id\": \"{{trip_id}}\",\n  \"reason\": \"Child urgent assistance needed\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/parent/sos-alert",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"sos-alert"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Contact and emergency communication"
+				},
+				{
+					"name": "NOTIFICATIONS",
+					"item": [
+						{
+							"name": "GET Notifications",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/notifications",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"notifications"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET Unread Count",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/notifications/unread-count",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"notifications",
+										"unread-count"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "PUT Mark Notification as Read",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{guardian_token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/parent/notifications/{{notification_id}}/read",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"parent",
+										"notifications",
+										"{{notification_id}}",
+										"read"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Push notifications management"
+				}
+			],
+			"description": "Guardian (Parent) endpoints for child tracking"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8787/api/v1"
+		},
+		{
+			"key": "superadmin_email",
+			"value": "admin@vts.com"
+		},
+		{
+			"key": "superadmin_password",
+			"value": "AdminPass123!"
+		},
+		{
+			"key": "operator_email",
+			"value": "operator@vts.com"
+		},
+		{
+			"key": "operator_password",
+			"value": "OperatorPass123!"
+		},
+		{
+			"key": "driver_email",
+			"value": "driver@vts.com"
+		},
+		{
+			"key": "driver_password",
+			"value": "DriverPass123!"
+		},
+		{
+			"key": "guardian_email",
+			"value": "guardian@vts.com"
+		},
+		{
+			"key": "guardian_password",
+			"value": "GuardianPass123!"
+		},
+		{
+			"key": "superadmin_token",
+			"value": ""
+		},
+		{
+			"key": "operator_token",
+			"value": ""
+		},
+		{
+			"key": "driver_token",
+			"value": ""
+		},
+		{
+			"key": "guardian_token",
+			"value": ""
+		},
+		{
+			"key": "operator_id",
+			"value": "OP-001"
+		},
+		{
+			"key": "user_id",
+			"value": "USR-001"
+		},
+		{
+			"key": "device_id",
+			"value": "DEV-001"
+		},
+		{
+			"key": "vehicle_id",
+			"value": "VEH-001"
+		},
+		{
+			"key": "trip_id",
+			"value": "TRIP-001"
+		},
+		{
+			"key": "child_id",
+			"value": "CHD-001"
+		},
+		{
+			"key": "driver_id",
+			"value": "DRV-001"
+		},
+		{
+			"key": "role_id",
+			"value": "5"
+		},
+		{
+			"key": "notification_id",
+			"value": "NOTIF-001"
+		}
+	]
+}

@@ -6,6 +6,7 @@ const ENTITY_PREFIXES = {
   DEVICE: 'DEV',
   VEHICLE: 'VEH',
   OPERATOR: 'OPR',
+  DRIVER: 'DRV',
   TRIP: 'TRP',
   TRACKING_DATA: 'TRK',
   NOTIFICATION: 'NOT'
@@ -23,6 +24,7 @@ const generateRoleId = () => generateEntityId(ENTITY_PREFIXES.ROLE);
 const generateDeviceId = () => generateEntityId(ENTITY_PREFIXES.DEVICE);
 const generateVehicleId = () => generateEntityId(ENTITY_PREFIXES.VEHICLE);
 const generateOperatorId = () => generateEntityId(ENTITY_PREFIXES.OPERATOR);
+const generateDriverId = () => generateEntityId(ENTITY_PREFIXES.DRIVER);
 const generateTripId = () => generateEntityId(ENTITY_PREFIXES.TRIP);
 const generateTrackingDataId = () => generateEntityId(ENTITY_PREFIXES.TRACKING_DATA);
 const generateNotificationId = () => generateEntityId(ENTITY_PREFIXES.NOTIFICATION);
@@ -34,6 +36,7 @@ module.exports = {
   generateDeviceId,
   generateVehicleId,
   generateOperatorId,
+  generateDriverId,
   generateTripId,
   generateTrackingDataId,
   generateNotificationId,

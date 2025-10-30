@@ -81,7 +81,7 @@ class TransactionService {
         model: User,
         method: 'findByIdAndUpdate',
         filter: { _id: driverId },
-        data: { vehicle_id: vehicleId }
+        data: { assigned_vehicle_id: vehicleId }
       },
       {
         type: 'assign_vehicle',
@@ -112,12 +112,12 @@ class TransactionService {
       data: userData
     });
 
-    if (assignments.vehicle_id) {
+    if (assignments.assigned_vehicle_id) {
       operations.push({
         type: 'assign_vehicle',
         model: Vehicle,
         method: 'findByIdAndUpdate',
-        filter: { _id: assignments.vehicle_id },
+        filter: { _id: assignments.assigned_vehicle_id },
         data: { $addToSet: { assigned_drivers: userData._id } }
       });
     }
@@ -227,7 +227,7 @@ class TransactionService {
         model: User,
         method: 'findByIdAndUpdate',
         filter: { _id: assignment.driverId },
-        data: { vehicle_id: assignment.vehicleId }
+        data: { assigned_vehicle_id: assignment.vehicleId }
       });
 
       operations.push({
@@ -319,12 +319,12 @@ class TransactionService {
       }
     ];
 
-    if (user.vehicle_id) {
+    if (user.assigned_vehicle_id) {
       operations.push({
         type: 'remove_driver_from_vehicle',
         model: Vehicle,
         method: 'findByIdAndUpdate',
-        filter: { _id: user.vehicle_id },
+        filter: { _id: user.assigned_vehicle_id },
         data: { $pull: { assigned_drivers: userId } }
       });
     }

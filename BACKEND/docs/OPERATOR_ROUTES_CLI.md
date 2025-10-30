@@ -52,7 +52,7 @@ curl -X POST http://localhost:8787/operator/drivers/create \
     "phone_number": 9876543210,
     "license_number": "DL-123456",
     "license_expiry": "2027-12-31",
-    "vehicle_id": "VEH-xxx"
+    "assigned_vehicle_id": "VEH-xxx"
   }'
 ```
 
@@ -81,7 +81,7 @@ curl -X PUT http://localhost:8787/operator/drivers/USR-xxx/update \
     "name": "John Smith Updated",
     "phone_number": 9876543211,
     "license_number": "DL-123457",
-    "vehicle_id": "VEH-yyy"
+    "assigned_vehicle_id": "VEH-yyy"
   }'
 ```
 
@@ -107,7 +107,7 @@ curl -X POST http://localhost:8787/operator/drivers/bulk-create \
         "phone_number": 9876543210,
         "license_number": "DL-001",
         "license_expiry": "2027-12-31",
-        "vehicle_id": "VEH-xxx"
+        "assigned_vehicle_id": "VEH-xxx"
       },
       {
         "name": "Driver 2",
@@ -115,7 +115,7 @@ curl -X POST http://localhost:8787/operator/drivers/bulk-create \
         "phone_number": 9876543211,
         "license_number": "DL-002",
         "license_expiry": "2027-12-31",
-        "vehicle_id": "VEH-yyy"
+        "assigned_vehicle_id": "VEH-yyy"
       }
     ]
   }'

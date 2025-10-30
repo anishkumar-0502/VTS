@@ -10,6 +10,7 @@ const Role = require('../models/Role');
 const Operator = require('../models/Operator');
 const Device = require('../models/Device');
 const Vehicle = require('../models/Vehicle');
+const Driver = require('../models/Driver');
 const User = require('../models/User');
 const TrackingData = require('../models/TrackingData');
 const logger = require('../utils/logger');
@@ -80,7 +81,7 @@ class OperatorController {
   // ========== MANAGE DRIVERS ==========
   static async createDriver(req, res, next) {
     try {
-      const { name, email, phone_number, license_number, license_expiry, vehicle_id } = req.body;
+      const { name, email, phone_number, license_number, license_expiry, assigned_vehicle_id } = req.body;
       const operator_id = req.user.operator_id || req.user.user_id;
 
       if (!name || !email || !phone_number || !license_number) {
@@ -88,26 +89,47 @@ class OperatorController {
       }
 
       const driverRole = await Role.findOne({ role_id: 3 });
+      if (!driverRole) {
+        throw new CustomError('Driver role not found', 404);
+      }
       const password = generateEmailBasedPassword(email);
 
-      const driver = await UserService.createUser({
+      const driverUser = await UserService.createUser({
         name,
         email,
         phone_number,
         password,
         role_id: 3,
         operator_id,
-        vehicle_id: vehicle_id || null,
+        assigned_vehicle_id: assigned_vehicle_id || null,
         license_number,
         license_expiry
       });
+
+      let driverProfile;
+      try {
+        driverProfile = await Driver.create({
+          user_id: driverUser.user_id,
+          operator_id,
+          assigned_vehicle_id: assigned_vehicle_id || null,
+          license_number,
+          license_expiry
+        });
+      } catch (creationError) {
+        await User.deleteOne({ user_id: driverUser.user_id });
+        throw creationError;
+      }
 
       await sendCredentialsEmail(email, name, password, 3);
 
       res.status(201).json({
         error: false,
         message: 'Driver created successfully',
-        data: { ...driver.toObject(), password }
+        data: {
+          user: driverUser.toObject(),
+          driver: driverProfile.toObject(),
+          password
+        }
       });
     } catch (error) {
       next(error);
@@ -151,17 +173,28 @@ class OperatorController {
   static async updateDriver(req, res, next) {
     try {
       const operator_id = req.user.operator_id || req.user.user_id;
-      const { name, phone_number, license_number, license_expiry, vehicle_id } = req.body;
+      const { name, phone_number, license_number, license_expiry, assigned_vehicle_id } = req.body;
 
       const driver = await User.findOneAndUpdate(
         { user_id: req.params.driverId, operator_id, role_id: 3 },
-        { name, phone_number, license_number, license_expiry, vehicle_id },
+        { name, phone_number, license_number, license_expiry, assigned_vehicle_id },
         { new: true }
       );
 
       if (!driver) {
         throw new CustomError('Driver not found', 404);
       }
+
+      await Driver.findOneAndUpdate(
+        { user_id: driver.user_id, operator_id },
+        {
+          assigned_vehicle_id,
+          license_number,
+          license_expiry,
+          status: driver.status
+        },
+        { upsert: true }
+      );
 
       res.status(200).json({
         error: false,
@@ -186,6 +219,12 @@ class OperatorController {
         throw new CustomError('Driver not found', 404);
       }
 
+      await Driver.findOneAndUpdate(
+        { user_id: driver.user_id, operator_id },
+        { status: false },
+        { new: true }
+      );
+
       res.status(200).json({
         error: false,
         message: 'Driver deactivated successfully',
@@ -206,10 +245,11 @@ class OperatorController {
       }
 
       const createdDrivers = [];
+      const createdDriverProfiles = [];
       const credentials = [];
 
       for (const driverData of drivers) {
-        const { name, email, phone_number, license_number, license_expiry, vehicle_id } = driverData;
+        const { name, email, phone_number, license_number, license_expiry, assigned_vehicle_id } = driverData;
 
         if (!name || !email || !phone_number || !license_number) {
           logger.loggerWarn(`Skipping driver with incomplete data: ${JSON.stringify(driverData)}`);
@@ -219,21 +259,30 @@ class OperatorController {
         const password = generateEmailBasedPassword(email);
 
         try {
-          const driver = await UserService.createUser({
+          const driverUser = await UserService.createUser({
             name,
             email,
             phone_number,
             password,
             role_id: 3,
             operator_id,
-            vehicle_id: vehicle_id || null,
+            assigned_vehicle_id: assigned_vehicle_id || null,
+            license_number,
+            license_expiry
+          });
+
+          const driverProfile = await Driver.create({
+            user_id: driverUser.user_id,
+            operator_id,
+            assigned_vehicle_id: assigned_vehicle_id || null,
             license_number,
             license_expiry
           });
 
           await sendCredentialsEmail(email, name, password, 3);
 
-          createdDrivers.push(driver);
+          createdDrivers.push(driverUser);
+          createdDriverProfiles.push(driverProfile);
           credentials.push({
             email,
             password,
@@ -250,6 +299,7 @@ class OperatorController {
         data: {
           created: createdDrivers.length,
           drivers: createdDrivers,
+          driverProfiles: createdDriverProfiles,
           credentials
         }
       });
@@ -739,12 +789,12 @@ class OperatorController {
         throw new CustomError('Vehicle not found', 404);
       }
 
-      const transaction = await TransactionService.assignDriverToVehicle(
+      await TransactionService.assignDriverToVehicle(
         driver_id,
         vehicle_id
       );
 
-      const updatedVehicle = await Vehicle.findOne({ vehicle_id });
+      const updatedDriver = await User.findOne({ user_id: driver_id });
 
       res.status(200).json({
         error: false,
@@ -752,7 +802,8 @@ class OperatorController {
         data: {
           driver: { user_id: driver_id, name: driver.name },
           vehicle: { vehicle_id: vehicle_id, vehicle_number: vehicle.vehicle_number },
-          assignedAt: new Date()
+          assignedAt: new Date(),
+          assigned_vehicle_id: updatedDriver.assigned_vehicle_id
         }
       });
     } catch (error) {
@@ -774,14 +825,14 @@ class OperatorController {
         vehicleId: a.vehicle_id
       }));
 
-      const transaction = await TransactionService.bulkAssignDriversToVehicles(
+      await TransactionService.bulkAssignDriversToVehicles(
         formattedAssignments
       );
 
       const assignedVehicles = await Vehicle.find({
         _id: { $in: formattedAssignments.map(a => a.vehicleId) },
         operator_id
-      }).select('vehicle_id vehicle_number driver_id');
+      }).select('vehicle_id vehicle_number driver_id assigned_drivers');
 
       res.status(200).json({
         error: false,

@@ -319,13 +319,13 @@ class DriverController {
 
   static async getAvailableTrips(req, res, next) {
     try {
-      const driver = await User.findOne({ user_id: req.user.id }).populate('vehicle_id');
+      const driver = await User.findOne({ user_id: req.user.id }).populate('assigned_vehicle_id');
 
-      if (!driver || !driver.vehicle_id) {
+      if (!driver || !driver.assigned_vehicle_id) {
         throw new CustomError('No vehicle assigned to driver', 404);
       }
 
-      const vehicle = await Vehicle.findById(driver.vehicle_id);
+      const vehicle = await Vehicle.findById(driver.assigned_vehicle_id);
 
       if (!vehicle) {
         throw new CustomError('Vehicle not found', 404);
@@ -338,7 +338,7 @@ class DriverController {
 
       const trips = await Trip.find({
         driver_id: req.user.id,
-        vehicle_id: driver.vehicle_id,
+        vehicle_id: driver.assigned_vehicle_id,
         start_time: { $gte: today, $lt: tomorrow },
         status: 'active'
       }).select('_id route_name passengers route_points');

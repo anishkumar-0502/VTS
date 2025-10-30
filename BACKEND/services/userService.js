@@ -33,7 +33,7 @@ class UserService {
 
   static async getUserById(userId) {
     try {
-      const user = await User.findOne({ user_id: userId }).populate('operator_id').populate('vehicle_id');
+      const user = await User.findOne({ user_id: userId }).populate('operator_id').populate('assigned_vehicle_id');
       if (!user) {
         throw new CustomError('User not found', 404);
       }

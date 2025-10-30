@@ -58,10 +58,10 @@ const driverCreationRules = () => {
       .optional()
       .isISO8601()
       .withMessage('License expiry must be a valid date'),
-    body('vehicle_id')
+    body('assigned_vehicle_id')
       .optional()
       .isMongoId()
-      .withMessage('Invalid vehicle ID')
+      .withMessage('Invalid assigned vehicle ID')
   ];
 };
 

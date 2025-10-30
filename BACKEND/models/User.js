@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema(
       ref: 'Operator',
       default: null
     },
-    vehicle_id: {
+    assigned_vehicle_id: {
       type: String,
       ref: 'Vehicle',
       default: null

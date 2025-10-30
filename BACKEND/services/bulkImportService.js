@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const PhoneFormatter = require('../utils/phoneFormatter');
 const User = require('../models/User');
 const { generateEmailBasedPassword } = require('../utils/passwordGenerator');
+const Driver = require('../models/Driver');
 
 class BulkImportService {
   static async parseExcelFile(filePath) {
@@ -97,6 +98,12 @@ class BulkImportService {
         let pickupLocation = null;
         let dropoffLocation = null;
 
+        if (roleId === 3) {
+          if (!user.license_number || !user.license_number.trim()) {
+            errors.push('License number is required for drivers');
+          }
+        }
+
         if (roleId === 4) {
           if (user.pickup_latitude || user.pickup_longitude) {
             if (!user.pickup_latitude || !user.pickup_longitude) {
@@ -155,6 +162,12 @@ class BulkImportService {
           if (roleId === 4) {
             if (pickupLocation) validUser.pickup_location = pickupLocation;
             if (dropoffLocation) validUser.dropoff_location = dropoffLocation;
+          }
+
+          if (roleId === 3) {
+            validUser.assigned_vehicle_id = user.assigned_vehicle_id?.trim() || null;
+            validUser.license_number = user.license_number?.trim() || null;
+            validUser.license_expiry = user.license_expiry ? new Date(user.license_expiry) : null;
           }
 
           results.valid.push(validUser);
@@ -219,6 +232,17 @@ class BulkImportService {
 
           const newUser = new User(userObj);
           await newUser.save();
+
+          if (roleId === 3) {
+            await Driver.create({
+              user_id: newUser.user_id,
+              operator_id: operatorId,
+              assigned_vehicle_id: userData.assigned_vehicle_id || null,
+              license_number: userData.license_number || null,
+              license_expiry: userData.license_expiry || null,
+              status: true
+            });
+          }
 
           createdUsers.push({
             email: userData.email,
