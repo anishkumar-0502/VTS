@@ -3,9 +3,12 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/Network/Internet_connectivity.dart';
+import 'Sessionhandler/session_controller.dart';
 import 'features/splashscreen/presentation/pages/splash_screen_page.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  Get.put(SessionController(), permanent: true);
   GoogleFonts.config.allowRuntimeFetching = false;
   runApp(const DriverApp());
 }

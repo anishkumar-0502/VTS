@@ -37,6 +37,8 @@ dependencies:
   get: ^4.7.2
   connectivity_plus: ^6.0.3
   google_fonts: ^6.2.1
+  shared_preferences: ^2.3.2
+  panara_dialogs: ^0.1.5
 
 dev_dependencies:
   flutter_test:

@@ -89,24 +89,36 @@ class DriverLoginPage extends StatelessWidget {
                           SizedBox(height: size.height * 0.05),
                           SizedBox(
                             width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: controller.submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(vertical: size.height * 0.02),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(size.width * 0.04),
+                            child: Obx(() {
+                              final loading = controller.isLoading.value;
+                              return ElevatedButton(
+                                onPressed: loading ? null : () => controller.submit(),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryColor,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(vertical: size.height * 0.02),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(size.width * 0.04),
+                                  ),
                                 ),
-                              ),
-                              child: Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: size.width * 0.045,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+                                child: loading
+                                    ? SizedBox(
+                                        height: size.height * 0.028,
+                                        width: size.height * 0.028,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.6,
+                                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : Text(
+                                        'Login',
+                                        style: TextStyle(
+                                          fontSize: size.width * 0.045,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              );
+                            }),
                           ),
                         ],
                       ),
