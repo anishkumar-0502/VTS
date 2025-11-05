@@ -8,8 +8,8 @@ class QueryOptimizer {
       full: '-password -fcm_tokens'
     },
     driver: {
-      minimal: 'user_id name email phone_number vehicle_id',
-      summary: 'user_id name email phone_number vehicle_id license_number current_trip_id status',
+      minimal: 'user_id name email phone_number assigned_vehicle_id',
+      summary: 'user_id name email phone_number assigned_vehicle_id license_number current_trip_id status',
       full: '-password'
     },
     parent: {
@@ -205,8 +205,7 @@ class QueryOptimizer {
         { path: 'operator_id', select: '_id operator_name' }
       ],
       user: [
-        { path: 'vehicle_id', select: '_id vehicle_number' },
-        { path: 'role_id', select: '_id role_name' }
+        { path: 'assigned_vehicle_id', select: '_id vehicle_number' }
       ]
     };
 

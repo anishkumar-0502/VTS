@@ -1,11 +1,12 @@
 const TripService = require('../services/tripService');
 const cacheService = require('../services/cacheService');
-const QueryOptimizer = require('../utils/queryOptimizer');
+const UserService = require('../services/userService');
 const TrackingData = require('../models/TrackingData');
 const { CustomError } = require('../middlewares/errorHandler');
 const logger = require('../utils/logger');
 const Trip = require('../models/Trip');
 const User = require('../models/User');
+const Driver = require('../models/Driver');
 const Vehicle = require('../models/Vehicle');
 
 class DriverController {
@@ -19,7 +20,7 @@ class DriverController {
 
       const trip = await TripService.startTrip({
         vehicle_id,
-        driver_id: req.user.id,
+        driver_id: req.user.user_id,
         operator_id: req.user.operator_id,
         route_name,
         start_location
@@ -28,7 +29,7 @@ class DriverController {
       if (global.socketManager) {
         global.socketManager.emitToTrip(trip._id.toString(), 'trip_started', {
           tripId: trip._id,
-          driverId: req.user.id,
+          driverId: req.user.user_id,
           vehicleId: vehicle_id,
           routeName: route_name,
           startLocation: start_location,
@@ -36,7 +37,7 @@ class DriverController {
         });
         global.socketManager.emitToOperator(req.user.operator_id, 'trip_started', {
           tripId: trip._id,
-          driverId: req.user.id,
+          driverId: req.user.user_id,
           vehicleId: vehicle_id,
           routeName: route_name,
           timestamp: new Date()
@@ -70,14 +71,14 @@ class DriverController {
       if (global.socketManager) {
         global.socketManager.emitToTrip(tripId, 'trip_ended', {
           tripId,
-          driverId: req.user.id,
+          driverId: req.user.user_id,
           endLocation: end_location,
           distanceTraveled: distance_traveled,
           timestamp: new Date()
         });
         global.socketManager.emitToOperator(req.user.operator_id, 'trip_ended', {
           tripId,
-          driverId: req.user.id,
+          driverId: req.user.user_id,
           timestamp: new Date()
         });
       }
@@ -96,9 +97,12 @@ class DriverController {
     try {
       const Trip = require('../models/Trip');
       const trip = await Trip.findOne({
-        driver_id: req.user.id,
+        driver_id: req.user.user_id,
         status: 'active'
-      }).populate('vehicle_id');
+      }).populate({
+        path: 'vehicle_id',
+        select: 'vehicle_id vehicle_number capacity route_points'
+      });
 
       if (!trip) {
         throw new CustomError('No active trip found', 404);
@@ -119,11 +123,11 @@ class DriverController {
       const { skip, limit, page } = req.pagination;
 
       const total = await Trip.countDocuments({
-        driver_id: req.user.id
+        driver_id: req.user.user_id
       });
 
       const trips = await Trip.find({
-        driver_id: req.user.id
+        driver_id: req.user.user_id
       })
         .populate('vehicle_id')
         .skip(skip)
@@ -148,7 +152,7 @@ class DriverController {
       const { tripId } = req.params;
       const trip = await TripService.getTripById(tripId);
 
-      if (trip.driver_id.toString() !== req.user.id) {
+      if (trip.driver_id.toString() !== req.user.user_id) {
         throw new CustomError('Unauthorized', 403);
       }
 
@@ -180,7 +184,7 @@ class DriverController {
         message: `Driver ${req.user.name} reported SOS from vehicle`,
         vehicle_id,
         priority: 'critical',
-        data: { driver_id: req.user.id, location }
+        data: { driver_id: req.user.user_id, location }
       });
 
       if (global.socketManager) {
@@ -189,7 +193,7 @@ class DriverController {
           req.user.operator_id,
           location,
           'driver',
-          req.user.id
+          req.user.user_id
         );
       }
 
@@ -257,14 +261,14 @@ class DriverController {
 
   static async getDriverStats(req, res, next) {
     try {
-      const totalTrips = await Trip.countDocuments({ driver_id: req.user.id });
+      const totalTrips = await Trip.countDocuments({ driver_id: req.user.user_id });
       const completedTrips = await Trip.countDocuments({
-        driver_id: req.user.id,
+        driver_id: req.user.user_id,
         status: 'completed'
       });
 
       const activeTrips = await Trip.countDocuments({
-        driver_id: req.user.id,
+        driver_id: req.user.user_id,
         status: 'active'
       });
 
@@ -291,12 +295,12 @@ class DriverController {
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       const total = await Trip.countDocuments({
-        driver_id: req.user.id,
+        driver_id: req.user.user_id,
         start_time: { $gte: today, $lt: tomorrow }
       });
 
       const trips = await Trip.find({
-        driver_id: req.user.id,
+        driver_id: req.user.user_id,
         start_time: { $gte: today, $lt: tomorrow }
       })
         .populate('vehicle_id', 'vehicle_number route_points capacity')
@@ -319,7 +323,7 @@ class DriverController {
 
   static async getAvailableTrips(req, res, next) {
     try {
-      const driver = await User.findOne({ user_id: req.user.id }).populate('assigned_vehicle_id');
+      const driver = await User.findOne({ user_id: req.user.user_id }).populate('assigned_vehicle_id');
 
       if (!driver || !driver.assigned_vehicle_id) {
         throw new CustomError('No vehicle assigned to driver', 404);
@@ -337,7 +341,7 @@ class DriverController {
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       const trips = await Trip.find({
-        driver_id: req.user.id,
+        driver_id: req.user.user_id,
         vehicle_id: driver.assigned_vehicle_id,
         start_time: { $gte: today, $lt: tomorrow },
         status: 'active'
@@ -375,7 +379,7 @@ class DriverController {
         throw new CustomError('Trip not found', 404);
       }
 
-      if (trip.driver_id !== req.user.id) {
+      if (trip.driver_id !== req.user.user_id) {
         throw new CustomError('Unauthorized', 403);
       }
 
@@ -434,7 +438,7 @@ class DriverController {
         throw new CustomError('Trip not found', 404);
       }
 
-      if (trip.driver_id !== req.user.id) {
+      if (trip.driver_id !== req.user.user_id) {
         throw new CustomError('Unauthorized', 403);
       }
 
@@ -499,7 +503,7 @@ class DriverController {
 
   static async getProfile(req, res, next) {
     try {
-      const cacheKey = `driver_profile:${req.user.id}`;
+      const cacheKey = `driver_profile:${req.user.user_id}`;
 
       const cachedDriver = await cacheService.get(cacheKey);
       if (cachedDriver) {
@@ -511,26 +515,14 @@ class DriverController {
         });
       }
 
-      const populateStrategy = QueryOptimizer.getOptimalPopulateStrategy('user');
-      let mongooseQuery = User.findOne({ user_id: req.user.id })
-        .select(QueryOptimizer.getFieldSelection('driver', 'full'));
+      const profile = await UserService.getUserProfile(req.user.user_id);
 
-      for (const populate of populateStrategy) {
-        mongooseQuery = mongooseQuery.populate(populate);
-      }
-
-      const driver = await mongooseQuery.exec();
-
-      if (!driver) {
-        throw new CustomError('Driver not found', 404);
-      }
-
-      await cacheService.set(cacheKey, driver, 300);
+      await cacheService.set(cacheKey, profile, 300);
 
       res.status(200).json({
         error: false,
         message: 'Driver profile retrieved successfully',
-        data: driver
+        data: profile
       });
     } catch (error) {
       next(error);
@@ -541,20 +533,82 @@ class DriverController {
     try {
       const { name, phone_number, email } = req.body;
 
-      const driver = await User.findOneAndUpdate(
-        { user_id: req.user.id },
-        { name, phone_number, email },
-        { new: true }
-      ).populate('vehicle_id');
+      const driverUser = await User.findOne({ user_id: req.user.user_id, role_id: 3 });
 
-      if (!driver) {
+      if (!driverUser) {
         throw new CustomError('Driver not found', 404);
       }
+
+      const updatePayload = {};
+
+      if (typeof name !== 'undefined') {
+        updatePayload.name = name;
+      }
+
+      if (typeof email !== 'undefined') {
+        if (email !== driverUser.email) {
+          const emailExists = await User.findOne({ email, user_id: { $ne: driverUser.user_id } });
+          if (emailExists) {
+            throw new CustomError('Email already in use', 409);
+          }
+        }
+        updatePayload.email = email;
+      }
+
+      if (typeof phone_number !== 'undefined') {
+        const sanitizedPhone = typeof phone_number === 'string' ? phone_number.replace(/\D/g, '') : phone_number;
+
+        if (!sanitizedPhone || Number.isNaN(Number(sanitizedPhone))) {
+          throw new CustomError('Invalid phone number format', 400);
+        }
+
+        const numericPhone = Number(sanitizedPhone);
+
+        if (numericPhone !== driverUser.phone_number) {
+          const phoneExists = await User.findOne({ phone_number: numericPhone, user_id: { $ne: driverUser.user_id } });
+          if (phoneExists) {
+            throw new CustomError('Phone number already in use', 409);
+          }
+        }
+        updatePayload.phone_number = numericPhone;
+      }
+
+      const hasUpdates = Object.keys(updatePayload).length > 0;
+
+      const updatedDriverDocument = hasUpdates
+        ? await User.findOneAndUpdate(
+            { user_id: driverUser.user_id },
+            updatePayload,
+            { new: true, lean: true }
+          )
+        : await User.findOne({ user_id: driverUser.user_id }).lean();
+
+      if (!updatedDriverDocument) {
+        throw new CustomError('Driver not found', 404);
+      }
+
+      const assignedVehicle = updatedDriverDocument.assigned_vehicle_id
+        ? await Vehicle.findOne({ vehicle_id: updatedDriverDocument.assigned_vehicle_id }).lean()
+        : null;
+
+      await Driver.findOneAndUpdate(
+        { user_id: driverUser.user_id },
+        {
+          name: updatedDriverDocument.name,
+          email: updatedDriverDocument.email,
+          phone_number: updatedDriverDocument.phone_number
+        }
+      );
+
+      const responseData = {
+        ...updatedDriverDocument,
+        assigned_vehicle: assignedVehicle
+      };
 
       res.status(200).json({
         error: false,
         message: 'Driver profile updated successfully',
-        data: driver
+        data: responseData
       });
     } catch (error) {
       next(error);
@@ -575,7 +629,7 @@ class DriverController {
         throw new CustomError('Trip not found', 404);
       }
 
-      if (trip.driver_id !== req.user.id) {
+      if (trip.driver_id !== req.user.user_id) {
         throw new CustomError('Unauthorized', 403);
       }
 
@@ -616,7 +670,7 @@ class DriverController {
         throw new CustomError('Trip not found', 404);
       }
 
-      if (trip.driver_id !== req.user.id) {
+      if (trip.driver_id !== req.user.user_id) {
         throw new CustomError('Unauthorized', 403);
       }
 
@@ -628,7 +682,7 @@ class DriverController {
           req.user.operator_id,
           currentSpeed,
           trip.speed_limit,
-          req.user.id
+          req.user.user_id
         );
       }
 
@@ -656,7 +710,7 @@ class DriverController {
       }
 
       const driver = await User.findOneAndUpdate(
-        { user_id: req.user.id },
+        { user_id: req.user.user_id },
         { 
           fcm_token: fcmToken,
           $addToSet: { fcm_tokens: fcmToken }
@@ -687,7 +741,7 @@ class DriverController {
       }
 
       const driver = await User.findOneAndUpdate(
-        { user_id: req.user.id },
+        { user_id: req.user.user_id },
         { $pull: { fcm_tokens: fcmToken } },
         { new: true }
       );

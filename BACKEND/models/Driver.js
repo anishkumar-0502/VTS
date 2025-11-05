@@ -19,6 +19,19 @@ const driverSchema = new mongoose.Schema(
       ref: 'Operator',
       required: true
     },
+    name: {
+      type: String,
+      required: true
+    },
+    email: {
+      type: String,
+      required: true,
+      lowercase: true
+    },
+    phone_number: {
+      type: Number,
+      required: true
+    },
     assigned_vehicle_id: {
       type: String,
       ref: 'Vehicle',

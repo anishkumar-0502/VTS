@@ -1,5 +1,9 @@
 const User = require('../models/User');
 const Role = require('../models/Role');
+const Operator = require('../models/Operator');
+const Driver = require('../models/Driver');
+const EndUser = require('../models/EndUser');
+const Vehicle = require('../models/Vehicle');
 const logger = require('../utils/logger');
 const { generateToken } = require('../utils/jwtUtils');
 const { generateEmailBasedPassword } = require('../utils/passwordGenerator');
@@ -76,12 +80,166 @@ class UserService {
         role_name: role?.role_name || 'driver'
       });
 
+      let roleDetailsKey = null;
+      let roleDetailsData = null;
+
+      if (user.role_id === 1) {
+        roleDetailsKey = 'superadmin_details';
+        roleDetailsData = {
+          user_id: user.user_id,
+          name: user.name,
+          email: user.email
+        };
+      } else if (user.role_id === 2) {
+        roleDetailsKey = 'operator_details';
+        if (user.operator_id) {
+          roleDetailsData = await Operator.findOne({ operator_id: user.operator_id })
+            .select('-__v')
+            .lean();
+        }
+      } else if (user.role_id === 3) {
+        roleDetailsKey = 'driver_details';
+        roleDetailsData = await Driver.findOne({ user_id: user.user_id })
+          .select('-__v')
+          .lean();
+      } else {
+        roleDetailsKey = 'user_details';
+        roleDetailsData = {
+          user_id: user.user_id,
+          name: user.name,
+          email: user.email
+        };
+      }
+
+      const roleDetails = roleDetailsKey
+        ? { key: roleDetailsKey, data: roleDetailsData }
+        : null;
+
       logger.loggerInfo(`User logged in: ${user.email}`);
-      return { user, token };
+      return { user, token, roleDetails };
     } catch (error) {
       logger.loggerError(`Error logging in user: ${error.message}`);
       throw error;
     }
+  }
+
+  static async getUserProfile(userInput) {
+    try {
+      if (!userInput) {
+        throw new CustomError('User not found', 404);
+      }
+
+      let userRecord = null;
+
+      if (typeof userInput === 'string') {
+        userRecord = await User.findOne({ user_id: userInput }).lean();
+      } else if (typeof userInput === 'object' && typeof userInput.toObject === 'function') {
+        userRecord = userInput.toObject();
+      } else if (typeof userInput === 'object' && userInput.user_id) {
+        userRecord = { ...userInput };
+      }
+
+      if (!userRecord) {
+        throw new CustomError('User not found', 404);
+      }
+
+      delete userRecord.password;
+      delete userRecord.__v;
+
+      const role = await Role.findOne({ role_id: userRecord.role_id }).select('role_name role_id').lean();
+
+      const profile = {
+        ...userRecord,
+        role_name: role?.role_name || null
+      };
+
+      profile.operator_details = null;
+      profile.associated_operators = [];
+
+      if (userRecord.role_id === 2) {
+        const { primaryOperator, operators } = await this.buildOperatorAssociations(userRecord);
+        profile.operator_details = primaryOperator;
+        profile.associated_operators = operators;
+      } else if (userRecord.operator_id) {
+        const operatorDoc = await Operator.findOne({ operator_id: userRecord.operator_id }).select('-__v').lean();
+        if (operatorDoc) {
+          profile.operator_details = operatorDoc;
+          profile.associated_operators = [operatorDoc];
+        }
+      }
+
+      if (userRecord.role_id === 3) {
+        const driverProfile = await Driver.findOne({ user_id: userRecord.user_id }).select('-__v').lean();
+        const vehicleIdentifier = driverProfile?.assigned_vehicle_id || userRecord.assigned_vehicle_id;
+        let assignedVehicle = null;
+
+        if (vehicleIdentifier) {
+          assignedVehicle = await Vehicle.findOne({ vehicle_id: vehicleIdentifier }).select('-__v').lean();
+        }
+
+        profile.driver_profile = driverProfile;
+        profile.assigned_vehicle = assignedVehicle;
+      }
+
+      if (userRecord.role_id === 4) {
+        const endUserProfile = await EndUser.findOne({ user_id: userRecord.user_id }).lean();
+        profile.end_user_profile = endUserProfile || null;
+
+        const associatedProfiles = await User.find({ end_user_id: userRecord.end_user_id })
+          .select('user_id name email phone_number assigned_vehicle_id status')
+          .lean();
+
+        profile.associated_users = associatedProfiles;
+      }
+
+      return profile;
+    } catch (error) {
+      logger.loggerError(`Error building user profile: ${error.message}`);
+      throw error;
+    }
+  }
+
+  static async buildOperatorAssociations(userRecord) {
+    const conditions = [];
+
+    if (userRecord.operator_id) {
+      conditions.push({ operator_id: userRecord.operator_id });
+    }
+
+    if (userRecord.email) {
+      conditions.push({ email: userRecord.email });
+    }
+
+    conditions.push({ admin_user_id: userRecord.user_id });
+
+    const operators = conditions.length
+      ? await Operator.find({ $or: conditions }).select('-__v').lean()
+      : [];
+
+    const uniqueOperators = [];
+    const seen = new Set();
+
+    operators.forEach((operator) => {
+      if (operator?.operator_id && !seen.has(operator.operator_id)) {
+        seen.add(operator.operator_id);
+        uniqueOperators.push(operator);
+      }
+    });
+
+    let primaryOperator = null;
+
+    if (userRecord.operator_id && seen.has(userRecord.operator_id)) {
+      primaryOperator = uniqueOperators.find((operator) => operator.operator_id === userRecord.operator_id) || null;
+    }
+
+    if (!primaryOperator && uniqueOperators.length) {
+      primaryOperator = uniqueOperators[0];
+    }
+
+    return {
+      primaryOperator,
+      operators: uniqueOperators
+    };
   }
 
   static async updateUser(userId, updateData) {

@@ -28,9 +28,10 @@ const deviceSchema = new mongoose.Schema(
       ref: 'Operator',
       default: null
     },
-    vehicle_id: {
+    assigned_vehicle_id: {
       type: String,
-      ref: 'Vehicle'
+      ref: 'Vehicle',
+      default: null
     },
     assigned_date: {
       type: Date,
@@ -47,6 +48,11 @@ const deviceSchema = new mongoose.Schema(
       longitude: Number,
       timestamp: Date
     },
+    last_latitude: Number,
+    last_longitude: Number,
+    last_speed: Number,
+    last_course: Number,
+    module_model: String,
     firmware_version: String,
     hardware_version: String,
     sim_number: String,

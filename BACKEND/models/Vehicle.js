@@ -19,9 +19,11 @@ const vehicleSchema = new mongoose.Schema(
       ref: 'Operator',
       required: true
     },
-    device_id: {
+    assigned_device_id: {
       type: String,
-      ref: 'Device'
+      ref: 'Device',
+      default: null,
+      alias: 'device_id'
     },
     vehicle_type: {
       type: String,
@@ -29,9 +31,16 @@ const vehicleSchema = new mongoose.Schema(
       default: 'bus'
     },
     route_name: String,
-    driver_id: {
+    assigned_driver_id: {
       type: String,
-      ref: 'User'
+      ref: 'User',
+      default: null,
+      alias: 'driver_id'
+    },
+    end_user_ids: {
+      type: [String],
+      ref: 'EndUser',
+      default: []
     },
     capacity: {
       type: Number,

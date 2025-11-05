@@ -5,6 +5,9 @@ const PhoneFormatter = require('../utils/phoneFormatter');
 const User = require('../models/User');
 const { generateEmailBasedPassword } = require('../utils/passwordGenerator');
 const Driver = require('../models/Driver');
+const EndUser = require('../models/EndUser');
+const mongoose = require('mongoose');
+const bcryptjs = require('bcryptjs');
 
 class BulkImportService {
   static async parseExcelFile(filePath) {
@@ -194,71 +197,91 @@ class BulkImportService {
 
   static async importUsers(validUsers, roleId, operatorId) {
     try {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+
       const createdUsers = [];
       const errors = [];
 
-      for (const userData of validUsers) {
-        try {
-          const existingUser = await User.findOne({ email: userData.email });
-          if (existingUser) {
+      try {
+        for (const userData of validUsers) {
+          try {
+            const existingUser = await User.findOne({ email: userData.email }).session(session);
+            if (existingUser) {
+              errors.push({
+                email: userData.email,
+                error: 'User with this email already exists'
+              });
+              continue;
+            }
+
+            const password = generateEmailBasedPassword(userData.email);
+            const hashedPassword = bcryptjs.hashSync(password, 10);
+
+            const userObj = {
+              email: userData.email,
+              name: userData.name,
+              phone_number: userData.phone_number,
+              password: hashedPassword,
+              role_id: roleId,
+              operator_id: operatorId,
+              status: true
+            };
+
+            const newUser = await User.create([{ ...userObj }], { session });
+            const userRecord = newUser[0];
+
+            if (Number(roleId) === 3) {
+              await Driver.create([
+                {
+                  user_id: userRecord.user_id,
+                  operator_id: operatorId,
+                  assigned_vehicle_id: userData.assigned_vehicle_id || null,
+                  license_number: userData.license_number || null,
+                  license_expiry: userData.license_expiry || null,
+                  status: true
+                }
+              ], { session });
+            }
+
+            if (Number(roleId) === 4) {
+              const [endUserCreated] = await EndUser.create([
+                {
+                  user_id: userRecord.user_id,
+                  operator_id: operatorId,
+                  sos_contact: userData.sos_contact || {},
+                  pickup_location: userData.pickup_location || {},
+                  dropoff_location: userData.dropoff_location || {},
+                  status: true
+                }
+              ], { session });
+
+              await User.updateOne({ user_id: userRecord.user_id }, { end_user_id: endUserCreated.end_user_id }).session(session);
+            }
+
+            createdUsers.push({
+              email: userData.email,
+              name: userData.name,
+              password,
+              userId: userRecord.user_id
+            });
+
+            logger.loggerInfo(`Created user from bulk import: ${userData.email}`);
+          } catch (error) {
+            logger.loggerError(`Error creating user ${userData.email}: ${error.message}`);
             errors.push({
               email: userData.email,
-              error: 'User with this email already exists'
-            });
-            continue;
-          }
-
-          const password = generateEmailBasedPassword(userData.email);
-          const hashedPassword = require('bcryptjs').hashSync(password, 10);
-
-          const userObj = {
-            email: userData.email,
-            name: userData.name,
-            phone_number: userData.phone_number,
-            password: hashedPassword,
-            role_id: roleId,
-            operator_id: operatorId,
-            status: true
-          };
-
-          if (roleId === 4) {
-            if (userData.pickup_location) {
-              userObj.pickup_location = userData.pickup_location;
-            }
-            if (userData.dropoff_location) {
-              userObj.dropoff_location = userData.dropoff_location;
-            }
-          }
-
-          const newUser = new User(userObj);
-          await newUser.save();
-
-          if (roleId === 3) {
-            await Driver.create({
-              user_id: newUser.user_id,
-              operator_id: operatorId,
-              assigned_vehicle_id: userData.assigned_vehicle_id || null,
-              license_number: userData.license_number || null,
-              license_expiry: userData.license_expiry || null,
-              status: true
+              error: error.message
             });
           }
-
-          createdUsers.push({
-            email: userData.email,
-            name: userData.name,
-            password,
-            userId: newUser.user_id
-          });
-
-          logger.loggerInfo(`Created user from bulk import: ${userData.email}`);
-        } catch (error) {
-          logger.loggerError(`Error creating user ${userData.email}: ${error.message}`);
-          errors.push({
-            email: userData.email,
-            error: error.message
-          });
         }
+
+        await session.commitTransaction();
+      } catch (transactionError) {
+        await session.abortTransaction();
+        throw transactionError;
+      } finally {
+        session.endSession();
       }
 
       return {

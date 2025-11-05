@@ -1,6 +1,7 @@
 const TrackingData = require('../models/TrackingData');
 const Trip = require('../models/Trip');
 const NotificationService = require('../services/notificationService');
+const UserService = require('../services/userService');
 const { CustomError } = require('../middlewares/errorHandler');
 const logger = require('../utils/logger');
 const User = require('../models/User');
@@ -538,16 +539,13 @@ class ParentController {
 
   static async getProfile(req, res, next) {
     try {
-      const parent = await User.findOne({ user_id: req.user.id });
-
-      if (!parent) {
-        throw new CustomError('Parent not found', 404);
-      }
+      const userId = req.user.user_id || req.user.id;
+      const profile = await UserService.getUserProfile(userId);
 
       res.status(200).json({
         error: false,
         message: 'Parent profile retrieved successfully',
-        data: parent
+        data: profile
       });
     } catch (error) {
       next(error);

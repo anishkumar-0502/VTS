@@ -4,14 +4,11 @@ const PhoneFormatter = require('../utils/phoneFormatter');
 const validationErrorHandler = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    const [firstError] = errors.array();
     return res.status(400).json({
       error: true,
-      message: 'Validation failed',
-      errors: errors.array().map(err => ({
-        field: err.param,
-        message: err.msg,
-        value: err.value
-      }))
+      message: firstError?.msg || 'Validation failed',
+      field: firstError?.param
     });
   }
   next();
@@ -19,10 +16,10 @@ const validationErrorHandler = (req, res, next) => {
 
 const userValidationRules = () => {
   return [
-    body('email')
-      .isEmail()
-      .withMessage('Invalid email format')
-      .normalizeEmail(),
+    // body('email')
+    //   .isEmail()
+    //   .withMessage('Invalid email format')
+    //   .normalizeEmail(),
     body('name')
       .trim()
       .notEmpty()
@@ -92,7 +89,8 @@ const endUserCreationRules = () => {
       .optional()
       .custom(value => {
         if (value) {
-          const validation = PhoneFormatter.validatePhoneNumber(value, 'IN');
+          const stringValue = typeof value === 'string' ? value : value.toString();
+          const validation = PhoneFormatter.validatePhoneNumber(stringValue, 'IN');
           if (!validation.valid) {
             throw new Error(validation.error);
           }

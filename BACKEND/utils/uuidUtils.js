@@ -9,7 +9,8 @@ const ENTITY_PREFIXES = {
   DRIVER: 'DRV',
   TRIP: 'TRP',
   TRACKING_DATA: 'TRK',
-  NOTIFICATION: 'NOT'
+  NOTIFICATION: 'NOT',
+  END_USER: 'EUS'
 };
 
 const generateEntityId = (prefix) => {
@@ -28,6 +29,7 @@ const generateDriverId = () => generateEntityId(ENTITY_PREFIXES.DRIVER);
 const generateTripId = () => generateEntityId(ENTITY_PREFIXES.TRIP);
 const generateTrackingDataId = () => generateEntityId(ENTITY_PREFIXES.TRACKING_DATA);
 const generateNotificationId = () => generateEntityId(ENTITY_PREFIXES.NOTIFICATION);
+const generateEndUserId = () => generateEntityId(ENTITY_PREFIXES.END_USER);
 
 module.exports = {
   generateEntityId,
@@ -40,5 +42,6 @@ module.exports = {
   generateTripId,
   generateTrackingDataId,
   generateNotificationId,
+  generateEndUserId,
   ENTITY_PREFIXES
 };

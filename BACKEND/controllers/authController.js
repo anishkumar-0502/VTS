@@ -49,22 +49,28 @@ class AuthController {
         throw new CustomError('Email, password, and role_id are required', 400);
       }
 
-      const { user, token } = await UserService.loginUser(email, password, expectedRoleId);
+      const { user, token, roleDetails } = await UserService.loginUser(email, password, expectedRoleId);
 
       const role = await Role.findOne({ role_id: user.role_id });
+
+      const responseData = {
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        phone_number: user.phone_number,
+        role_id: user.role_id,
+        role_name: role?.role_name || 'driver',
+        token
+      };
+
+      if (roleDetails?.key) {
+        responseData[roleDetails.key] = roleDetails.data;
+      }
 
       res.status(200).json({
         error: false,
         message: 'Login successful',
-        data: {
-          user_id: user.user_id,
-          name: user.name,
-          email: user.email,
-          phone_number: user.phone_number,
-          role_id: user.role_id,
-          role_name: role?.role_name || 'driver',
-          token
-        }
+        data: responseData
       });
     } catch (error) {
       next(error);
@@ -73,12 +79,12 @@ class AuthController {
 
   static async getProfile(req, res, next) {
     try {
-      const user = await UserService.getUserById(req.user.user_id);
+      const profile = await UserService.getUserProfile(req.user.user_id);
 
       res.status(200).json({
         error: false,
         message: 'Profile retrieved successfully',
-        data: user
+        data: profile
       });
     } catch (error) {
       next(error);

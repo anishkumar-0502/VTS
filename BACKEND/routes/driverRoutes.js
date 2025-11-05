@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const DriverController = require('../controllers/driverController');
+const AuthController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
 const PaginationHelper = require('../utils/paginationHelper');
-const { 
+const {
   validationErrorHandler,
   tripCreationRules,
   locationUpdateRules,
@@ -20,6 +21,11 @@ const {
 
 router.use(authMiddleware, roleMiddleware(['driver']));
 router.use(PaginationHelper.createPaginationMiddleware());
+
+// ========== PROFILE MANAGEMENT ==========
+router.get('/profile', DriverController.getProfile);
+router.put('/profile/update', DriverController.updateProfile);
+router.post('/profile/change-password', AuthController.changePassword);
 
 // ========== HOME SCREEN - DAILY TRIPS ==========
 router.get('/daily-trips', DriverController.getDailyTrips);
@@ -46,10 +52,6 @@ router.post('/sos', sosAlertLimiter, DriverController.reportSOS);
 
 // ========== VEHICLE STATUS ==========
 router.get('/vehicles/:vehicleId/status', DriverController.getVehicleStatus);
-
-// ========== PROFILE MANAGEMENT ==========
-router.get('/profile', DriverController.getProfile);
-router.put('/profile', DriverController.updateProfile);
 
 // ========== FCM - PUSH NOTIFICATIONS ==========
 router.post('/fcm-token/register', fcmTokenRules(), validationErrorHandler, DriverController.registerFCMToken);

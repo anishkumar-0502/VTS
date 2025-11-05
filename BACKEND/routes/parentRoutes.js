@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ParentController = require('../controllers/parentController');
+const AuthController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
 const PaginationHelper = require('../utils/paginationHelper');
@@ -19,6 +20,11 @@ const {
 
 router.use(authMiddleware, roleMiddleware(['parent']));
 router.use(PaginationHelper.createPaginationMiddleware());
+
+// ========== PROFILE MANAGEMENT ==========
+router.get('/profile', ParentController.getProfile);
+router.put('/profile/update', ParentController.updateProfile);
+router.post('/profile/change-password', AuthController.changePassword);
 
 // ========== HOME SCREEN - LIVE TRACKING ==========
 router.get('/current-trip', ParentController.getCurrentTrip);
@@ -43,10 +49,6 @@ router.get('/location-history', ParentController.getLocationHistory);
 router.get('/notifications', ParentController.getNotifications);
 router.put('/notifications/:notificationId/read', ParentController.markNotificationAsRead);
 router.get('/notifications/unread-count', ParentController.getUnreadCount);
-
-// ========== PROFILE MANAGEMENT ==========
-router.get('/profile', ParentController.getProfile);
-router.put('/profile', ParentController.updateProfile);
 
 // ========== NOTIFICATION PREFERENCES ==========
 router.get('/notification-preferences', ParentController.getNotificationPreferences);

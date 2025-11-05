@@ -12,7 +12,7 @@ const trackingDataSchema = new mongoose.Schema(
     vehicle_id: {
       type: String,
       ref: 'Vehicle',
-      required: true
+      default: null
     },
     device_id: {
       type: String,
@@ -57,7 +57,7 @@ const trackingDataSchema = new mongoose.Schema(
       country: String
     }
   },
-  { timestamps: true, id: false }
+  { timestamps: true, id: false, collection: 'trackingdata' }
 );
 
 trackingDataSchema.pre('save', function (next) {

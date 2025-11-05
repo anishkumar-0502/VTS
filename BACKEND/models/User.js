@@ -51,9 +51,9 @@ const userSchema = new mongoose.Schema(
     },
     license_number: String,
     license_expiry: Date,
-    parent_id: {
+    end_user_id: {
       type: String,
-      ref: 'User',
+      ref: 'EndUser',
       default: null
     },
     sos_contact: {

@@ -30,7 +30,7 @@ class DeviceService {
 
   static async getDeviceById(deviceId) {
     try {
-      const device = await Device.findOne({ device_id: deviceId }).populate('assigned_operator_id').populate('vehicle_id');
+      const device = await Device.findOne({ device_id: deviceId }).populate('assigned_operator_id').populate('assigned_vehicle_id');
       if (!device) {
         throw new CustomError('Device not found', 404);
       }
@@ -43,7 +43,7 @@ class DeviceService {
 
   static async getDeviceByImei(imei) {
     try {
-      const device = await Device.findOne({ imei }).populate('assigned_operator_id').populate('vehicle_id');
+      const device = await Device.findOne({ imei }).populate('assigned_operator_id').populate('assigned_vehicle_id');
       if (!device) {
         throw new CustomError('Device not found', 404);
       }
@@ -59,9 +59,9 @@ class DeviceService {
       const query = {};
       if (filters.assigned_operator_id) query.assigned_operator_id = filters.assigned_operator_id;
       if (filters.status !== undefined) query.status = filters.status;
-      if (filters.vehicle_id) query.vehicle_id = filters.vehicle_id;
+      if (filters.assigned_vehicle_id) query.assigned_vehicle_id = filters.assigned_vehicle_id;
 
-      const devices = await Device.find(query).populate('assigned_operator_id').populate('vehicle_id');
+      const devices = await Device.find(query).populate('assigned_operator_id').populate('assigned_vehicle_id');
       return devices;
     } catch (error) {
       logger.loggerError(`Error fetching devices: ${error.message}`);
@@ -81,11 +81,11 @@ class DeviceService {
         throw new CustomError('Vehicle not found', 404);
       }
 
-      device.vehicle_id = vehicleId;
+      device.assigned_vehicle_id = vehicleId;
       device.assigned_date = new Date();
       await device.save();
 
-      vehicle.device_id = device._id;
+      vehicle.assigned_device_id = device.device_id;
       await vehicle.save();
 
       logger.loggerInfo(`Device ${device.imei} assigned to vehicle ${vehicle.vehicle_number}`);
@@ -103,11 +103,11 @@ class DeviceService {
         throw new CustomError('Device not found', 404);
       }
 
-      if (device.vehicle_id) {
-        await Vehicle.findByIdAndUpdate(device.vehicle_id, { device_id: null });
+      if (device.assigned_vehicle_id) {
+        await Vehicle.findByIdAndUpdate(device.assigned_vehicle_id, { assigned_device_id: null });
       }
 
-      device.vehicle_id = null;
+      device.assigned_vehicle_id = null;
       await device.save();
 
       logger.loggerInfo(`Device ${device.imei} unassigned from vehicle`);
@@ -159,8 +159,8 @@ class DeviceService {
         throw new CustomError('Device not found', 404);
       }
 
-      if (device.vehicle_id) {
-        await Vehicle.findByIdAndUpdate(device.vehicle_id, { device_id: null });
+      if (device.assigned_vehicle_id) {
+        await Vehicle.findByIdAndUpdate(device.assigned_vehicle_id, { assigned_device_id: null });
       }
 
       await Device.findOneAndDelete({ device_id: deviceId });
@@ -176,7 +176,7 @@ class DeviceService {
     try {
       const devices = await Device.find({
         assigned_operator_id: operatorId,
-        vehicle_id: null,
+        assigned_vehicle_id: null,
         status: true
       });
       return devices;
