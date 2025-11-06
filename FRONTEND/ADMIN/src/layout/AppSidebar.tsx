@@ -17,10 +17,72 @@ type NavItem = {
   icon: React.ReactNode;
   path?: string;
   permission?: keyof Permissions;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean; permission?: keyof Permissions }[];
+  subItems?: {
+    name: string;
+    path: string;
+    pro?: boolean;
+    new?: boolean;
+    permission?: keyof Permissions;
+  }[];
 };
 
-const navItems: NavItem[] = [
+// ---------------------------
+// ROLE-BASED MENU DEFINITIONS
+// ---------------------------
+
+const superAdminNavItems: NavItem[] = [
+  {
+    icon: <GridIcon />,
+    name: "Dashboard",
+    path: "/",
+    permission: "view_dashboard",
+  },
+   {
+    icon: <UserCircleIcon />,
+    name: "Live Tracking",
+    path: "/live-tracking",
+    permission: "view_telemetry",
+  },
+   {
+    icon: <UserCircleIcon />,
+    name: "Manage user",
+    path: "/manage-user",
+    permission: "manage_users",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Manage Operators",
+    path: "/manage-operators",
+    permission: "manage_users",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Manage Device",
+    path: "/manage-device",
+    permission: "view_devices",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Assign Device to Operator",
+    path: "/assign-device-to-operator",
+    permission: "manage_alerts",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Manage Roles",
+    path: "/manage-roles",
+    permission: "manage_roles",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Profile",
+    path: "/profile",
+    permission: "view_dashboard",
+  },
+
+];
+
+const operatorNavItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
@@ -29,45 +91,51 @@ const navItems: NavItem[] = [
   },
   {
     icon: <UserCircleIcon />,
-    name: "Manage Operators",
-    path: "/management/operators",
+    name: "Live Tracking",
+    path: "/live-tracking",
+    permission: "view_telemetry",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Manage All Users",
+    path: "/manage-all-users",
+    permission: "manage_users",
+  },
+   {
+    icon: <UserCircleIcon />,
+    name: "Manage End Users",
+    path: "/manage-end-users",
     permission: "manage_users",
   },
   {
     icon: <UserCircleIcon />,
+    name: "Manage Devices",
+    path: "/operator-manage-device",
+    permission: "manage_devices",
+  },
+  {
+    icon: <UserCircleIcon />,
     name: "Manage Vehicles",
-    path: "/management/vehicles",
+    path: "/manage-vehicles",
     permission: "view_devices",
   },
   {
     icon: <UserCircleIcon />,
     name: "Manage Drivers",
-    path: "/management/drivers",
+    path: "/manage-drivers",
     permission: "view_devices",
   },
   {
     icon: <UserCircleIcon />,
-    name: "Manage Alerts",
-    path: "/management/alerts",
-    permission: "manage_alerts",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Manage GPS Devices",
-    path: "/management/gps-devices",
+    name: "Assign Device to Vehicle",
+    path: "/assign-device-to-vehicle",
     permission: "manage_devices",
   },
   {
     icon: <UserCircleIcon />,
-    name: "Live Tracking",
-    path: "/management/live-tracking",
-    permission: "view_telemetry",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Manage Roles",
-    path: "/management/roles",
-    permission: "manage_roles",
+    name: "Assign Driver to Vehicle",
+    path: "/assign-driver-to-vehicle",
+    permission: "manage_users",
   },
   {
     icon: <UserCircleIcon />,
@@ -77,18 +145,24 @@ const navItems: NavItem[] = [
   },
 ];
 
+// ---------------------------
+// SIDEBAR COMPONENT
+// ---------------------------
+
 const othersItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
-  const { permissions } = useAuth();
+  const { permissions, user } = useAuth();
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
 
+  // Pick menu items based on user role
+  const navItems =
+    user?.role === "superadmin" ? superAdminNavItems : operatorNavItems;
+
   const hasPermission = useCallback(
     (permission?: keyof Permissions) => {
-      if (!permission) {
-        return true;
-      }
+      if (!permission) return true;
       return Boolean(permissions?.[permission]);
     },
     [permissions]
@@ -98,12 +172,9 @@ const AppSidebar: React.FC = () => {
     type: "main" | "others";
     index: number;
   } | null>(null);
-  const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
-    {}
-  );
+  const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>({});
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // const isActive = (path: string) => location.pathname === path;
   const isActive = useCallback(
     (path: string) => location.pathname === path,
     [location.pathname]
@@ -114,9 +185,7 @@ const AppSidebar: React.FC = () => {
     ["main", "others"].forEach((menuType) => {
       const items = menuType === "main" ? navItems : othersItems;
       items.forEach((nav, index) => {
-        if (!hasPermission(nav.permission)) {
-          return;
-        }
+        if (!hasPermission(nav.permission)) return;
         const visibleSubItems = nav.subItems?.filter((subItem) =>
           hasPermission(subItem.permission)
         );
@@ -131,11 +200,8 @@ const AppSidebar: React.FC = () => {
         });
       });
     });
-
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [location, isActive, hasPermission]);
+    if (!submenuMatched) setOpenSubmenu(null);
+  }, [location, isActive, hasPermission, navItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
@@ -150,31 +216,26 @@ const AppSidebar: React.FC = () => {
   }, [openSubmenu]);
 
   const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
-    setOpenSubmenu((prevOpenSubmenu) => {
-      if (
-        prevOpenSubmenu &&
-        prevOpenSubmenu.type === menuType &&
-        prevOpenSubmenu.index === index
-      ) {
-        return null;
-      }
-      return { type: menuType, index };
-    });
+    setOpenSubmenu((prevOpenSubmenu) =>
+      prevOpenSubmenu &&
+      prevOpenSubmenu.type === menuType &&
+      prevOpenSubmenu.index === index
+        ? null
+        : { type: menuType, index }
+    );
   };
 
   const renderMenuItems = (items: NavItem[], menuType: "main" | "others") => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => {
-        if (!hasPermission(nav.permission)) {
-          return null;
-        }
+        if (!hasPermission(nav.permission)) return null;
+
         const visibleSubItems = nav.subItems?.filter((subItem) =>
           hasPermission(subItem.permission)
         );
-        const shouldRenderSubmenu = Boolean(visibleSubItems && visibleSubItems.length);
-        if (nav.subItems && !shouldRenderSubmenu && !nav.path) {
-          return null;
-        }
+        const shouldRenderSubmenu = Boolean(visibleSubItems?.length);
+
+        if (nav.subItems && !shouldRenderSubmenu && !nav.path) return null;
 
         return (
           <li key={nav.name}>
@@ -182,7 +243,8 @@ const AppSidebar: React.FC = () => {
               <button
                 onClick={() => handleSubmenuToggle(index, menuType)}
                 className={`menu-item group ${
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
+                  openSubmenu?.type === menuType &&
+                  openSubmenu?.index === index
                     ? "menu-item-active"
                     : "menu-item-inactive"
                 } cursor-pointer ${
@@ -192,8 +254,9 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 <span
-                  className={`menu-item-icon-size  ${
-                    openSubmenu?.type === menuType && openSubmenu?.index === index
+                  className={`menu-item-icon-size ${
+                    openSubmenu?.type === menuType &&
+                    openSubmenu?.index === index
                       ? "menu-item-icon-active"
                       : "menu-item-icon-inactive"
                   }`}
@@ -219,7 +282,9 @@ const AppSidebar: React.FC = () => {
                 <Link
                   to={nav.path}
                   className={`menu-item group ${
-                    isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
+                    isActive(nav.path)
+                      ? "menu-item-active"
+                      : "menu-item-inactive"
                   }`}
                 >
                   <span
@@ -237,6 +302,7 @@ const AppSidebar: React.FC = () => {
                 </Link>
               )
             )}
+
             {shouldRenderSubmenu && (isExpanded || isHovered || isMobileOpen) && (
               <div
                 ref={(el) => {
@@ -245,7 +311,8 @@ const AppSidebar: React.FC = () => {
                 className="overflow-hidden transition-all duration-300"
                 style={{
                   height:
-                    openSubmenu?.type === menuType && openSubmenu?.index === index
+                    openSubmenu?.type === menuType &&
+                    openSubmenu?.index === index
                       ? `${subMenuHeight[`${menuType}-${index}`]}px`
                       : "0px",
                 }}
@@ -346,6 +413,7 @@ const AppSidebar: React.FC = () => {
           )}
         </Link>
       </div>
+
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
@@ -363,10 +431,12 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
+
               {renderMenuItems(navItems, "main")}
             </div>
           </div>
         </nav>
+
         {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
       </div>
     </aside>

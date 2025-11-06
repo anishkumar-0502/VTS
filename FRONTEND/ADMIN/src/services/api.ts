@@ -5,10 +5,11 @@ interface ApiResponse<T = any> {
   message?: string;
   data?: T;
   errors?: any[];
+  status?: number;
 }
 
 const getAuthToken = () => {
-  return localStorage.getItem('authToken');
+ return localStorage.getItem("token");
 };
 
 const getHeaders = () => {
@@ -26,57 +27,62 @@ const api = {
   get: async <T = any>(endpoint: string): Promise<ApiResponse<T>> => {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'GET',
+        method: "GET",
         headers: getHeaders(),
       });
-      return await response.json();
+      const data = await response.json();
+      return { ...data, status: response.status }; // ✅ include status
     } catch (error) {
-      console.error('API GET Error:', error);
-      return { success: false, message: 'Network error' };
+      console.error("API GET Error:", error);
+      return { success: false, message: "Network error", status: 500 };
     }
   },
 
   post: async <T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> => {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
+        method: "POST",
         headers: getHeaders(),
         body: data ? JSON.stringify(data) : undefined,
       });
-      return await response.json();
+      const json = await response.json();
+      return { ...json, status: response.status }; // ✅ include status
     } catch (error) {
-      console.error('API POST Error:', error);
-      return { success: false, message: 'Network error' };
+      console.error("API POST Error:", error);
+      return { success: false, message: "Network error", status: 500 };
     }
   },
 
   put: async <T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> => {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getHeaders(),
         body: data ? JSON.stringify(data) : undefined,
       });
-      return await response.json();
+      const json = await response.json();
+      return { ...json, status: response.status }; // ✅ include status
     } catch (error) {
-      console.error('API PUT Error:', error);
-      return { success: false, message: 'Network error' };
+      console.error("API PUT Error:", error);
+      return { success: false, message: "Network error", status: 500 };
     }
   },
 
   delete: async <T = any>(endpoint: string): Promise<ApiResponse<T>> => {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: getHeaders(),
       });
-      return await response.json();
+      const json = await response.json();
+      return { ...json, status: response.status }; // ✅ include status
     } catch (error) {
-      console.error('API DELETE Error:', error);
-      return { success: false, message: 'Network error' };
+      console.error("API DELETE Error:", error);
+      return { success: false, message: "Network error", status: 500 };
     }
   },
 };
+
 
 export const authAPI = {
   signin: (data: { email?: string; phone_number?: string; password: string; role?: string }) =>
@@ -90,19 +96,29 @@ export const authAPI = {
 };
 
 export const operatorsAPI = {
-  getAll: () => api.get('/superadmin/operators'),
-  create: (data: any) => api.post('/superadmin/operators', data),
+  // ✅ Get all operators
+  getAll: () => api.get('/superadmin/operators/list'),
+
+  // ✅ Create operator
+  create: (data: any) => api.post('/superadmin/operators/create', data),
+
+  // ✅ View operator details
+  getById: (operatorId: string) =>
+    api.get(`/superadmin/operators/${operatorId}/view`),
+
+  // ✅ Update operator details
   update: (operatorId: string, data: any) =>
-    api.put(`/superadmin/operators/${operatorId}`, data),
-  delete: (operatorId: string) =>
-    api.delete(`/superadmin/operators/${operatorId}`),
-  getDashboard: (superadminId: string) =>
-    api.get(`/superadmin/dashboard/${superadminId}`),
+    api.post(`/superadmin/operators/${operatorId}/update`, data),
+
+  // ✅ Toggle active/inactive
+  toggleStatus: (operatorId: string) =>
+    api.put(`/superadmin/operators/${operatorId}/deactivate`),
 };
+
 
 export const usersAPI = {
   getAll: () => api.get('/superadmin/operators'),
-  create: (data: any) => api.post('/superadmin/operators', data),
+  create: (data: any) => api.post('/superadmin/operators/create', data), 
   update: (userId: string, data: any) =>
     api.put(`/superadmin/operators/${userId}`, data),
   delete: (userId: string) =>
@@ -175,19 +191,21 @@ export const alertsAPI = {
 };
 
 export const gpsAPI = {
-  getDevices: () => api.get('/gps/devices'),
-  getDeviceById: (deviceId: string) =>
-    api.get(`/gps/devices/${deviceId}`),
-  registerDevice: (data: any) => api.post('/gps/register', data),
-  getDeviceStatus: (deviceId: string) =>
-    api.get(`/gps/device/${deviceId}`),
-  updateDeviceStatus: (deviceId: string, data: any) =>
-    api.put(`/gps/device/${deviceId}/status`, data),
-  createDevice: (data: any) => api.post('/gps/devices', data),
-  updateDevice: (deviceId: string, data: any) =>
-    api.put(`/gps/devices/${deviceId}`, data),
-  deleteDevice: (deviceId: string) =>
-    api.delete(`/gps/devices/${deviceId}`),
+   getAll: () => api.get('/superadmin/devices/list'),
+
+  // Create a new device
+  create: (data: any) => api.post('/superadmin/devices/create', data),
+
+  // Get device by ID
+  getById: (deviceId: string) => api.get(`/superadmin/devices/${deviceId}/view`),
+
+  // Update device
+  update: (deviceId: string, data: any) =>
+    api.post(`/superadmin/devices/${deviceId}/update`, data),
+
+  // Toggle active/inactive status
+  toggleStatus: (deviceId: string) =>
+    api.put(`/superadmin/devices/${deviceId}/deactivate`),
 };
 
 export const gpsDevicesAPI = {
@@ -200,9 +218,9 @@ export const gpsDevicesAPI = {
 };
 
 export const profileAPI = {
-  getProfile: () => api.get('/auth/profile'),
+  getProfile: () => api.get('/superadmin/profile'),
   updateProfile: (data: any) =>
-    api.put('/auth/profile', data),
+    api.put('/superadmin/profile', data),
   changePassword: (data: any) =>
     api.put('/auth/change-password', data),
 };

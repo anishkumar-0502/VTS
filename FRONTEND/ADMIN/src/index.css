@@ -1,6 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap")
 layer(base);
-
+@import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
@@ -776,3 +776,24 @@ span.flatpickr-weekday,
 .simplebar-scrollbar.simplebar-visible:before {
   @apply opacity-100;
 }
+
+/* === SWEETALERT2 GLOBAL BLUR EFFECT === */
+
+/* Blur everything behind the popup */
+body.swal2-shown > *:not(.swal2-container) {
+  filter: blur(13px); /* adjust blur intensity */
+  transition: filter 0.3s ease;
+}
+
+/* Ensure the popup stays crisp and visible */
+.swal2-container {
+  backdrop-filter: none !important; /* prevent overlay from blurring the popup */
+}
+
+.swal2-popup {
+  filter: none !important;
+  backdrop-filter: none !important;
+  z-index: 100000; /* ensure popup stays on top */
+}
+
+

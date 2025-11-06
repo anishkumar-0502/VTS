@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { usersAPI } from "../../services/api";
+import { operatorsAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
 import Checkbox from "../form/input/Checkbox";
+import Swal from "sweetalert2";
+
 
 interface Operator {
   _id: string;
@@ -21,9 +23,17 @@ interface OperatorFormProps {
 
 export default function OperatorForm({ operator, onSuccess, onCancel }: OperatorFormProps) {
   const { user } = useAuth();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("");
   const [status, setStatus] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -40,43 +50,53 @@ export default function OperatorForm({ operator, onSuccess, onCancel }: Operator
     e.preventDefault();
     setError("");
 
-    if (!name.trim()) {
-      setError("Name is required");
-      return;
-    }
-    if (!email.trim()) {
-      setError("Email is required");
-      return;
-    }
-    if (!operator && !password) {
-      setError("Password is required for new operator");
-      return;
-    }
+    if (!name.trim()) return setError("Name is required");
+    if (!email.trim()) return setError("Email is required");
+    if (!phoneNumber.trim()) return setError("Phone number is required");
+    if (!companyName.trim()) return setError("Company name is required");
 
     try {
       setLoading(true);
       let response;
-      
-      if (operator) {
-        response = await usersAPI.update(operator._id, {
-          name,
-          status,
-        });
-      } else {
-        response = await usersAPI.create({
-          name,
-          email,
-          password,
-          status,
-          superadmin_id: user?.id,
-        });
-      }
 
-      if (response.success) {
-        onSuccess?.();
-      } else {
-        setError(response.message || "Operation failed");
-      }
+    if (operator) {
+  // Update operator
+  response = await operatorsAPI.update(operator._id, {
+    name,
+    company_name: companyName,
+    city,
+    phone_number: phoneNumber,
+  });
+} else {
+  // Create new operator
+  response = await operatorsAPI.create({
+    name,
+    email,
+    phone_number: phoneNumber,
+    company_name: companyName,
+    registration_number: registrationNumber,
+    address,
+    city,
+    state,
+    postal_code: postalCode,
+    country,
+  });
+}
+
+
+  if (response && (response.data?.success || response.status === 200 || response.status === 201)) {
+  Swal.fire({
+    icon: "success",
+    title: operator ? "Updated Successfully!" : "Created Successfully!",
+    timer: 1500,
+    showConfirmButton: false,
+  });
+  onSuccess?.();
+} else {
+  setError(response?.data?.message || "Operation failed");
+}
+
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An error occurred";
       setError(errorMessage);
@@ -94,46 +114,59 @@ export default function OperatorForm({ operator, onSuccess, onCancel }: Operator
       )}
 
       <div>
-        <Label>Name <span className="text-error-500">*</span></Label>
-        <Input
-          type="text"
-          placeholder="Operator name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={loading}
-        />
+        <Label>Name *</Label>
+        <Input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={loading} />
       </div>
 
       <div>
-        <Label>Email <span className="text-error-500">*</span></Label>
-        <Input
-          type="email"
-          placeholder="operator@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={loading || !!operator}
-        />
+        <Label>Email *</Label>
+        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading || !!operator} />
       </div>
 
-      {!operator && (
+      <div>
+        <Label>Phone Number *</Label>
+        <Input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} disabled={loading} />
+      </div>
+
+      <div>
+        <Label>Company Name *</Label>
+        <Input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} disabled={loading} />
+      </div>
+
+      <div>
+        <Label>Registration Number</Label>
+        <Input type="text" value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} disabled={loading} />
+      </div>
+
+      <div>
+        <Label>Address</Label>
+        <Input type="text" value={address} onChange={(e) => setAddress(e.target.value)} disabled={loading} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label>Password <span className="text-error-500">*</span></Label>
-          <Input
-            type="password"
-            placeholder="Enter password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-          />
+          <Label>City</Label>
+          <Input type="text" value={city} onChange={(e) => setCity(e.target.value)} disabled={loading} />
         </div>
-      )}
+        <div>
+          <Label>State</Label>
+          <Input type="text" value={state} onChange={(e) => setState(e.target.value)} disabled={loading} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Postal Code</Label>
+          <Input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} disabled={loading} />
+        </div>
+        <div>
+          <Label>Country</Label>
+          <Input type="text" value={country} onChange={(e) => setCountry(e.target.value)} disabled={loading} />
+        </div>
+      </div>
 
       <div className="flex items-center gap-3">
-        <Checkbox
-          checked={status}
-          onChange={setStatus}
-          disabled={loading}
-        />
+        <Checkbox checked={status} onChange={setStatus} disabled={loading} />
         <span className="text-sm text-gray-700 dark:text-gray-300">Active</span>
       </div>
 
