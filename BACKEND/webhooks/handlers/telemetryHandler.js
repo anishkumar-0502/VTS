@@ -1,42 +1,57 @@
-const { ObjectId } = require('mongodb');
-const dbService = require('../../config/db');
+const Device = require('../../models/Device');
+const TrackingData = require('../../models/TrackingData');
 const logger = require('../../utils/logger');
 
 class TelemetryHandler {
+  static async ensureDevice(trackerId, payload = {}) {
+    const now = new Date();
+    let device = await Device.findOne({ imei: trackerId });
+    if (!device) {
+      device = await Device.create({
+        imei: trackerId,
+        device_type: 'gps_tracker',
+        status: true,
+        module_model: payload.module_model || null,
+        firmware_version: payload.firmware_version || null,
+        battery_level: payload.battery_level || null,
+        last_signal: now
+      });
+      return { device, created: true };
+    }
+    return { device, created: false };
+  }
+
+  static resolveTimestamp(value) {
+    if (!value) {
+      return new Date();
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
   static async handleBootNotification(payload) {
     try {
-      logger.loggerWebhook('Boot notification received', { vehicleId: payload.vehicle_id });
-
-      const db = await dbService.connectToDatabase();
-      const vehicle = await db.collection('vehicles').findOne({ vehicle_number: payload.vehicle_id });
-      
-      if (!vehicle) {
-        logger.loggerWarn(`Boot notification: Vehicle not found - ${payload.vehicle_id}`);
-        throw new Error('Vehicle not found');
+      const trackerId = payload.vehicle_id;
+      const { device, created } = await TelemetryHandler.ensureDevice(trackerId, payload);
+      device.status = true;
+      device.last_signal = new Date();
+      if (payload.firmware_version) {
+        device.firmware_version = payload.firmware_version;
       }
-
-      let gpsDevice = await db.collection('gpsdevices').findOne({ vehicle_id: vehicle._id });
-      if (!gpsDevice) {
-        const result = await db.collection('gpsdevices').insertOne({
-          vehicle_id: vehicle._id,
-          operator_id: vehicle.operator_id,
-          imei: payload.vehicle_id,
-          status: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-        gpsDevice = { _id: result.insertedId };
-        logger.loggerInfo(`GPS device auto-registered: ${payload.vehicle_id}`);
+      if (payload.module_model) {
+        device.module_model = payload.module_model;
+      }
+      await device.save();
+      logger.loggerWebhook('Boot notification processed', { trackerId });
+      if (created) {
+        logger.loggerInfo(`✓ GPS Tracker registered: ${trackerId}`);
       } else {
-        await db.collection('gpsdevices').updateOne(
-          { _id: gpsDevice._id },
-          { $set: { status: true, last_signal: new Date(), updatedAt: new Date() } }
-        );
+        logger.loggerInfo(`✓ GPS Tracker reconnected: ${trackerId}`);
       }
-
       return {
-        message: `Device ${payload.vehicle_id} registered successfully`,
-        device_id: gpsDevice._id
+        message: `GPS Tracker ${trackerId} registered successfully`,
+        device_id: device.device_id,
+        tracker_id: trackerId
       };
     } catch (error) {
       logger.loggerError(`Boot notification error: ${error.message}`);
@@ -46,92 +61,64 @@ class TelemetryHandler {
 
   static async handleLocationUpdate(payload) {
     try {
-      logger.loggerWebhook('Location update received', {
-        vehicleId: payload.vehicle_id,
+      const trackerId = payload.vehicle_id;
+      const timestamp = TelemetryHandler.resolveTimestamp(payload.timestamp);
+      const { device } = await TelemetryHandler.ensureDevice(trackerId, payload);
+      const trackingRecord = await TrackingData.create({
+        device_id: device.device_id,
+        vehicle_id: device.assigned_vehicle_id || null,
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        altitude: payload.altitude || 0,
+        speed: payload.speed_kmh || 0,
+        course: payload.course || 0,
+        satellites: payload.satellites || 0,
+        fix_quality: payload.fix_quality || 0,
+        hdop: payload.hdop || 0,
+        timestamp,
+        device_timestamp: timestamp
+      });
+      device.last_signal = new Date();
+      device.status = true;
+      device.last_latitude = payload.latitude;
+      device.last_longitude = payload.longitude;
+      device.last_speed = payload.speed_kmh || 0;
+      device.last_course = payload.course || 0;
+      device.battery_level = payload.battery_level ?? device.battery_level;
+      device.last_location = {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        timestamp
+      };
+      await device.save();
+      if (device.assigned_vehicle_id && global.socketManager) {
+        global.socketManager.broadcastLocationUpdate(
+          device.assigned_vehicle_id,
+          device.device_id,
+          {
+            latitude: payload.latitude,
+            longitude: payload.longitude,
+            speed: payload.speed_kmh || 0,
+            course: payload.course || 0,
+            altitude: payload.altitude || 0,
+            timestamp
+          },
+          device.toObject()
+        );
+      }
+      logger.loggerWebhook('Location update processed', {
+        trackerId,
         lat: payload.latitude,
         lng: payload.longitude,
         speed: payload.speed_kmh
       });
-
-      const db = await dbService.connectToDatabase();
-      const vehicle = await db.collection('vehicles').findOne({ vehicle_number: payload.vehicle_id });
-      
-      if (!vehicle) {
-        throw new Error('Vehicle not found');
-      }
-
-      let gpsDevice = await db.collection('gpsdevices').findOne({ vehicle_id: vehicle._id });
-      if (!gpsDevice) {
-        const result = await db.collection('gpsdevices').insertOne({
-          vehicle_id: vehicle._id,
-          operator_id: vehicle.operator_id,
-          imei: payload.vehicle_id,
-          status: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-        gpsDevice = { _id: result.insertedId };
-      }
-
-      const trackingDataResult = await db.collection('trackingdata').insertOne({
-        gps_device_id: gpsDevice._id,
-        vehicle_id: vehicle._id,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-        speed: payload.speed_kmh || 0,
-        course: payload.course || 0,
-        altitude: payload.altitude || 0,
-        satellites: payload.satellites || 0,
-        fix_quality: payload.fix_quality || 0,
-        hdop: payload.hdop || 0,
-        timestamp: new Date(payload.timestamp),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-
-      await db.collection('vehicles').updateOne(
-        { _id: vehicle._id },
-        {
-          $set: {
-            latitude: payload.latitude,
-            longitude: payload.longitude,
-            last_update: new Date(),
-            status: true,
-            updatedAt: new Date()
-          }
-        }
-      );
-
-      await db.collection('gpsdevices').updateOne(
-        { _id: gpsDevice._id },
-        {
-          $set: {
-            last_signal: new Date(),
-            status: true,
-            battery_level: payload.battery_level || gpsDevice.battery_level,
-            updatedAt: new Date()
-          }
-        }
-      );
-
-      if (global.socketManager) {
-        global.socketManager.broadcastLocationUpdate(vehicle._id, gpsDevice._id, {
-          latitude: payload.latitude,
-          longitude: payload.longitude,
-          speed: payload.speed_kmh,
-          course: payload.course,
-          altitude: payload.altitude,
-          timestamp: new Date(payload.timestamp)
-        }, gpsDevice);
-      }
-
       return {
-        message: `Location updated for ${payload.vehicle_id}`,
+        message: `Location updated for tracker ${trackerId}`,
         coordinates: {
           latitude: payload.latitude,
           longitude: payload.longitude
         },
-        tracking_id: trackingDataResult.insertedId
+        tracking_id: trackingRecord.tracking_data_id
       };
     } catch (error) {
       logger.loggerError(`Location update error: ${error.message}`);
@@ -141,31 +128,16 @@ class TelemetryHandler {
 
   static async handleHeartbeat(payload) {
     try {
-      logger.loggerWebhook('Heartbeat received', { vehicleId: payload.vehicle_id });
-
-      const db = await dbService.connectToDatabase();
-      const vehicle = await db.collection('vehicles').findOne({ vehicle_number: payload.vehicle_id });
-      
-      if (!vehicle) {
-        throw new Error('Vehicle not found');
+      const trackerId = payload.vehicle_id;
+      const { device } = await TelemetryHandler.ensureDevice(trackerId, payload);
+      device.last_signal = new Date();
+      if (payload.battery_level !== undefined && payload.battery_level !== null) {
+        device.battery_level = payload.battery_level;
       }
-
-      const gpsDevice = await db.collection('gpsdevices').findOne({ vehicle_id: vehicle._id });
-      if (gpsDevice) {
-        await db.collection('gpsdevices').updateOne(
-          { _id: gpsDevice._id },
-          {
-            $set: {
-              last_signal: new Date(),
-              battery_level: payload.battery_level || gpsDevice.battery_level,
-              updatedAt: new Date()
-            }
-          }
-        );
-      }
-
+      await device.save();
+      logger.loggerWebhook('Heartbeat processed', { trackerId });
       return {
-        message: `Heartbeat received from ${payload.vehicle_id}`,
+        message: `Heartbeat received from ${trackerId}`,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
@@ -176,34 +148,17 @@ class TelemetryHandler {
 
   static async handleStatusNotification(payload) {
     try {
-      logger.loggerWebhook('Status notification received', {
-        vehicleId: payload.vehicle_id,
+      const trackerId = payload.vehicle_id;
+      const { device } = await TelemetryHandler.ensureDevice(trackerId, payload);
+      device.status = payload.fix_status === 'invalid' ? false : true;
+      device.last_signal = new Date();
+      await device.save();
+      logger.loggerWebhook('Status notification processed', {
+        trackerId,
         status: payload.fix_status
       });
-
-      const db = await dbService.connectToDatabase();
-      const vehicle = await db.collection('vehicles').findOne({ vehicle_number: payload.vehicle_id });
-      
-      if (!vehicle) {
-        throw new Error('Vehicle not found');
-      }
-
-      const gpsDevice = await db.collection('gpsdevices').findOne({ vehicle_id: vehicle._id });
-      if (gpsDevice) {
-        await db.collection('gpsdevices').updateOne(
-          { _id: gpsDevice._id },
-          {
-            $set: {
-              status: payload.fix_status === 'invalid' ? false : true,
-              last_signal: new Date(),
-              updatedAt: new Date()
-            }
-          }
-        );
-      }
-
       return {
-        message: `Status updated for ${payload.vehicle_id}`,
+        message: `Status updated for ${trackerId}`,
         fix_status: payload.fix_status || 'unknown'
       };
     } catch (error) {

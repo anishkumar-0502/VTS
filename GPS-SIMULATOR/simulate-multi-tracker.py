@@ -8,7 +8,7 @@ import argparse
 import json
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 from time import sleep
 from tqdm import tqdm
@@ -85,22 +85,30 @@ class DeviceSimulator:
             "hdop": 1.2
         }
     
-    def post(self, data: list) -> bool:
+    def post(self, message_type: str, data: dict) -> bool:
         """POST data to webhook"""
         headers = {"Authorization": self.webhook_api_key}
+        payload = [{
+            "message_type": message_type,
+            "tracker_id": self.tracker_id,
+            **data
+        }]
+        
         try:
-            response = requests.post(self.webhook_url, json=data, headers=headers)
+            response = requests.post(self.webhook_url, json=payload, headers=headers)
             if response.status_code >= 200 and response.status_code < 300:
                 try:
                     response_data = response.json()
-                    if isinstance(response_data, list) and len(response_data) >= 3:
-                        response_type = response_data[0]
-                        if response_type == "3":
-                            payload = response_data[2]
-                            print(f"[{self.device_id}] {data[2]}: {payload.get('message', 'OK')}")
-                            return True
-                        elif response_type == "4":
-                            return False
+                    if isinstance(response_data, dict) and 'responses' in response_data:
+                        for resp in response_data['responses']:
+                            status = resp.get('status', 'unknown')
+                            if status == 'success':
+                                print(f"[{self.device_id}] ✓ {message_type}")
+                                return True
+                            elif status == 'error':
+                                error = resp.get('error', 'Unknown error')
+                                print(f"[{self.device_id}] ✗ {message_type}: {error}")
+                                return False
                 except ValueError:
                     pass
             else:
@@ -118,18 +126,12 @@ class DeviceSimulator:
         print(f"[{self.device_id}] Effective duration: {self.effective_duration}s, Interval: {self.interval}s\n")
         
         # Send BootNotification
-        boot_message = [
-            "2",
-            f"{self.tracker_id}_{int(datetime.now().timestamp())}",
-            "BootNotification",
-            {
-                "vehicle_id": self.tracker_id,
-                "firmware_version": "GPS_v1.0",
-                "module_model": "Simulated-GPS-Multi",
-                "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-            }
-        ]
-        self.post(boot_message)
+        boot_data = {
+            "firmware_version": "GPS_v1.0",
+            "module_model": "Simulated-GPS-Multi",
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        }
+        self.post("boot_notification", boot_data)
         
         # Main simulation loop
         pbar = tqdm(
@@ -140,61 +142,42 @@ class DeviceSimulator:
         
         for time_elapsed in pbar:
             coords_data = self.get_extended_coords(time_elapsed)
-            timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-            message_id = f"{self.tracker_id}_{int(datetime.now().timestamp())}"
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             
             # LocationUpdate
-            location_message = [
-                "2",
-                message_id,
-                "LocationUpdate",
-                {
-                    "vehicle_id": self.tracker_id,
-                    "latitude": coords_data["latitude"],
-                    "longitude": coords_data["longitude"],
-                    "altitude": coords_data["altitude"],
-                    "speed_kmh": coords_data["speed_kmh"],
-                    "course": coords_data["course"],
-                    "satellites": coords_data["satellites"],
-                    "fix_quality": coords_data["fix_quality"],
-                    "hdop": coords_data["hdop"],
-                    "timestamp": timestamp
-                }
-            ]
+            location_data = {
+                "latitude": coords_data["latitude"],
+                "longitude": coords_data["longitude"],
+                "altitude": coords_data["altitude"],
+                "speed_kmh": coords_data["speed_kmh"],
+                "course": coords_data["course"],
+                "satellites": coords_data["satellites"],
+                "fix_quality": coords_data["fix_quality"],
+                "hdop": coords_data["hdop"],
+                "timestamp": timestamp
+            }
             pbar.set_description(
                 f"[{self.device_id}] {coords_data['latitude']:.4f}, {coords_data['longitude']:.4f}, "
                 f"{coords_data['speed_kmh']} km/h"
             )
-            self.post(location_message)
+            self.post("location_update", location_data)
             
             # Heartbeat
-            heartbeat_message = [
-                "2",
-                f"{self.tracker_id}_{int(datetime.now().timestamp())}",
-                "Heartbeat",
-                {
-                    "vehicle_id": self.tracker_id,
-                    "status": "active",
-                    "satellites": coords_data["satellites"],
-                    "timestamp": timestamp
-                }
-            ]
-            self.post(heartbeat_message)
+            heartbeat_data = {
+                "status": "active",
+                "satellites": coords_data["satellites"],
+                "timestamp": timestamp
+            }
+            self.post("heartbeat", heartbeat_data)
             
             # StatusNotification
-            status_message = [
-                "2",
-                f"{self.tracker_id}_{int(datetime.now().timestamp())}",
-                "StatusNotification",
-                {
-                    "vehicle_id": self.tracker_id,
-                    "fix_status": "valid" if coords_data["fix_quality"] > 0 else "invalid",
-                    "satellites": coords_data["satellites"],
-                    "hdop": coords_data["hdop"],
-                    "timestamp": timestamp
-                }
-            ]
-            self.post(status_message)
+            status_data = {
+                "fix_status": "valid" if coords_data["fix_quality"] > 0 else "invalid",
+                "satellites": coords_data["satellites"],
+                "hdop": coords_data["hdop"],
+                "timestamp": timestamp
+            }
+            self.post("status_notification", status_data)
             
             sleep(self.interval)
         
