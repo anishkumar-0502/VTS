@@ -127,4 +127,37 @@ class ProfileAPICalls {
     }
   }
 
+  Future<Map<String, dynamic>> changepassword(
+      String token, String oldpassword, String newpassword) async {
+    final url = ProfileUrl.changepassword;
+
+    try {
+      final response = await http
+          .post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          "oldPassword": oldpassword,
+          "newPassword": newpassword,
+        }),
+      )
+          .timeout(const Duration(seconds: 60));
+
+      debugPrint('Response Status Code: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body}');
+      return jsonDecode(response.body);
+    } on TimeoutException {
+      throw HttpException(408, 'Request timed out. Please try again.');
+    } on http.ClientException {
+      throw HttpException(503,
+          'Unable to reach the server. Please check your connection or try again later.');
+    } catch (e) {
+      debugPrint("Error: $e");
+      throw HttpException(500, 'Something went wrong. Please try again later.');
+    }
+  }
+
 }

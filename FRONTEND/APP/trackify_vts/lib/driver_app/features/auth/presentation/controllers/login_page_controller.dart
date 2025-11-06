@@ -6,6 +6,7 @@ import '../../../dashboard/presentation/pages/driver_home_page.dart';
 import '../../domain/models/login_model.dart';
 import '../../domain/repositories/login_repository.dart';
 import '../../../../../utilities/exception/exception.dart' as exceptions;
+import '../../../../../utilities/widgets/status_banner.dart';
 
 class DriverLoginPageController extends GetxController {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
@@ -42,7 +43,8 @@ class DriverLoginPageController extends GetxController {
     if (value.length < 6) {
       return 'Password must have at least 6 characters';
     }
-    if (!value.contains(RegExp(r'[A-Za-z]')) || !value.contains(RegExp(r'[0-9]'))) {
+    if (!value.contains(RegExp(r'[A-Za-z]')) ||
+        !value.contains(RegExp(r'[0-9]'))) {
       return 'Include letters and numbers';
     }
     return null;
@@ -63,16 +65,21 @@ class DriverLoginPageController extends GetxController {
           showStatusBanner(response.message, Colors.green, Icons.check_circle);
           Get.offAll(() => const DriverHomePage());
         } else {
-          showStatusBanner(response.message, Colors.redAccent, Icons.error_outline);
+          showStatusBanner(
+            response.message,
+            Colors.redAccent,
+            Icons.error_outline,
+          );
         }
       } catch (e) {
-        final message = e is exceptions.HttpException
-            ? e.message
-            : e is exceptions.SocketException
+        final message =
+            e is exceptions.HttpException
+                ? e.message
+                : e is exceptions.SocketException
                 ? e.message
                 : e is exceptions.TimeoutException
-                    ? e.message
-                    : 'Unable to login. Please try again.';
+                ? e.message
+                : 'Unable to login. Please try again.';
         showStatusBanner(message, Colors.redAccent, Icons.error_outline);
       } finally {
         isLoading.value = false;
@@ -98,29 +105,5 @@ class DriverLoginPageController extends GetxController {
         rawData: data,
       );
     }
-  }
-
-  void showStatusBanner(String message, Color color, IconData icon) {
-    Get.rawSnackbar(
-      messageText: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: color, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-      backgroundColor: color.withValues(alpha: 0.12),
-      borderRadius: 16,
-      borderColor: color,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      snackPosition: SnackPosition.TOP,
-      duration: const Duration(seconds: 3),
-      isDismissible: true,
-    );
   }
 }

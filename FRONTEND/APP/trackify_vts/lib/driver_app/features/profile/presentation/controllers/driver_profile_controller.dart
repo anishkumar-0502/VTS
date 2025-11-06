@@ -7,6 +7,7 @@ import '../../../auth/presentation/pages/login_page.dart';
 import '../../domain/models/profile_model.dart';
 import '../../domain/repositories/profile_repository.dart';
 import '../../../../../utilities/exception/exception.dart' as exceptions;
+import '../../../../../utilities/widgets/status_banner.dart';
 
 class DriverProfileController extends GetxController {
   final SessionController sessionController = Get.find<SessionController>();
@@ -197,12 +198,16 @@ class DriverProfileController extends GetxController {
     });
   }
 
-  Future<void> fetchProfile() async {
+  Future<void> fetchProfile({bool showLoading = true}) async {
     try {
-      isLoading.value = true;
+      if (showLoading) isLoading.value = true;
       final token = sessionController.token.value;
       if (token.isEmpty) {
-        Get.snackbar('Error', 'No authentication token found');
+        showStatusBanner(
+          'No authentication token found',
+          Colors.redAccent,
+          Icons.error_outline,
+        );
         return;
       }
       print('Fetching profile...');
@@ -211,27 +216,43 @@ class DriverProfileController extends GetxController {
         'Got response: error=${response.error}, message=${response.message}, data!=null=${response.data != null}',
       );
       if (response.error) {
-        Get.snackbar('Error', response.message);
+        showStatusBanner(
+          response.message,
+          Colors.redAccent,
+          Icons.error_outline,
+        );
       } else if (response.data != null) {
         try {
           profileData.value = response.data;
           print('Profile data set: ${profileData.value?.name}');
         } catch (e) {
           print('Error setting profile data: $e');
-          Get.snackbar('Error', 'Failed to parse profile data');
+          showStatusBanner(
+            'Failed to parse profile data',
+            Colors.redAccent,
+            Icons.error_outline,
+          );
         }
       } else {
         print('Response data is null');
-        Get.snackbar('Error', 'No profile data received');
+        showStatusBanner(
+          'No profile data received',
+          Colors.redAccent,
+          Icons.error_outline,
+        );
       }
     } on exceptions.HttpException catch (e) {
       print('HttpException: $e');
-      Get.snackbar('Error', e.message);
+      showStatusBanner(e.message, Colors.redAccent, Icons.error_outline);
     } catch (e) {
       print('Exception in fetchProfile: $e');
-      Get.snackbar('Error', 'Failed to load profile');
+      showStatusBanner(
+        'Failed to load profile',
+        Colors.redAccent,
+        Icons.error_outline,
+      );
     } finally {
-      isLoading.value = false;
+      if (showLoading) isLoading.value = false;
     }
   }
 
@@ -363,13 +384,72 @@ class DriverProfileController extends GetxController {
       );
 
       if (response['error'] == false) {
-        Get.snackbar('Success', 'Profile updated successfully');
-        await fetchProfile(); // Refresh after update
+        showStatusBanner(
+          'Profile updated successfully',
+          Colors.green,
+          Icons.check_circle,
+        );
+        await fetchProfile(
+          showLoading: false,
+        ); // Refresh after update without full loading screen
       } else {
-        Get.snackbar('Error', response['message'] ?? 'Update failed');
+        showStatusBanner(
+          response['message'] ?? 'Update failed',
+          Colors.redAccent,
+          Icons.error_outline,
+        );
       }
     } catch (e) {
-      Get.snackbar('Error', 'Something went wrong during update');
+      showStatusBanner(
+        'Something went wrong during update',
+        Colors.redAccent,
+        Icons.error_outline,
+      );
+    }
+  }
+
+  Future<void> changepasswordcontroller({
+    required String oldpassword,
+    required String newpassword,
+  }) async {
+    try {
+      final token = sessionController.token.value;
+      if (token.isEmpty) {
+        showStatusBanner(
+          'No authentication token found',
+          Colors.redAccent,
+          Icons.error_outline,
+        );
+        return;
+      }
+
+      final response = await _profileRepository.changepasswordrepo(
+        token,
+        oldpassword,
+        newpassword,
+      );
+
+      if (!response.error) {
+        showStatusBanner(
+          'Password changed successfully',
+          Colors.green,
+          Icons.check_circle,
+        );
+      } else {
+        showStatusBanner(
+          response.message,
+          Colors.redAccent,
+          Icons.error_outline,
+        );
+      }
+    } on exceptions.HttpException catch (e) {
+      showStatusBanner(e.message, Colors.redAccent, Icons.error_outline);
+    } catch (e) {
+      showStatusBanner(
+        'Something went wrong during password change',
+        Colors.redAccent,
+        Icons.error_outline,
+      );
     }
   }
 }

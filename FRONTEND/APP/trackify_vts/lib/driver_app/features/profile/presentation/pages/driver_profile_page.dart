@@ -8,6 +8,7 @@ import 'assigned_vehicle_page.dart';
 import 'driver_profile_details_page.dart';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
+import '../../../../../utilities/widgets/status_banner.dart';
 
 String _formatDateTime(DateTime date) {
   final day = date.day.toString().padLeft(2, '0');
@@ -119,6 +120,15 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                     text: data.phoneNumber.toString(),
                   );
 
+                  String? imageBase64;
+                  bool hasChanged = false;
+
+                  bool _hasAnyChange() {
+                    return nameController.text.trim() != data.name ||
+                        phoneController.text != data.phoneNumber.toString() ||
+                        imageBase64 != null;
+                  }
+
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
@@ -126,7 +136,6 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                     builder: (context) {
                       return StatefulBuilder(
                         builder: (context, setState) {
-                          String? imageBase64;
                           return Container(
                             padding: const EdgeInsets.all(16),
                             margin: EdgeInsets.only(
@@ -152,15 +161,25 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                   const SizedBox(height: 16),
                                   GestureDetector(
                                     onTap: () async {
-                                      final picked = await ImagePicker()
-                                          .pickImage(
-                                            source: ImageSource.gallery,
+                                      try {
+                                        final picked = await ImagePicker()
+                                            .pickImage(
+                                              source: ImageSource.gallery,
+                                            );
+                                        if (picked != null) {
+                                          final bytes =
+                                              await picked.readAsBytes();
+                                          imageBase64 = base64Encode(bytes);
+                                          setState(
+                                            () => hasChanged = _hasAnyChange(),
                                           );
-                                      if (picked != null) {
-                                        final bytes =
-                                            await picked.readAsBytes();
-                                        imageBase64 = base64Encode(bytes);
-                                        setState(() {});
+                                        }
+                                      } catch (e) {
+                                        showStatusBanner(
+                                          'Failed to pick image',
+                                          Colors.redAccent,
+                                          Icons.error_outline,
+                                        );
                                       }
                                     },
                                     child: CircleAvatar(
@@ -184,6 +203,10 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                   const SizedBox(height: 12),
                                   TextField(
                                     controller: nameController,
+                                    onChanged:
+                                        (value) => setState(
+                                          () => hasChanged = _hasAnyChange(),
+                                        ),
                                     autofillHints: const [AutofillHints.name],
                                     enableSuggestions: false,
                                     enableInteractiveSelection: false,
@@ -195,12 +218,17 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                   const SizedBox(height: 12),
                                   TextField(
                                     controller: phoneController,
+                                    onChanged:
+                                        (value) => setState(
+                                          () => hasChanged = _hasAnyChange(),
+                                        ),
                                     keyboardType: TextInputType.phone,
                                     autofillHints: const [
                                       AutofillHints.telephoneNumber,
                                     ],
                                     enableSuggestions: false,
                                     enableInteractiveSelection: false,
+                                    maxLength: 10,
                                     decoration: const InputDecoration(
                                       labelText: 'Phone Number',
                                       border: OutlineInputBorder(),
@@ -209,25 +237,37 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                   const SizedBox(height: 20),
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
+                                      backgroundColor:
+                                          hasChanged
+                                              ? Colors.green
+                                              : Colors.grey,
                                       minimumSize: const Size(
                                         double.infinity,
                                         45,
                                       ),
                                     ),
-                                    onPressed: () {
-                                      final name = nameController.text.trim();
-                                      final phone =
-                                          int.tryParse(phoneController.text) ??
-                                          0;
-                                      controller.updateProfile(
-                                        name: name,
-                                        phoneNumber: phone,
-                                        profileImageBase64: imageBase64,
-                                      );
-                                      Navigator.of(context).pop();
-                                    },
-                                    child: const Text('Save Changes'),
+                                    onPressed:
+                                        hasChanged
+                                            ? () {
+                                              final name =
+                                                  nameController.text.trim();
+                                              final phone =
+                                                  int.tryParse(
+                                                    phoneController.text,
+                                                  ) ??
+                                                  0;
+                                              controller.updateProfile(
+                                                name: name,
+                                                phoneNumber: phone,
+                                                profileImageBase64: imageBase64,
+                                              );
+                                              Navigator.of(context).pop();
+                                            }
+                                            : null,
+                                    child: const Text(
+                                      'Save Changes',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -421,10 +461,40 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                       ),
-                      onPressed: () {
+                      onPressed: () async {
+                        final oldPassword = oldPasswordController.text.trim();
+                        final newPassword = newPasswordController.text.trim();
+
+                        final passwordRegex = RegExp(
+                          r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,15}$',
+                        );
+
+                        if (!passwordRegex.hasMatch(newPassword)) {
+                          showStatusBanner(
+                            'Password must include 1 capital, 1 small, 1 number, 1 special character (8–15 chars)',
+                            Colors.redAccent,
+                            Icons.error_outline,
+                          );
+                          return;
+                        }
+
+                        await controller.changepasswordcontroller(
+                          oldpassword: oldPassword,
+                          newpassword: newPassword,
+                        );
+
                         Navigator.of(context).pop();
                       },
-                      child: const Text('Change Password'),
+                      child: Text(
+                        'Change Password',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize:
+                              MediaQuery.of(context).size.width *
+                              0.03, // responsive font size
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -504,7 +574,11 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                         ),
                       );
                     } else {
-                      Get.snackbar('Error', 'Driver profile not available');
+                      showStatusBanner(
+                        'Driver profile not available',
+                        Colors.redAccent,
+                        Icons.error_outline,
+                      );
                     }
                     break;
                 }

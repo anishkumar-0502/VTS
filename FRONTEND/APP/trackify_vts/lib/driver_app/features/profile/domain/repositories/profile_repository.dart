@@ -31,4 +31,11 @@ class ProfileRepository {
     }
   }
 
+  Future<ChangePasswordResponse> changepasswordrepo(
+      String token, String oldpassword, String newpassword) async {
+    final responseJson =
+    await _api.changepassword(token, oldpassword, newpassword);
+    return ChangePasswordResponse.fromJson(responseJson);
+  }
+
 }

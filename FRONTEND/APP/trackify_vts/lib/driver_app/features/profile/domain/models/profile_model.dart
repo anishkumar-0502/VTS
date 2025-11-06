@@ -504,3 +504,25 @@ class StandingLocation {
     return {'name': name, 'latitude': latitude, 'longitude': longitude};
   }
 }
+
+class ChangePasswordResponse {
+  final bool error;
+  final String message;
+  final Map<String, dynamic>? data;
+
+  ChangePasswordResponse({
+    required this.error,
+    required this.message,
+    this.data,
+  });
+
+  factory ChangePasswordResponse.fromJson(Map<String, dynamic> json) {
+    return ChangePasswordResponse(
+      error: json['error'] as bool,
+      message: json['message'] as String,
+      data: json['data'] != null
+          ? Map<String, dynamic>.from(json['data'])
+          : null,
+    );
+  }
+}
