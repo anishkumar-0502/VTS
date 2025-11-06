@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const UserService = require('../services/userService');
 const DeviceService = require('../services/deviceService');
 const VehicleService = require('../services/vehicleService');
@@ -68,6 +69,55 @@ const resolveOperatorContext = async (userPayload) => {
   const primaryOperatorId = userRecord?.operator_id || userPayload.operator_id || operatorIds[0] || null;
 
   return { identifiers, operatorIds, primaryOperatorId };
+};
+
+const buildVehicleIdentifierConditions = (identifier) => {
+  if (!identifier) {
+    return [];
+  }
+
+  const normalizedIdentifier = typeof identifier === 'string' ? identifier.trim() : identifier;
+
+  const conditions = [{ vehicle_id: normalizedIdentifier }];
+
+  if (mongoose.Types.ObjectId.isValid(normalizedIdentifier)) {
+    conditions.push({ _id: new mongoose.Types.ObjectId(normalizedIdentifier) });
+  }
+
+  return conditions;
+};
+
+const findOperatorVehicle = async (operatorId, identifier, options = {}) => {
+  const { throwOnMissing = true } = options;
+  const conditions = buildVehicleIdentifierConditions(identifier);
+
+  if (!conditions.length) {
+    if (throwOnMissing) {
+      throw new CustomError('Vehicle identifier is required', 400);
+    }
+    return null;
+  }
+
+  const vehicle = await Vehicle.findOne({ operator_id: operatorId, $or: conditions });
+
+  if (vehicle) {
+    return vehicle;
+  }
+
+  const globalVehicle = await Vehicle.findOne({ $or: conditions });
+
+  if (!globalVehicle) {
+    if (throwOnMissing) {
+      throw new CustomError('Vehicle not found', 404);
+    }
+    return null;
+  }
+
+  if (throwOnMissing) {
+    throw new CustomError('Vehicle belongs to a different operator', 403);
+  }
+
+  return null;
 };
 
 class OperatorController {
@@ -1574,23 +1624,40 @@ class OperatorController {
         throw new CustomError('Driver ID and Vehicle ID are required', 400);
       }
 
-      const vehicle = await Vehicle.findOne({ vehicle_id, operator_id });
-      if (!vehicle) {
-        throw new CustomError('Vehicle not found', 404);
-      }
+      const vehicle = await findOperatorVehicle(operator_id, vehicle_id);
 
       let driverUser = await User.findOne({ user_id: driverIdentifier, operator_id, role_id: 3 });
       let driverProfile = null;
 
       if (!driverUser) {
-        driverProfile = await Driver.findOne({ driver_id: driverIdentifier, operator_id });
-        if (!driverProfile) {
+        driverProfile = await Driver.findOne({
+          $or: [
+            { driver_id: driverIdentifier },
+            { user_id: driverIdentifier }
+          ]
+        });
+
+        if (driverProfile && driverProfile.operator_id !== operator_id) {
+          throw new CustomError('Driver belongs to a different operator', 403);
+        }
+
+        const fallbackDriverUser = await User.findOne({ user_id: driverIdentifier, role_id: 3 });
+        if (fallbackDriverUser && fallbackDriverUser.operator_id !== operator_id) {
+          throw new CustomError('Driver belongs to a different operator', 403);
+        }
+
+        const resolvedDriverId = driverProfile?.user_id || fallbackDriverUser?.user_id;
+
+        if (resolvedDriverId) {
+          driverUser = await User.findOne({ user_id: resolvedDriverId, operator_id, role_id: 3 });
+        }
+
+        if (!driverUser) {
           throw new CustomError('Driver not found', 404);
         }
 
-        driverUser = await User.findOne({ user_id: driverProfile.user_id, operator_id, role_id: 3 });
-        if (!driverUser) {
-          throw new CustomError('Driver not found', 404);
+        if (!driverProfile) {
+          driverProfile = await Driver.findOne({ user_id: driverUser.user_id, operator_id });
         }
       } else {
         driverProfile = await Driver.findOne({ user_id: driverUser.user_id, operator_id });
@@ -1660,17 +1727,20 @@ class OperatorController {
         throw new CustomError('End-user ID and Vehicle ID are required', 400);
       }
 
-      const vehicle = await Vehicle.findOne({ vehicle_id: targetVehicleId, operator_id });
-      if (!vehicle) {
-        throw new CustomError('Vehicle not found', 404);
-      }
+      const vehicle = await findOperatorVehicle(operator_id, targetVehicleId);
+
+      const endUserIdentifierConditions = [{ end_user_id: endUserIdentifier }, { user_id: endUserIdentifier }];
 
       const endUserProfile = await EndUser.findOne({
         operator_id,
-        $or: [{ end_user_id: endUserIdentifier }, { user_id: endUserIdentifier }]
+        $or: endUserIdentifierConditions
       });
 
       if (!endUserProfile) {
+        const globalEndUser = await EndUser.findOne({ $or: endUserIdentifierConditions });
+        if (globalEndUser) {
+          throw new CustomError('End-user belongs to a different operator', 403);
+        }
         throw new CustomError('End-user not found', 404);
       }
 
@@ -1681,6 +1751,10 @@ class OperatorController {
       const endUserUser = await User.findOne({ user_id: endUserProfile.user_id, operator_id, role_id: 4 });
 
       if (!endUserUser) {
+        const fallbackEndUserUser = await User.findOne({ user_id: endUserProfile.user_id, role_id: 4 });
+        if (fallbackEndUserUser && fallbackEndUserUser.operator_id !== operator_id) {
+          throw new CustomError('End-user belongs to a different operator', 403);
+        }
         throw new CustomError('End-user not found', 404);
       }
 
@@ -1798,7 +1872,7 @@ class OperatorController {
 
       const [updatedEndUserProfile, updatedVehicle] = await Promise.all([
         EndUser.findOne({ end_user_id: endUserProfile.end_user_id }).lean(),
-        Vehicle.findOne({ vehicle_id: currentVehicleId, operator_id }).lean()
+        findOperatorVehicle(operator_id, currentVehicleId)
       ]);
 
       const aggregatedEndUserIds = Array.isArray(updatedVehicle?.end_user_ids) && updatedVehicle.end_user_ids.length
@@ -2201,6 +2275,149 @@ class OperatorController {
           totalDrivers,
           totalEndUsers
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createScheduledTrip(req, res, next) {
+    try {
+      const { vehicle_id, driver_id, route_name, scheduled_start_time, trip_period, start_location, end_location, repeat_days } = req.body;
+      const { CustomError } = require('../middlewares/errorHandler');
+      const ScheduledTrip = require('../models/ScheduledTrip');
+      const { generateScheduledTripId } = require('../utils/uuidUtils');
+
+      if (!vehicle_id || !driver_id || !scheduled_start_time) {
+        throw new CustomError('Vehicle ID, Driver ID, and scheduled start time are required', 400);
+      }
+
+      const scheduledTrip = new ScheduledTrip({
+        scheduled_trip_id: generateScheduledTripId(),
+        vehicle_id,
+        driver_id,
+        operator_id: req.user.operator_id,
+        route_name,
+        scheduled_start_time,
+        trip_period: trip_period || 'morning',
+        start_location,
+        end_location,
+        repeat_days: repeat_days || [],
+        is_active: true
+      });
+
+      await scheduledTrip.save();
+
+      res.status(201).json({
+        error: false,
+        message: 'Scheduled trip created successfully',
+        data: scheduledTrip
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getScheduledTrips(req, res, next) {
+    try {
+      const ScheduledTrip = require('../models/ScheduledTrip');
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page } = req.pagination;
+      const { vehicle_id, driver_id } = req.query;
+
+      const filter = { operator_id: req.user.operator_id };
+      if (vehicle_id) filter.vehicle_id = vehicle_id;
+      if (driver_id) filter.driver_id = driver_id;
+
+      const total = await ScheduledTrip.countDocuments(filter);
+
+      const scheduledTrips = await ScheduledTrip.find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort({ scheduled_start_time: 1 });
+
+      const response = PaginationHelper.formatPaginatedResponse(scheduledTrips, total, page, limit);
+
+      res.status(200).json({
+        error: false,
+        message: 'Scheduled trips retrieved successfully',
+        ...response
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getScheduledTripById(req, res, next) {
+    try {
+      const ScheduledTrip = require('../models/ScheduledTrip');
+      const { CustomError } = require('../middlewares/errorHandler');
+      const { scheduledTripId } = req.params;
+
+      const scheduledTrip = await ScheduledTrip.findOne({
+        scheduled_trip_id: scheduledTripId,
+        operator_id: req.user.operator_id
+      });
+
+      if (!scheduledTrip) {
+        throw new CustomError('Scheduled trip not found', 404);
+      }
+
+      res.status(200).json({
+        error: false,
+        message: 'Scheduled trip retrieved successfully',
+        data: scheduledTrip
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateScheduledTrip(req, res, next) {
+    try {
+      const ScheduledTrip = require('../models/ScheduledTrip');
+      const { CustomError } = require('../middlewares/errorHandler');
+      const { scheduledTripId } = req.params;
+      const updateData = req.body;
+
+      const scheduledTrip = await ScheduledTrip.findOneAndUpdate(
+        { scheduled_trip_id: scheduledTripId, operator_id: req.user.operator_id },
+        updateData,
+        { new: true }
+      );
+
+      if (!scheduledTrip) {
+        throw new CustomError('Scheduled trip not found', 404);
+      }
+
+      res.status(200).json({
+        error: false,
+        message: 'Scheduled trip updated successfully',
+        data: scheduledTrip
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteScheduledTrip(req, res, next) {
+    try {
+      const ScheduledTrip = require('../models/ScheduledTrip');
+      const { CustomError } = require('../middlewares/errorHandler');
+      const { scheduledTripId } = req.params;
+
+      const scheduledTrip = await ScheduledTrip.findOneAndDelete({
+        scheduled_trip_id: scheduledTripId,
+        operator_id: req.user.operator_id
+      });
+
+      if (!scheduledTrip) {
+        throw new CustomError('Scheduled trip not found', 404);
+      }
+
+      res.status(200).json({
+        error: false,
+        message: 'Scheduled trip deleted successfully'
       });
     } catch (error) {
       next(error);

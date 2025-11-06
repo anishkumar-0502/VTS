@@ -1,5 +1,5 @@
 const TrackingData = require('../models/TrackingData');
-const Trip = require('../models/Trip');
+const OnDemandTrip = require('../models/Trip');
 const NotificationService = require('../services/notificationService');
 const UserService = require('../services/userService');
 const { CustomError } = require('../middlewares/errorHandler');

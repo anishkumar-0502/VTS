@@ -4,10 +4,109 @@ const UserService = require('../services/userService');
 const TrackingData = require('../models/TrackingData');
 const { CustomError } = require('../middlewares/errorHandler');
 const logger = require('../utils/logger');
-const Trip = require('../models/Trip');
+const OnDemandTrip = require('../models/Trip');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Vehicle = require('../models/Vehicle');
+const Device = require('../models/Device');
+const mongoose = require('mongoose');
+const VehicleService = require('../services/vehicleService');
+
+const normalizeIdentifier = (value) => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  if (value === undefined || value === null) {
+    return value;
+  }
+  return String(value).trim();
+};
+
+const buildIdentifierConditions = (identifier, key) => {
+  const normalized = normalizeIdentifier(identifier);
+  if (!normalized) {
+    return [];
+  }
+
+  const conditions = [{ [key]: normalized }];
+
+  if (mongoose.Types.ObjectId.isValid(normalized)) {
+    conditions.push({ _id: new mongoose.Types.ObjectId(normalized) });
+  }
+
+  return conditions;
+};
+
+const findVehicleByIdentifier = async (identifier, operatorId, options = {}) => {
+  const conditions = buildIdentifierConditions(identifier, 'vehicle_id');
+
+  if (!conditions.length) {
+    throw new CustomError('Vehicle ID is required', 400);
+  }
+
+  const baseQuery = operatorId ? { operator_id: operatorId, $or: conditions } : { $or: conditions };
+
+  let vehicleQuery = Vehicle.findOne(baseQuery);
+
+  if (options.lean) {
+    vehicleQuery = vehicleQuery.lean();
+  }
+
+  const vehicle = await vehicleQuery;
+
+  if (vehicle) {
+    return vehicle;
+  }
+
+  if (operatorId) {
+    const fallbackVehicle = await Vehicle.findOne({ $or: conditions });
+    if (fallbackVehicle && fallbackVehicle.operator_id !== operatorId) {
+      throw new CustomError('Vehicle belongs to a different operator', 403);
+    }
+    if (fallbackVehicle) {
+      return fallbackVehicle;
+    }
+  }
+
+  throw new CustomError('Vehicle not found', 404);
+};
+
+const findTripByIdentifier = async (identifier, driverId, options = {}) => {
+  const conditions = buildIdentifierConditions(identifier, 'trip_id');
+
+  if (!conditions.length) {
+    throw new CustomError('Trip ID is required', 400);
+  }
+
+  const baseQuery = driverId ? { driver_id: driverId, $or: conditions } : { $or: conditions };
+
+  let tripQuery = OnDemandTrip.findOne(baseQuery);
+
+  if (options.select) {
+    tripQuery = tripQuery.select(options.select);
+  }
+
+  if (options.lean) {
+    tripQuery = tripQuery.lean();
+  }
+
+  const trip = await tripQuery;
+
+  if (!trip) {
+    throw new CustomError('Trip not found', 404);
+  }
+
+  return trip;
+};
+
+const getDriverIdentifiers = async (userId) => {
+  const identifiers = [userId];
+  const driverRecord = await Driver.findOne({ user_id: userId }).select('driver_id').lean();
+  if (driverRecord?.driver_id) {
+    identifiers.push(driverRecord.driver_id);
+  }
+  return identifiers;
+};
 
 class DriverController {
   static async startTrip(req, res, next) {
@@ -68,10 +167,13 @@ class DriverController {
         distance_traveled
       });
 
+      const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
+
       if (global.socketManager) {
         global.socketManager.emitToTrip(tripId, 'trip_ended', {
           tripId,
           driverId: req.user.user_id,
+          vehicleId: vehicle?.vehicle_id || trip.vehicle_id,
           endLocation: end_location,
           distanceTraveled: distance_traveled,
           timestamp: new Date()
@@ -79,6 +181,7 @@ class DriverController {
         global.socketManager.emitToOperator(req.user.operator_id, 'trip_ended', {
           tripId,
           driverId: req.user.user_id,
+          vehicleId: vehicle?.vehicle_id || trip.vehicle_id,
           timestamp: new Date()
         });
       }
@@ -95,23 +198,24 @@ class DriverController {
 
   static async getActiveTrip(req, res, next) {
     try {
-      const Trip = require('../models/Trip');
-      const trip = await Trip.findOne({
+      const OnDemandTrip = require('../models/Trip');
+      const trip = await OnDemandTrip.findOne({
         driver_id: req.user.user_id,
         status: 'active'
-      }).populate({
-        path: 'vehicle_id',
-        select: 'vehicle_id vehicle_number capacity route_points'
       });
 
       if (!trip) {
         throw new CustomError('No active trip found', 404);
       }
 
+      const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
+      const tripData = trip.toObject();
+      tripData.vehicle_id = vehicle;
+
       res.status(200).json({
         error: false,
         message: 'Active trip retrieved successfully',
-        data: trip
+        data: tripData
       });
     } catch (error) {
       next(error);
@@ -122,20 +226,28 @@ class DriverController {
     try {
       const { skip, limit, page } = req.pagination;
 
-      const total = await Trip.countDocuments({
+      const total = await OnDemandTrip.countDocuments({
         driver_id: req.user.user_id
       });
 
-      const trips = await Trip.find({
+      const trips = await OnDemandTrip.find({
         driver_id: req.user.user_id
       })
-        .populate('vehicle_id')
         .skip(skip)
         .limit(limit)
         .sort({ start_time: -1 });
 
+      const tripsWithVehicles = await Promise.all(
+        trips.map(async trip => {
+          const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
+          const tripData = trip.toObject();
+          tripData.vehicle_id = vehicle;
+          return tripData;
+        })
+      );
+
       const PaginationHelper = require('../utils/paginationHelper');
-      const response = PaginationHelper.formatPaginatedResponse(trips, total, page, limit);
+      const response = PaginationHelper.formatPaginatedResponse(tripsWithVehicles, total, page, limit);
 
       res.status(200).json({
         error: false,
@@ -150,18 +262,19 @@ class DriverController {
   static async getTripDetails(req, res, next) {
     try {
       const { tripId } = req.params;
-      const trip = await TripService.getTripById(tripId);
+      const trip = await findTripByIdentifier(tripId, req.user.user_id);
 
-      if (trip.driver_id.toString() !== req.user.user_id) {
-        throw new CustomError('Unauthorized', 403);
-      }
+      const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
 
-      const analytics = await TripService.getTripAnalytics(tripId);
+      const analytics = await TripService.getTripAnalytics(trip.trip_id || trip._id);
+
+      const tripData = trip.toObject();
+      tripData.vehicle_id = vehicle;
 
       res.status(200).json({
         error: false,
         message: 'Trip details retrieved successfully',
-        data: { trip, analytics }
+        data: { trip: tripData, analytics }
       });
     } catch (error) {
       next(error);
@@ -235,15 +348,10 @@ class DriverController {
   static async getVehicleStatus(req, res, next) {
     try {
       const { vehicleId } = req.params;
-      const Vehicle = require('../models/Vehicle');
-
-      const vehicle = await Vehicle.findById(vehicleId).populate('device_id');
-      if (!vehicle) {
-        throw new CustomError('Vehicle not found', 404);
-      }
+      const vehicle = await findVehicleByIdentifier(vehicleId, req.user.operator_id);
 
       const latestTracking = await TrackingData.findOne({
-        vehicle_id: vehicleId
+        vehicle_id: vehicle.vehicle_id
       }).sort({ timestamp: -1 });
 
       res.status(200).json({
@@ -261,13 +369,13 @@ class DriverController {
 
   static async getDriverStats(req, res, next) {
     try {
-      const totalTrips = await Trip.countDocuments({ driver_id: req.user.user_id });
-      const completedTrips = await Trip.countDocuments({
+      const totalTrips = await OnDemandTrip.countDocuments({ driver_id: req.user.user_id });
+      const completedTrips = await OnDemandTrip.countDocuments({
         driver_id: req.user.user_id,
         status: 'completed'
       });
 
-      const activeTrips = await Trip.countDocuments({
+      const activeTrips = await OnDemandTrip.countDocuments({
         driver_id: req.user.user_id,
         status: 'active'
       });
@@ -294,22 +402,30 @@ class DriverController {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const total = await Trip.countDocuments({
+      const total = await OnDemandTrip.countDocuments({
         driver_id: req.user.user_id,
         start_time: { $gte: today, $lt: tomorrow }
       });
 
-      const trips = await Trip.find({
+      const trips = await OnDemandTrip.find({
         driver_id: req.user.user_id,
         start_time: { $gte: today, $lt: tomorrow }
       })
-        .populate('vehicle_id', 'vehicle_number route_points capacity')
         .skip(skip)
         .limit(limit)
         .sort({ start_time: 1 });
 
-      const PaginationHelper = require('../utils/paginationHelper');
-      const response = PaginationHelper.formatPaginatedResponse(trips, total, page, limit);
+      const tripsWithVehicles = await Promise.all(
+        trips.map(async trip => {
+          const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
+          const tripData = trip.toObject();
+          tripData.vehicle_id = vehicle;
+          return tripData;
+        })
+      );
+
+      const paginationHelper = require('../utils/paginationHelper');
+      const response = paginationHelper.formatPaginatedResponse(tripsWithVehicles, total, page, limit);
 
       res.status(200).json({
         error: false,
@@ -329,23 +445,21 @@ class DriverController {
         throw new CustomError('No vehicle assigned to driver', 404);
       }
 
-      const vehicle = await Vehicle.findById(driver.assigned_vehicle_id);
-
-      if (!vehicle) {
-        throw new CustomError('Vehicle not found', 404);
-      }
+      const vehicle = await findVehicleByIdentifier(driver.assigned_vehicle_id, req.user.operator_id, { lean: true });
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const trips = await Trip.find({
+      const trips = await OnDemandTrip.find({
         driver_id: req.user.user_id,
         vehicle_id: driver.assigned_vehicle_id,
         start_time: { $gte: today, $lt: tomorrow },
         status: 'active'
-      }).select('_id route_name passengers route_points');
+      })
+        .lean()
+        .select('_id trip_id route_name passengers route_points');
 
       res.status(200).json({
         error: false,
@@ -373,7 +487,7 @@ class DriverController {
         throw new CustomError('Trip ID and route point indices are required', 400);
       }
 
-      const trip = await Trip.findById(tripId);
+      const trip = await OnDemandTrip.findById(tripId);
 
       if (!trip) {
         throw new CustomError('Trip not found', 404);
@@ -383,7 +497,7 @@ class DriverController {
         throw new CustomError('Unauthorized', 403);
       }
 
-      const vehicle = await Vehicle.findById(trip.vehicle_id);
+      const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
 
       if (!vehicle || !vehicle.route_points) {
         throw new CustomError('Vehicle route points not found', 404);
@@ -432,7 +546,7 @@ class DriverController {
         throw new CustomError('Invalid status. Must be picked_up or dropped', 400);
       }
 
-      const trip = await Trip.findById(tripId);
+      const trip = await OnDemandTrip.findById(tripId);
 
       if (!trip) {
         throw new CustomError('Trip not found', 404);
@@ -623,7 +737,7 @@ class DriverController {
         throw new CustomError('Trip ID is required', 400);
       }
 
-      const trip = await Trip.findById(tripId);
+      const trip = await OnDemandTrip.findById(tripId);
 
       if (!trip) {
         throw new CustomError('Trip not found', 404);
@@ -664,7 +778,7 @@ class DriverController {
         throw new CustomError('Trip ID and current speed are required', 400);
       }
 
-      const trip = await Trip.findById(tripId);
+      const trip = await OnDemandTrip.findById(tripId);
 
       if (!trip) {
         throw new CustomError('Trip not found', 404);
@@ -754,6 +868,129 @@ class DriverController {
         error: false,
         message: 'FCM token unregistered successfully',
         data: { removed: fcmToken }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getScheduledTrips(req, res, next) {
+    try {
+      const ScheduledTrip = require('../models/ScheduledTrip');
+      const driverIdentifiers = await getDriverIdentifiers(req.user.user_id);
+
+      const scheduledTrips = await ScheduledTrip.find({
+        driver_id: { $in: driverIdentifiers },
+        is_active: true
+      }).sort({ scheduled_start_time: 1 });
+
+      const tripsWithVehicles = await Promise.all(
+        scheduledTrips.map(async trip => {
+          const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
+          const tripData = trip.toObject();
+          tripData.vehicle_id = vehicle;
+          return tripData;
+        })
+      );
+
+      res.status(200).json({
+        error: false,
+        message: 'Scheduled trips retrieved successfully',
+        data: tripsWithVehicles
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getTodaysScheduledTrips(req, res, next) {
+    try {
+      const ScheduledTrip = require('../models/ScheduledTrip');
+
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const todayName = dayNames[new Date().getDay()];
+      const repeatDayKey = `repeat_days.${todayName}`;
+      const driverIdentifiers = await getDriverIdentifiers(req.user.user_id);
+
+      const scheduledTrips = await ScheduledTrip.find({
+        driver_id: { $in: driverIdentifiers },
+        is_active: true,
+        [repeatDayKey]: true
+      }).sort({ scheduled_start_time: 1 });
+
+      const tripsWithVehicles = await Promise.all(
+        scheduledTrips.map(async trip => {
+          const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
+          const tripData = trip.toObject();
+          tripData.vehicle_id = vehicle;
+          return tripData;
+        })
+      );
+
+      res.status(200).json({
+        error: false,
+        message: 'Today\'s scheduled trips retrieved successfully',
+        data: tripsWithVehicles
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async startScheduledTrip(req, res, next) {
+    try {
+      const ScheduledTrip = require('../models/ScheduledTrip');
+      const { scheduledTripId } = req.params;
+      const driverIdentifiers = await getDriverIdentifiers(req.user.user_id);
+
+      const scheduledTrip = await ScheduledTrip.findOne({
+        scheduled_trip_id: scheduledTripId,
+        driver_id: { $in: driverIdentifiers }
+      });
+
+      if (!scheduledTrip) {
+        throw new CustomError('Scheduled trip not found', 404);
+      }
+
+      if (scheduledTrip.status === 'in-progress') {
+        throw new CustomError('This trip is already in progress', 400);
+      }
+
+      const trip = await TripService.startTripFromScheduled({
+        scheduledTrip,
+        driver_id: req.user.user_id,
+        operator_id: req.user.operator_id
+      });
+
+      await ScheduledTrip.updateOne(
+        { scheduled_trip_id: scheduledTripId },
+        {
+          associated_trip_id: trip.trip_id || trip._id,
+          status: 'in-progress'
+        }
+      );
+
+      if (global.socketManager) {
+        global.socketManager.emitToTrip(trip._id.toString(), 'trip_started', {
+          tripId: trip._id,
+          driverId: req.user.user_id,
+          vehicleId: scheduledTrip.vehicle_id,
+          routeName: scheduledTrip.route_name,
+          startLocation: scheduledTrip.start_location,
+          timestamp: new Date()
+        });
+        global.socketManager.emitToOperator(req.user.operator_id, 'trip_started', {
+          tripId: trip._id,
+          driverId: req.user.user_id,
+          vehicleId: scheduledTrip.vehicle_id,
+          timestamp: new Date()
+        });
+      }
+
+      res.status(201).json({
+        error: false,
+        message: 'Scheduled trip started successfully',
+        data: trip
       });
     } catch (error) {
       next(error);

@@ -91,5 +91,12 @@ router.post('/assignments/unassign-end-user-from-vehicle', OperatorController.un
 // ========== STATISTICS ========== // TODO - will be implement this later
 router.get('/stats/dashboard', OperatorController.getOperatorStats);
 
+// ========== MANAGE SCHEDULED TRIPS ========== COMPLETED
+router.post('/scheduled-trips/create', OperatorController.createScheduledTrip);
+router.get('/scheduled-trips/list', OperatorController.getScheduledTrips);
+router.get('/scheduled-trips/:scheduledTripId/view', OperatorController.getScheduledTripById);
+router.put('/scheduled-trips/:scheduledTripId/update', OperatorController.updateScheduledTrip);
+router.delete('/scheduled-trips/:scheduledTripId/delete', OperatorController.deleteScheduledTrip);
+
 module.exports = router;
 

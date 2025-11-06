@@ -10,7 +10,8 @@ const ENTITY_PREFIXES = {
   TRIP: 'TRP',
   TRACKING_DATA: 'TRK',
   NOTIFICATION: 'NOT',
-  END_USER: 'EUS'
+  END_USER: 'EUS',
+  SCHEDULED_TRIP: 'SCHTRP'
 };
 
 const generateEntityId = (prefix) => {
@@ -30,6 +31,7 @@ const generateTripId = () => generateEntityId(ENTITY_PREFIXES.TRIP);
 const generateTrackingDataId = () => generateEntityId(ENTITY_PREFIXES.TRACKING_DATA);
 const generateNotificationId = () => generateEntityId(ENTITY_PREFIXES.NOTIFICATION);
 const generateEndUserId = () => generateEntityId(ENTITY_PREFIXES.END_USER);
+const generateScheduledTripId = () => generateEntityId(ENTITY_PREFIXES.SCHEDULED_TRIP);
 
 module.exports = {
   generateEntityId,
@@ -43,5 +45,6 @@ module.exports = {
   generateTrackingDataId,
   generateNotificationId,
   generateEndUserId,
+  generateScheduledTripId,
   ENTITY_PREFIXES
 };

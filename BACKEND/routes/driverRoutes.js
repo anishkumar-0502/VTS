@@ -8,6 +8,7 @@ const PaginationHelper = require('../utils/paginationHelper');
 const {
   validationErrorHandler,
   tripCreationRules,
+  tripEndRules,
   locationUpdateRules,
   speedRecordingRules,
   passengerStatusRules,
@@ -22,7 +23,7 @@ const {
 router.use(authMiddleware, roleMiddleware(['driver']));
 router.use(PaginationHelper.createPaginationMiddleware());
 
-// ========== PROFILE MANAGEMENT ==========
+// ========== PROFILE MANAGEMENT ========== COMPLETED
 router.get('/profile', DriverController.getProfile);
 router.put('/profile/update', DriverController.updateProfile);
 router.post('/profile/change-password', AuthController.changePassword);
@@ -35,7 +36,7 @@ router.post('/trips/select-start-end', DriverController.selectTripStartEnd);
 // ========== ACTIVE TRIP - MANAGEMENT ==========
 router.post('/trips/start', tripCreationRules(), validationErrorHandler, DriverController.startTrip);
 router.get('/trips/active', DriverController.getActiveTrip);
-router.put('/trips/:tripId/end', tripCreationRules(), validationErrorHandler, DriverController.endTrip);
+router.put('/trips/:tripId/end', tripEndRules(), validationErrorHandler, DriverController.endTrip);
 router.get('/trips', DriverController.getTripHistory);
 router.get('/trips/:tripId', DriverController.getTripDetails);
 
@@ -59,5 +60,10 @@ router.post('/fcm-token/unregister', fcmTokenRules(), validationErrorHandler, Dr
 
 // ========== STATISTICS ==========
 router.get('/stats', DriverController.getDriverStats);
+
+// ========== SCHEDULED TRIPS ========== # TODO ## TOMORROW
+router.get('/scheduled-trips', DriverController.getScheduledTrips);
+router.get('/scheduled-trips/today', DriverController.getTodaysScheduledTrips);
+router.post('/scheduled-trips/:scheduledTripId/start', DriverController.startScheduledTrip);
 
 module.exports = router;

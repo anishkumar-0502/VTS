@@ -1,26 +1,138 @@
+const OnDemandTrip = require('../models/Trip');
+const mongoose = require('mongoose');
 const Trip = require('../models/Trip');
+const ScheduledTrip = require('../models/ScheduledTrip');
+const TripHistory = require('../models/TripHistory');
 const Vehicle = require('../models/Vehicle');
 const TrackingData = require('../models/TrackingData');
 const User = require('../models/User');
+const Operator = require('../models/Operator');
 const logger = require('../utils/logger');
 const { NotificationQueueService } = require('./notificationQueueService');
+const { CustomError } = require('../middlewares/errorHandler');
+
+const normalizeIdentifier = (value) => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  if (value === undefined || value === null) {
+    return '';
+  }
+  return String(value).trim();
+};
+
+const buildVehicleMatchFilter = (value) => {
+  const normalized = normalizeIdentifier(value);
+  if (!normalized) {
+    return null;
+  }
+  if (mongoose.Types.ObjectId.isValid(normalized)) {
+    return {
+      $or: [
+        { _id: new mongoose.Types.ObjectId(normalized) },
+        { vehicle_id: normalized }
+      ]
+    };
+  }
+  return { vehicle_id: normalized };
+};
+
+const buildTripMatchFilter = (value) => {
+  const normalized = normalizeIdentifier(value);
+  if (!normalized) {
+    return null;
+  }
+  if (mongoose.Types.ObjectId.isValid(normalized)) {
+    return {
+      $or: [
+        { _id: new mongoose.Types.ObjectId(normalized) },
+        { trip_id: normalized }
+      ]
+    };
+  }
+  return { trip_id: normalized };
+};
+
+const findVehicleByIdentifier = async (identifier) => {
+  const filter = buildVehicleMatchFilter(identifier);
+  if (!filter) {
+    return null;
+  }
+  const vehicle = await Vehicle.findOne(filter).lean();
+  if (!vehicle) {
+    return null;
+  }
+  return vehicle;
+};
+
+const findDriverByUserId = async (userId) => {
+  const driver = await User.findOne({ user_id: userId }).lean();
+  if (!driver) {
+    return null;
+  }
+  return driver;
+};
+
+const findOperatorById = async (operatorId) => {
+  const operator = await Operator.findOne({ operator_id: operatorId }).select('operator_id').lean();
+  if (!operator) {
+    return null;
+  }
+  return operator;
+};
 
 class TripService {
   static async startTrip(tripData) {
     try {
-      const vehicle = await Vehicle.findById(tripData.vehicle_id);
+      const vehicle = await findVehicleByIdentifier(tripData.vehicle_id);
+
       if (!vehicle) {
-        throw new Error('Vehicle not found');
+        throw new CustomError('Vehicle not found', 404);
       }
 
-      const trip = new Trip({
+      const driver = await findDriverByUserId(tripData.driver_id);
+      if (!driver) {
+        throw new CustomError('Driver not found', 404);
+      }
+
+      const requestedOperatorId = tripData.operator_id || driver.operator_id;
+      const operator = requestedOperatorId ? await findOperatorById(requestedOperatorId) : null;
+      if (!operator) {
+        throw new CustomError('Operator not found', 404);
+      }
+
+      const vehicleOperatorId = vehicle.operator_id;
+      const driverOperatorId = driver.operator_id;
+
+      if (!vehicleOperatorId) {
+        throw new CustomError('Vehicle is not linked to any operator', 409);
+      }
+
+      if (!driverOperatorId) {
+        throw new CustomError('Driver is not linked to any operator', 409);
+      }
+
+      if (driverOperatorId !== vehicleOperatorId) {
+        throw new CustomError('Driver and vehicle belong to different operators', 409);
+      }
+
+      if (operator.operator_id !== vehicleOperatorId) {
+        throw new CustomError('Authenticated operator does not match vehicle operator', 403);
+      }
+
+      const tripPayload = {
         ...tripData,
+        vehicle_id: vehicle.vehicle_id,
+        driver_id: driver.user_id,
+        operator_id: vehicleOperatorId,
         start_time: new Date(),
         status: 'active'
-      });
+      };
+
+      const trip = new OnDemandTrip(tripPayload);
 
       await trip.save();
-      await Vehicle.findByIdAndUpdate(tripData.vehicle_id, { current_status: 'active' });
+      await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicle.vehicle_id), { current_status: 'active' });
       logger.loggerInfo(`Trip started: ${trip._id}`);
       return trip;
     } catch (error) {
@@ -29,20 +141,35 @@ class TripService {
     }
   }
 
-  static async getTripById(tripId) {
-    try {
-      const trip = await Trip.findById(tripId)
-        .populate('vehicle_id')
-        .populate('driver_id')
-        .populate('operator_id');
-      if (!trip) {
-        throw new Error('Trip not found');
-      }
-      return trip;
-    } catch (error) {
-      logger.loggerError(`Error fetching trip: ${error.message}`);
-      throw error;
+  static async getTripByIdentifier(tripIdentifier, options = {}) {
+    const filter = buildTripMatchFilter(tripIdentifier);
+    if (!filter) {
+      throw new CustomError('Trip ID is required', 400);
     }
+    let query = OnDemandTrip.findOne(filter);
+    if (options.populate) {
+      const populateItems = Array.isArray(options.populate) ? options.populate : [options.populate];
+      for (const populateItem of populateItems) {
+        query = query.populate(populateItem);
+      }
+    }
+    if (options.select) {
+      query = query.select(options.select);
+    }
+    if (options.lean) {
+      query = query.lean();
+    }
+    const trip = await query;
+    if (!trip) {
+      throw new CustomError('Trip not found', 404);
+    }
+    return trip;
+  }
+
+  static async getTripById(tripId) {
+    return this.getTripByIdentifier(tripId, {
+      populate: ['vehicle_id', 'driver_id', 'operator_id']
+    });
   }
 
   static async getAllTrips(filters = {}) {
@@ -53,7 +180,7 @@ class TripService {
       if (filters.operator_id) query.operator_id = filters.operator_id;
       if (filters.status) query.status = filters.status;
 
-      const trips = await Trip.find(query)
+      const trips = await OnDemandTrip.find(query)
         .populate('vehicle_id')
         .populate('driver_id')
         .populate('operator_id')
@@ -67,10 +194,12 @@ class TripService {
 
   static async endTrip(tripId, endData) {
     try {
-      const trip = await Trip.findById(tripId);
+      const trip = await this.getTripByIdentifier(tripId);
       if (!trip) {
-        throw new Error('Trip not found');
+        throw new CustomError('Trip not found', 404);
       }
+
+      const vehicleIdentifier = normalizeIdentifier(trip.vehicle_id);
 
       trip.end_time = new Date();
       trip.end_location = endData.end_location;
@@ -78,8 +207,14 @@ class TripService {
       trip.distance_traveled = endData.distance_traveled;
       trip.duration = (trip.end_time - trip.start_time) / (1000 * 60);
 
+      if (!trip.vehicle_id && vehicleIdentifier) {
+        trip.vehicle_id = vehicleIdentifier;
+      }
+
       await trip.save();
-      await Vehicle.findByIdAndUpdate(trip.vehicle_id, { current_status: 'idle' });
+      if (vehicleIdentifier) {
+        await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicleIdentifier), { current_status: 'idle' });
+      }
       logger.loggerInfo(`Trip ended: ${trip._id}`);
       return trip;
     } catch (error) {
@@ -90,8 +225,12 @@ class TripService {
 
   static async cancelTrip(tripId, reason) {
     try {
-      const trip = await Trip.findByIdAndUpdate(
-        tripId,
+      const filter = buildTripMatchFilter(tripId);
+      if (!filter) {
+        throw new CustomError('Trip ID is required', 400);
+      }
+      const trip = await OnDemandTrip.findOneAndUpdate(
+        filter,
         {
           status: 'cancelled',
           end_time: new Date()
@@ -100,7 +239,10 @@ class TripService {
       );
 
       if (trip) {
-        await Vehicle.findByIdAndUpdate(trip.vehicle_id, { current_status: 'idle' });
+        const vehicleIdentifier = normalizeIdentifier(trip.vehicle_id);
+        if (vehicleIdentifier) {
+          await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicleIdentifier), { current_status: 'idle' });
+        }
       }
 
       logger.loggerInfo(`Trip cancelled: ${trip._id} - Reason: ${reason}`);
@@ -113,11 +255,18 @@ class TripService {
 
   static async addStop(tripId, stopData) {
     try {
-      const trip = await Trip.findByIdAndUpdate(
-        tripId,
+      const filter = buildTripMatchFilter(tripId);
+      if (!filter) {
+        throw new CustomError('Trip ID is required', 400);
+      }
+      const trip = await OnDemandTrip.findOneAndUpdate(
+        filter,
         { $push: { stops: stopData } },
         { new: true }
       );
+      if (!trip) {
+        throw new CustomError('Trip not found', 404);
+      }
       return trip;
     } catch (error) {
       logger.loggerError(`Error adding stop: ${error.message}`);
@@ -127,11 +276,18 @@ class TripService {
 
   static async recordSpeedViolation(tripId, violationData) {
     try {
-      const trip = await Trip.findByIdAndUpdate(
-        tripId,
+      const filter = buildTripMatchFilter(tripId);
+      if (!filter) {
+        throw new CustomError('Trip ID is required', 400);
+      }
+      const trip = await OnDemandTrip.findOneAndUpdate(
+        filter,
         { $push: { speed_violations: violationData } },
         { new: true }
       );
+      if (!trip) {
+        throw new CustomError('Trip not found', 404);
+      }
       logger.loggerInfo(`Speed violation recorded for trip: ${tripId}`);
       return trip;
     } catch (error) {
@@ -142,11 +298,18 @@ class TripService {
 
   static async recordRouteDeviation(tripId, deviationData) {
     try {
-      const trip = await Trip.findByIdAndUpdate(
-        tripId,
+      const filter = buildTripMatchFilter(tripId);
+      if (!filter) {
+        throw new CustomError('Trip ID is required', 400);
+      }
+      const trip = await OnDemandTrip.findOneAndUpdate(
+        filter,
         { $push: { route_deviations: deviationData } },
         { new: true }
       );
+      if (!trip) {
+        throw new CustomError('Trip not found', 404);
+      }
       logger.loggerInfo(`Route deviation recorded for trip: ${tripId}`);
       return trip;
     } catch (error) {
@@ -157,16 +320,18 @@ class TripService {
 
   static async getTripAnalytics(tripId) {
     try {
-      const trip = await Trip.findById(tripId);
+      const trip = await this.getTripByIdentifier(tripId);
       if (!trip) {
-        throw new Error('Trip not found');
+        throw new CustomError('Trip not found', 404);
       }
+
+      const vehicleIdentifier = normalizeIdentifier(trip.vehicle_id);
 
       const trackingData = await TrackingData.find({ trip_id: tripId }).sort({ timestamp: 1 });
 
       const analytics = {
         trip_id: trip._id,
-        vehicle_id: trip.vehicle_id,
+        vehicle_id: vehicleIdentifier || trip.vehicle_id,
         driver_id: trip.driver_id,
         start_time: trip.start_time,
         end_time: trip.end_time,
@@ -189,7 +354,7 @@ class TripService {
 
   static async getActiveTrips() {
     try {
-      const trips = await Trip.find({ status: 'active' })
+      const trips = await OnDemandTrip.find({ status: 'active' })
         .populate('vehicle_id')
         .populate('driver_id')
         .populate('operator_id');
@@ -202,9 +367,13 @@ class TripService {
 
   static async scheduleAdvanceNotifications(tripId, notificationAdvanceMinutes = 5) {
     try {
-      const trip = await Trip.findById(tripId).populate('passengers.user_id');
+      const filter = buildTripMatchFilter(tripId);
+      if (!filter) {
+        throw new CustomError('Trip ID is required', 400);
+      }
+      const trip = await OnDemandTrip.findOne(filter).populate('passengers.user_id');
       if (!trip) {
-        throw new Error('Trip not found');
+        throw new CustomError('Trip not found', 404);
       }
 
       logger.loggerInfo(`Scheduling advance notifications for trip ${tripId} (${notificationAdvanceMinutes} mins before)`);
@@ -254,8 +423,8 @@ class TripService {
 
   static async checkGeofenceViolations(tripId, currentLocation) {
     try {
-      const trip = await Trip.findById(tripId);
-      if (!trip) throw new Error('Trip not found');
+      const trip = await this.getTripByIdentifier(tripId);
+      if (!trip) throw new CustomError('Trip not found', 404);
 
       const violations = [];
       const geofenceRadius = 100;
@@ -330,11 +499,11 @@ class TripService {
 
   static async sendStudentNotificationToParent(tripId, passengerId, status) {
     try {
-      const trip = await Trip.findById(tripId);
-      if (!trip) throw new Error('Trip not found');
+      const trip = await this.getTripByIdentifier(tripId);
+      if (!trip) throw new CustomError('Trip not found', 404);
 
       const passenger = trip.passengers.find(p => p.user_id.toString() === passengerId.toString());
-      if (!passenger) throw new Error('Passenger not found');
+      if (!passenger) throw new CustomError('Passenger not found', 404);
 
       const parentUser = await User.findOne({ email: passenger.parent_contact });
       if (!parentUser || !parentUser.fcm_tokens || parentUser.fcm_tokens.length === 0) {
@@ -364,6 +533,38 @@ class TripService {
       logger.loggerInfo(`Sent ${status} notification for passenger ${passengerId}`);
     } catch (error) {
       logger.loggerError(`Error sending student notification: ${error.message}`);
+      throw error;
+    }
+  }
+
+  static async startTripFromScheduled(data) {
+    try {
+      const { scheduledTrip, driver_id, operator_id } = data;
+
+      const vehicle = await findVehicleByIdentifier(scheduledTrip.vehicle_id);
+      if (!vehicle) {
+        throw new CustomError('Vehicle not found', 404);
+      }
+
+      const tripPayload = {
+        vehicle_id: vehicle.vehicle_id,
+        driver_id: driver_id,
+        operator_id: operator_id,
+        route_name: scheduledTrip.route_name,
+        start_location: scheduledTrip.start_location,
+        start_time: new Date(),
+        trip_period: scheduledTrip.trip_period,
+        status: 'active'
+      };
+
+      const trip = new OnDemandTrip(tripPayload);
+      await trip.save();
+      await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicle.vehicle_id), { current_status: 'active' });
+
+      logger.loggerInfo(`Trip started from scheduled trip: ${trip._id}`);
+      return trip;
+    } catch (error) {
+      logger.loggerError(`Error starting trip from scheduled: ${error.message}`);
       throw error;
     }
   }

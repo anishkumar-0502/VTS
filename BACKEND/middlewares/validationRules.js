@@ -1,5 +1,7 @@
 const { body, query, param, validationResult } = require('express-validator');
 const PhoneFormatter = require('../utils/phoneFormatter');
+const Vehicle = require('../models/Vehicle');
+const mongoose = require('mongoose');
 
 const validationErrorHandler = (req, res, next) => {
   const errors = validationResult(req);
@@ -175,8 +177,21 @@ const tripCreationRules = () => {
     body('vehicle_id')
       .notEmpty()
       .withMessage('Vehicle ID is required')
-      .isMongoId()
-      .withMessage('Invalid vehicle ID'),
+      .custom(async (value) => {
+        if (mongoose.Types.ObjectId.isValid(value)) {
+          const vehicle = await Vehicle.findById(value).select('_id').lean();
+          if (vehicle) {
+            return true;
+          }
+        }
+
+        const vehicle = await Vehicle.findOne({ vehicle_id: value }).select('_id').lean();
+        if (!vehicle) {
+          throw new Error('Invalid vehicle ID');
+        }
+
+        return true;
+      }),
     body('route_name')
       .optional()
       .trim()
@@ -194,6 +209,26 @@ const tripCreationRules = () => {
       .optional()
       .isFloat({ min: -180, max: 180 })
       .withMessage('Invalid longitude')
+  ];
+};
+
+const tripEndRules = () => {
+  return [
+    body('end_location')
+      .notEmpty()
+      .withMessage('End location is required')
+      .isObject()
+      .withMessage('End location must be an object'),
+    body('end_location.latitude')
+      .isFloat({ min: -90, max: 90 })
+      .withMessage('Invalid latitude'),
+    body('end_location.longitude')
+      .isFloat({ min: -180, max: 180 })
+      .withMessage('Invalid longitude'),
+    body('distance_traveled')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('Distance traveled must be a positive number')
   ];
 };
 
@@ -367,6 +402,7 @@ module.exports = {
   endUserCreationRules,
   vehicleCreationRules,
   tripCreationRules,
+  tripEndRules,
   locationUpdateRules,
   speedRecordingRules,
   passengerStatusRules,

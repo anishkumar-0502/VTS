@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { generateTripId } = require('../utils/uuidUtils');
 
-const tripSchema = new mongoose.Schema(
+const onDemandTripSchema = new mongoose.Schema(
   {
     trip_id: {
       type: String,
@@ -25,6 +25,11 @@ const tripSchema = new mongoose.Schema(
       required: true
     },
     route_name: String,
+    scheduled_trip_id: {
+      type: String,
+      ref: 'ScheduledTrip',
+      default: null
+    },
     start_time: {
       type: Date,
       required: true
@@ -170,14 +175,14 @@ const tripSchema = new mongoose.Schema(
   { timestamps: true, id: false }
 );
 
-tripSchema.pre('save', function (next) {
+onDemandTripSchema.pre('save', function (next) {
   if (!this.trip_id) {
     this.trip_id = generateTripId();
   }
   next();
 });
 
-tripSchema.set('toJSON', {
+onDemandTripSchema.set('toJSON', {
   virtuals: true,
   transform: (_, ret) => {
     ret.trip_id = ret.trip_id || ret._id;
@@ -188,7 +193,7 @@ tripSchema.set('toJSON', {
   }
 });
 
-tripSchema.set('toObject', {
+onDemandTripSchema.set('toObject', {
   virtuals: true,
   transform: (_, ret) => {
     ret.trip_id = ret.trip_id || ret._id;
@@ -199,4 +204,4 @@ tripSchema.set('toObject', {
   }
 });
 
-module.exports = mongoose.model('Trip', tripSchema);
+module.exports = mongoose.model('Trip', onDemandTripSchema, 'on_demand_trips');
