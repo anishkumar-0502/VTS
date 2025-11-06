@@ -1,9 +1,10 @@
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from "react";
 import {
   GoogleMap,
   InfoWindow,
+  Polyline,
   useJsApiLoader,
-} from '@react-google-maps/api';
+} from "@react-google-maps/api";
 
 interface Vehicle {
   _id: string;
@@ -13,6 +14,7 @@ interface Vehicle {
   speed: number;
   course: number;
   timestamp: string;
+  polyline?: [number, number][];
   device?: {
     status: boolean;
     battery_level?: number;
@@ -26,11 +28,11 @@ interface GoogleMapLiveTrackingProps {
   height?: string;
 }
 
-const LIBRARIES = ['geometry', 'places', 'marker'];
+const LIBRARIES = ["geometry", "places", "marker"];
 
 const containerStyle = {
-  width: '100%',
-  height: '500px',
+  width: "100%",
+  height: "500px",
 };
 
 const defaultCenter = {
@@ -44,7 +46,7 @@ export default function GoogleMapLiveTracking({
   vehicles,
   selectedVehicleId,
   onVehicleSelect,
-  height = '500px',
+  height = "500px",
 }: GoogleMapLiveTrackingProps) {
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
@@ -52,9 +54,9 @@ export default function GoogleMapLiveTracking({
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
 
   const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    libraries: LIBRARIES as unknown as ('geometry' | 'places' | 'marker')[],
+    id: "google-map-script",
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries: LIBRARIES as unknown as ("geometry" | "places" | "marker")[],
   });
 
   const onLoad = useCallback((mapInstance: google.maps.Map) => {
@@ -66,35 +68,40 @@ export default function GoogleMapLiveTracking({
     setMap(null);
   }, []);
 
-  const createMarkerElement = useCallback((vehicle: Vehicle): HTMLDivElement => {
-    const div = document.createElement('div');
-    const speedColor =
-      vehicle.speed === 0
-        ? '#6B7280'
-        : vehicle.speed < 30
-        ? '#10B981'
-        : vehicle.speed < 60
-        ? '#F59E0B'
-        : '#EF4444';
+  const createMarkerElement = useCallback(
+    (vehicle: Vehicle): HTMLDivElement => {
+      const div = document.createElement("div");
+      const speedColor =
+        vehicle.speed === 0
+          ? "#6B7280"
+          : vehicle.speed < 30
+          ? "#10B981"
+          : vehicle.speed < 60
+          ? "#F59E0B"
+          : "#EF4444";
 
-    const isConnected = vehicle.device?.status !== false;
-    const isSelected = selectedVehicleId === vehicle._id;
-    const size = isSelected ? 24 : 20;
-    const borderColor = isConnected ? '#10B981' : '#EF4444';
-    const fillColor = isSelected ? '#3B82F6' : speedColor;
+      const isConnected = vehicle.device?.status !== false;
+      const isSelected = selectedVehicleId === vehicle._id;
+      const size = isSelected ? 28 : 22;
+      const borderColor = isConnected ? "#10B981" : "#EF4444";
+      const fillColor = isSelected ? "#3B82F6" : speedColor;
 
-    div.style.width = `${size}px`;
-    div.style.height = `${size}px`;
-    div.style.backgroundColor = fillColor;
-    div.style.border = `2px solid ${borderColor}`;
-    div.style.borderRadius = '50%';
-    div.style.cursor = 'pointer';
-    div.style.display = 'flex';
-    div.style.alignItems = 'center';
-    div.style.justifyContent = 'center';
+      div.style.width = `${size}px`;
+      div.style.height = `${size}px`;
+      div.style.backgroundColor = fillColor;
+      div.style.border = `2px solid ${borderColor}`;
+      div.style.borderRadius = "50%";
+      div.style.cursor = "pointer";
+      div.style.display = "flex";
+      div.style.alignItems = "center";
+      div.style.justifyContent = "center";
+      div.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+      div.style.transition = "all 0.2s";
 
-    return div;
-  }, [selectedVehicleId]);
+      return div;
+    },
+    [selectedVehicleId]
+  );
 
   useEffect(() => {
     if (!map || !isLoaded) return;
@@ -113,58 +120,39 @@ export default function GoogleMapLiveTracking({
       const existingMarker = markersRef.current.get(vehicle._id);
 
       if (existingMarker && existingMarker.map) {
-        try {
-          existingMarker.position = position;
-          const newContent = createMarkerElement(vehicle);
-          existingMarker.content = newContent;
-        } catch (error) {
-          console.warn('Error updating marker:', error);
-          markersRef.current.delete(vehicle._id);
-        }
+        existingMarker.position = position;
+        existingMarker.content = createMarkerElement(vehicle);
       } else {
-        try {
-          const marker = new google.maps.marker.AdvancedMarkerElement({
-            position,
-            map,
-            title: vehicle.vehicle_number,
-            content: createMarkerElement(vehicle),
-          });
+        const marker = new google.maps.marker.AdvancedMarkerElement({
+          position,
+          map,
+          title: vehicle.vehicle_number,
+          content: createMarkerElement(vehicle),
+        });
 
-          marker.addListener('click', () => {
-            setActiveMarker(vehicle._id);
-            onVehicleSelect?.(vehicle._id);
-          });
+        marker.addListener("click", () => {
+          setActiveMarker(vehicle._id);
+          onVehicleSelect?.(vehicle._id);
+        });
 
-          markersRef.current.set(vehicle._id, marker);
-        } catch (error) {
-          console.warn('Error creating marker:', error);
-        }
+        markersRef.current.set(vehicle._id, marker);
       }
     });
 
+    // Remove inactive markers
     markersRef.current.forEach((marker, vehicleId) => {
       if (!activeVehicles.has(vehicleId)) {
-        try {
-          marker.map = null;
-        } catch (error) {
-          console.warn('Error removing marker:', error);
-        }
+        marker.map = null;
         markersRef.current.delete(vehicleId);
       }
     });
 
-    if (selectedVehicleId && vehicles.length > 0) {
-      const selectedVehicle = vehicles.find((v) => v._id === selectedVehicleId);
-      if (
-        selectedVehicle &&
-        selectedVehicle.latitude !== 0 &&
-        selectedVehicle.longitude !== 0
-      ) {
-        map.setCenter({
-          lat: selectedVehicle.latitude,
-          lng: selectedVehicle.longitude,
-        });
-        map.setZoom(15);
+    // Center on selected vehicle
+    if (selectedVehicleId) {
+      const selected = vehicles.find((v) => v._id === selectedVehicleId);
+      if (selected) {
+        map.setCenter({ lat: selected.latitude, lng: selected.longitude });
+        map.setZoom(14);
       }
     }
   }, [vehicles, selectedVehicleId, map, isLoaded, onVehicleSelect, createMarkerElement]);
@@ -175,18 +163,20 @@ export default function GoogleMapLiveTracking({
         style={{
           ...containerStyle,
           height,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#f0f0f0',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#f0f0f0",
         }}
       >
-        <p>Loading map...</p>
+        <p>Loading Google Map...</p>
       </div>
     );
   }
 
-  const activeVehicle = vehicles.find((v) => v._id === activeMarker && v.latitude !== 0 && v.longitude !== 0);
+  const activeVehicle = vehicles.find(
+    (v) => v._id === activeMarker && v.latitude && v.longitude
+  );
 
   return (
     <GoogleMap
@@ -199,28 +189,49 @@ export default function GoogleMapLiveTracking({
         disableDefaultUI: false,
         zoomControl: true,
         fullscreenControl: true,
+        mapTypeControl: true,
         streetViewControl: false,
-        mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || undefined,
       }}
     >
+      {/* ✅ Draw polyline for each vehicle */}
+      {vehicles.map(
+        (v) =>
+          v.polyline &&
+          v.polyline.length > 1 && (
+            <Polyline
+              key={`polyline-${v._id}`}
+              path={v.polyline.map(([lat, lng]) => ({ lat, lng }))}
+              options={{
+                strokeColor: "#2563EB",
+                strokeOpacity: 0.8,
+                strokeWeight: 3,
+              }}
+            />
+          )
+      )}
+
+      {/* ✅ Show InfoWindow on click */}
       {activeVehicle && (
         <InfoWindow
-          position={{ lat: activeVehicle.latitude, lng: activeVehicle.longitude }}
+          position={{
+            lat: activeVehicle.latitude,
+            lng: activeVehicle.longitude,
+          }}
           onCloseClick={() => setActiveMarker(null)}
         >
-          <div style={{ color: '#000', maxWidth: '250px', fontSize: '12px' }}>
+          <div style={{ color: "#000", maxWidth: "250px", fontSize: "12px" }}>
             <strong>{activeVehicle.vehicle_number}</strong>
             <div>Speed: {activeVehicle.speed.toFixed(1)} km/h</div>
             <div>Course: {activeVehicle.course.toFixed(1)}°</div>
-            {activeVehicle.device?.battery_level !== undefined && (
+            {activeVehicle.device?.battery_level != null && (
               <div>Battery: {activeVehicle.device.battery_level.toFixed(0)}%</div>
             )}
             <div>
-              Status:{' '}
+              Status:{" "}
               {activeVehicle.device?.status ? (
-                <span style={{ color: 'green' }}>● Connected</span>
+                <span style={{ color: "green" }}>● Connected</span>
               ) : (
-                <span style={{ color: 'red' }}>● Disconnected</span>
+                <span style={{ color: "red" }}>● Disconnected</span>
               )}
             </div>
             <div>Time: {new Date(activeVehicle.timestamp).toLocaleTimeString()}</div>

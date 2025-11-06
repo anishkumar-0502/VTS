@@ -1,18 +1,30 @@
 import { useState, useEffect } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
-import { useAuth } from "../context/AuthContext";
-import { profileAPI } from "../services/api";
 import Button from "../components/ui/button/Button";
 import Input from "../components/form/input/InputField";
 import Label from "../components/form/Label";
+import { Mail, Phone, Shield, Clock, Calendar, Activity } from "lucide-react";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
+
+interface ProfileData {
+  name: string;
+  email: string;
+  phone_number: string;
+  role_id: number;
+  createdAt?: string;
+  updatedAt?: string;
+  last_login?: string;
+  status?: boolean;
+}
 
 export default function UserProfiles() {
-  const { user } = useAuth();
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<ProfileData>({
     name: "",
     email: "",
-    phone: "",
+    phone_number: "",
+    role_id: 0,
   });
   const [passwords, setPasswords] = useState({
     current: "",
@@ -30,43 +42,113 @@ export default function UserProfiles() {
     confirm: false,
   });
 
-  useEffect(() => {
-    if (user) {
-      setProfileData({
-        name: user.name || "",
-        email: user.email || "",
-        phone: "",
-      });
+  const getRoleName = (roleId: number): string => {
+    switch (roleId) {
+      case 1:
+        return "Super Admin";
+      case 2:
+        return "Operator";
+      case 3:
+        return "Driver";
+      case 4:
+        return "Parent/Guardian";
+      default:
+        return "Unknown";
     }
-  }, [user]);
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const getRoleInfo = () => {
+    const storedUser = localStorage.getItem("user");
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    const role = user?.role?.toLowerCase() || "superadmin";
+    return role;
+  };
+
+  const fetchProfile = async () => {
+    setError("");
+    setSuccess("");
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return setError("No token found. Please log in again.");
+
+      const role = getRoleInfo();
+      const endpoint =
+        role === "operator"
+          ? `${API_BASE_URL}/operator/profile`
+          : `${API_BASE_URL}/superadmin/profile`;
+
+      const res = await fetch(endpoint, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        setError(data.message || "Failed to fetch profile");
+      } else {
+        const p = data.data || {};
+        setProfileData({
+          name: p.name || p.full_name || "",
+          email: p.email || "",
+          phone_number: p.phone_number?.toString() || "",
+          role_id: p.role_id || 0,
+          createdAt: p.createdAt || "",
+          updatedAt: p.updatedAt || "",
+          last_login: p.last_login || "",
+          status: p.status ?? false,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Error fetching profile");
+    }
+  };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    if (!profileData.name.trim()) {
-      setError("Name is required");
-      return;
-    }
+    if (!profileData.name.trim()) return setError("Name is required");
 
     try {
       setLoading(true);
-      const response = await profileAPI.updateProfile({
-        name: profileData.name,
-        phone: profileData.phone,
+      const token = localStorage.getItem("token");
+      const role = getRoleInfo();
+
+      const endpoint =
+        role === "operator"
+          ? `${API_BASE_URL}/operator/profile/update`
+          : `${API_BASE_URL}/superadmin/profile/update`;
+
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: profileData.name,
+          phone_number: profileData.phone_number,
+        }),
       });
 
-      if (response.success) {
+      const data = await res.json();
+
+      if (!data.error) {
         setSuccess("Profile updated successfully");
         setEditMode(false);
+        fetchProfile();
         setTimeout(() => setSuccess(""), 3000);
       } else {
-        setError(response.message || "Failed to update profile");
+        setError(data.message || "Failed to update profile");
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An error occurred";
-      setError(errorMessage);
+    } catch {
+      setError("An error occurred while updating profile");
     } finally {
       setLoading(false);
     }
@@ -77,41 +159,46 @@ export default function UserProfiles() {
     setError("");
     setSuccess("");
 
-    if (!passwords.current) {
-      setError("Current password is required");
-      return;
-    }
-    if (!passwords.new) {
-      setError("New password is required");
-      return;
-    }
-    if (passwords.new.length < 6) {
-      setError("New password must be at least 6 characters");
-      return;
-    }
-    if (passwords.new !== passwords.confirm) {
-      setError("Passwords do not match");
-      return;
-    }
+    if (!passwords.current) return setError("Current password is required");
+    if (!passwords.new) return setError("New password is required");
+    if (passwords.new.length < 6)
+      return setError("New password must be at least 6 characters");
+    if (passwords.new !== passwords.confirm)
+      return setError("Passwords do not match");
 
     try {
       setLoading(true);
-      const response = await profileAPI.changePassword({
-        currentPassword: passwords.current,
-        newPassword: passwords.new,
-      });
+      const token = localStorage.getItem("token");
+      const role = getRoleInfo();
 
-      if (response.success) {
+      const endpoint =
+        role === "operator"
+          ? `${API_BASE_URL}/operator/change-password`
+          : `${API_BASE_URL}/superadmin/change-password`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwords.current,
+          newPassword: passwords.new,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.error) {
         setSuccess("Password changed successfully");
         setPasswords({ current: "", new: "", confirm: "" });
         setPasswordMode(false);
         setTimeout(() => setSuccess(""), 3000);
       } else {
-        setError(response.message || "Failed to change password");
+        setError(data.message || "Failed to change password");
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An error occurred";
-      setError(errorMessage);
+    } catch {
+      setError("Error changing password");
     } finally {
       setLoading(false);
     }
@@ -119,111 +206,115 @@ export default function UserProfiles() {
 
   return (
     <>
-      <PageMeta
-        title="User Profile | VTS Admin"
-        description="View and edit your profile"
-      />
+      <PageMeta title="User Profile | VTS Admin" description="View and edit your profile" />
       <PageBreadcrumb pageTitle="Profile" />
-      
-      <div className="space-y-6">
-        {/* Profile Information Card */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-theme-sm dark:border-gray-800 dark:bg-gray-dark">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-              Profile Information
+
+      <div className="space-y-8">
+        {/* Profile Info Section */}
+        <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-8 shadow-lg">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-4xl font-semibold shadow-md">
+              {profileData.name ? profileData.name.charAt(0).toUpperCase() : "U"}
+            </div>
+            <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
+              {profileData.name || "User Name"}
             </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {getRoleName(profileData.role_id)}
+            </p>
+            <div className="mt-2 text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">
+              {profileData.status ? "Active" : "Inactive"}
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-6">
+            {[
+              { label: "Email", value: profileData.email, icon: Mail },
+              { label: "Phone", value: profileData.phone_number || "N/A", icon: Phone },
+              { label: "Created At", value: profileData.createdAt, icon: Calendar },
+              { label: "Updated At", value: profileData.updatedAt, icon: Activity },
+              { label: "Last Login", value: profileData.last_login, icon: Clock },
+              { label: "Role", value: getRoleName(profileData.role_id), icon: Shield },
+            ].map(({ label, value, icon: Icon }) => (
+              <div
+                key={label}
+                className="flex items-start gap-3 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/70 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+              >
+                <div className="flex-shrink-0 p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-blue-600 dark:text-blue-300">
+                  <Icon size={18} />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {label}
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
+                    {value
+                      ? ["Created At", "Updated At", "Last Login"].includes(label)
+                        ? new Date(value).toLocaleString()
+                        : value
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 flex justify-center">
             <button
               onClick={() => setEditMode(!editMode)}
-              className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
+              className="px-6 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
             >
-              {editMode ? "Cancel" : "Edit"}
+              {editMode ? "Cancel Edit" : "Edit Profile"}
             </button>
           </div>
 
-          {error && (
-            <div className="p-3 mb-4 rounded-lg bg-red-50 dark:bg-red-900/20">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className="p-3 mb-4 rounded-lg bg-green-50 dark:bg-green-900/20">
-              <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
-            </div>
-          )}
-
-          {!editMode ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {editMode && (
+            <form onSubmit={handleProfileUpdate} className="mt-8 space-y-5">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Full Name</p>
-                  <p className="text-base font-medium text-gray-900 dark:text-white mt-1">
-                    {profileData.name || "N/A"}
+                  <Label>Full Name *</Label>
+                  <Input
+                    type="text"
+                    value={profileData.name}
+                    onChange={(e) =>
+                      setProfileData({ ...profileData, name: e.target.value })
+                    }
+                    disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <Label>Email *</Label>
+                  <Input type="email" value={profileData.email} disabled />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Email cannot be changed
                   </p>
                 </div>
+
                 <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</p>
-                  <p className="text-base font-medium text-gray-900 dark:text-white mt-1">
-                    {profileData.email || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Phone</p>
-                  <p className="text-base font-medium text-gray-900 dark:text-white mt-1">
-                    {profileData.phone || "Not provided"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Role</p>
-                  <p className="text-base font-medium text-gray-900 dark:text-white mt-1 capitalize">
-                    {user?.role || "N/A"}
-                  </p>
+                  <Label>Phone</Label>
+                  <Input
+                    type="tel"
+                    value={profileData.phone_number}
+                    onChange={(e) =>
+                      setProfileData({
+                        ...profileData,
+                        phone_number: e.target.value,
+                      })
+                    }
+                    disabled={loading}
+                  />
                 </div>
               </div>
-            </div>
-          ) : (
-            <form onSubmit={handleProfileUpdate} className="space-y-4">
-              <div>
-                <Label>Full Name <span className="text-error-500">*</span></Label>
-                <Input
-                  type="text"
-                  placeholder="Your full name"
-                  value={profileData.name}
-                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                  disabled={loading}
-                />
-              </div>
 
-              <div>
-                <Label>Email <span className="text-error-500">*</span></Label>
-                <Input
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={profileData.email}
-                  disabled={true}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email cannot be changed</p>
-              </div>
-
-              <div>
-                <Label>Phone</Label>
-                <Input
-                  type="tel"
-                  placeholder="Your phone number"
-                  value={profileData.phone}
-                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-4 pt-4">
                 <Button type="submit" disabled={loading} className="flex-1">
                   {loading ? "Saving..." : "Save Changes"}
                 </Button>
                 <button
                   type="button"
                   onClick={() => setEditMode(false)}
-                  className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 transition rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10"
+                  className="flex-1 px-4 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium transition-all"
                 >
                   Cancel
                 </button>
@@ -232,100 +323,89 @@ export default function UserProfiles() {
           )}
         </div>
 
-        {/* Change Password Card */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-theme-sm dark:border-gray-800 dark:bg-gray-dark">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+        {/* Change Password */}
+        <div className="rounded-2xl border border-gray-100 bg-white dark:bg-gray-900 p-8 shadow-lg">
+          <div className="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-gray-700 pb-3">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Change Password
             </h2>
             <button
               onClick={() => setPasswordMode(!passwordMode)}
-              className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
+              className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
             >
               {passwordMode ? "Cancel" : "Change"}
             </button>
           </div>
 
-          {passwordMode && (
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <Label>Current Password <span className="text-error-500">*</span></Label>
-                <div className="relative">
-                  <Input
-                    type={showPasswords.current ? "text" : "password"}
-                    placeholder="Enter current password"
-                    value={passwords.current}
-                    onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    {showPasswords.current ? "Hide" : "Show"}
-                  </button>
+          {passwordMode ? (
+            <form onSubmit={handlePasswordChange} className="space-y-5">
+              {["current", "new", "confirm"].map((field) => (
+                <div key={field}>
+                  <Label>
+                    {field === "current"
+                      ? "Current Password *"
+                      : field === "new"
+                      ? "New Password *"
+                      : "Confirm Password *"}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type={
+                        showPasswords[field as keyof typeof showPasswords]
+                          ? "text"
+                          : "password"
+                      }
+                      placeholder={
+                        field === "current"
+                          ? "Enter current password"
+                          : field === "new"
+                          ? "Enter new password"
+                          : "Confirm new password"
+                      }
+                      value={passwords[field as keyof typeof passwords]}
+                      onChange={(e) =>
+                        setPasswords({
+                          ...passwords,
+                          [field]: e.target.value,
+                        })
+                      }
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowPasswords({
+                          ...showPasswords,
+                          [field]: !showPasswords[
+                            field as keyof typeof showPasswords
+                          ],
+                        })
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      {showPasswords[field as keyof typeof showPasswords]
+                        ? "Hide"
+                        : "Show"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <Label>New Password <span className="text-error-500">*</span></Label>
-                <div className="relative">
-                  <Input
-                    type={showPasswords.new ? "text" : "password"}
-                    placeholder="Enter new password"
-                    value={passwords.new}
-                    onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    {showPasswords.new ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <Label>Confirm Password <span className="text-error-500">*</span></Label>
-                <div className="relative">
-                  <Input
-                    type={showPasswords.confirm ? "text" : "password"}
-                    placeholder="Confirm new password"
-                    value={passwords.confirm}
-                    onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    {showPasswords.confirm ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
+              ))}
+              <div className="flex gap-4 pt-4">
                 <Button type="submit" disabled={loading} className="flex-1">
                   {loading ? "Updating..." : "Update Password"}
                 </Button>
                 <button
                   type="button"
                   onClick={() => setPasswordMode(false)}
-                  className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 transition rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10"
+                  className="flex-1 px-4 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium transition-all"
                 >
                   Cancel
                 </button>
               </div>
             </form>
-          )}
-
-          {!passwordMode && (
+          ) : (
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Click "Change" to update your password. Make sure to use a strong password.
+              Click “Change” to update your password securely.
             </p>
           )}
         </div>

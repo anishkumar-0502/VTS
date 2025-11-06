@@ -1,6 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router";
-import SignIn from "./pages/AuthPages/SignIn";
-import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
 import UserProfiles from "./pages/UserProfiles";
 import Videos from "./pages/UiElements/Videos";
@@ -23,9 +21,8 @@ import VectorMaps from "./pages/Maps/VectorMaps";
 import Operators from "./pages/Management/Operators";
 import Vehicles from "./pages/Management/Vehicles";
 import Drivers from "./pages/Management/Drivers";
-import DriverManagement from "./pages/Management/DriverManagement";
-import AlertsManagement from "./pages/Management/Alerts";
-import GPSDevices from "./pages/Management/GPSDevices";
+import DriverManagement from "./pages/Management/DeviceManagement";
+import OperatorManageDevice from "./pages/Management/OperatorManageDevice";
 import Roles from "./pages/Management/Roles";
 import LiveTracking from "./pages/Management/LiveTracking";
 import { AuthProvider } from "./context/AuthContext";
@@ -33,7 +30,15 @@ import AppUsers from "./pages/Management/AppUsers";
 import SuperadminAppUsers from "./pages/Management/SuperadminAppUsers";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthGuard } from "./components/AuthGuard";
-
+import SuperAdminLogin from "./pages/AuthPages/SuperAdminLogin";
+import OperatorLogin from "./pages/AuthPages/OperatorLogin";
+import User from "./pages/Management/User";
+import AssignDevice from "./pages/Management/AssignDevice";
+import DeviceManagement from "./pages/Management/DeviceManagement";
+import AssignDeviceToVehicle from "./pages/Management/AssignDevicetoVehicle";
+import AssignDriverToVehicle from "./pages/Management/AssignDrivertoVehicle";
+import ManageAllUsers from "./pages/Management/ManageAllUsers";
+import ManageEndUser from "./pages/Management/ManageEndUser";
 export default function App() {
   return (
     <AuthProvider>
@@ -92,7 +97,7 @@ export default function App() {
 
             {/* Management */}
             <Route
-              path="/management/operators"
+              path="/manage-operators"
               element={
                 <ProtectedRoute permission="manage_users">
                   <Operators />
@@ -100,15 +105,47 @@ export default function App() {
               }
             />
             <Route
-              path="/management/vehicles"
+              path="/manage-vehicles"
               element={
                 <ProtectedRoute permission="view_devices">
                   <Vehicles />
                 </ProtectedRoute>
               }
             />
+             <Route
+             path="/manage-user"
+              element={
+                <ProtectedRoute permission="manage_users">
+                  <User />
+                </ProtectedRoute>
+              }
+            />
             <Route
-              path="/management/drivers"
+  path="/manage-all-users"
+  element={
+    <ProtectedRoute permission="manage_users">
+      <ManageAllUsers />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/manage-end-users"
+  element={
+    <ProtectedRoute permission="manage_users">
+      <ManageEndUser />
+    </ProtectedRoute>
+  }
+/>
+             <Route
+              path="/manage-device"
+              element={
+                <ProtectedRoute permission="view_devices">
+                  <DeviceManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manage-drivers"
               element={
                 <ProtectedRoute permission="view_devices">
                   <Drivers />
@@ -116,23 +153,39 @@ export default function App() {
               }
             />
             <Route
-              path="/management/alerts"
+              path="/assign-device-to-operator"
               element={
                 <ProtectedRoute permission="manage_alerts">
-                  <AlertsManagement />
+                  <AssignDevice />
+                </ProtectedRoute>
+              }
+            />
+             <Route
+              path="/assign-device-to-vehicle"
+              element={
+                <ProtectedRoute permission="manage_alerts">
+                  <AssignDeviceToVehicle />
+                </ProtectedRoute>
+              }
+            />
+              <Route
+              path="/assign-driver-to-vehicle"
+              element={
+                <ProtectedRoute permission="manage_alerts">
+                  <AssignDriverToVehicle />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/management/gps-devices"
+              path="/operator-manage-device"
               element={
                 <ProtectedRoute permission="manage_devices">
-                  <GPSDevices />
+                  <OperatorManageDevice />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/management/live-tracking"
+              path="/live-tracking"
               element={
                 <ProtectedRoute permission="view_telemetry">
                   <LiveTracking />
@@ -140,7 +193,7 @@ export default function App() {
               }
             />
             <Route
-              path="/management/roles"
+              path="/manage-roles"
               element={
                 <ProtectedRoute permission="manage_roles">
                   <Roles />
@@ -148,7 +201,7 @@ export default function App() {
               }
             />
             <Route
-              path="/management/driver-management"
+              path="/driver-management"
               element={
                 <ProtectedRoute permission="manage_users">
                   <DriverManagement />
@@ -157,7 +210,7 @@ export default function App() {
             />
           </Route>
             <Route
-              path="/management/app-users"
+              path="/manage-users"
               element={
                 <ProtectedRoute permission="manage_users">
                   <AppUsers />
@@ -165,7 +218,7 @@ export default function App() {
               }
             />
             <Route
-              path="/management/superadmin/app-users"
+              path="/superadmin/-users"
               element={
                 <ProtectedRoute permission="manage_users">
                   <SuperadminAppUsers />
@@ -175,21 +228,21 @@ export default function App() {
 
           {/* Auth Layout */}
           <Route
-            path="/signin"
+            path="/superadminlogin"
             element={
               <AuthGuard>
-                <SignIn />
+                <SuperAdminLogin />
               </AuthGuard>
             }
           />
-          <Route
-            path="/signup"
-            element={
-              <AuthGuard>
-                <SignUp />
-              </AuthGuard>
-            }
-          />
+         <Route
+  path="/operatorlogin"
+  element={
+    <AuthGuard>
+      <OperatorLogin />
+    </AuthGuard>
+  }
+/>
 
           {/* Fallback Route */}
           <Route path="*" element={<NotFound />} />
@@ -198,3 +251,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+

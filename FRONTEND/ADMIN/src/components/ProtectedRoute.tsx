@@ -1,14 +1,20 @@
-import { Navigate } from 'react-router';
-import { useAuth, type Permissions } from '../context/AuthContext';
+import { Navigate } from "react-router-dom";
+import { useAuth, type Permissions } from "../context/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  role?: "operator" | "superadmin";
   permission?: keyof Permissions;
   redirectTo?: string;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, permission, redirectTo = '/' }) => {
-  const { isAuthenticated, isLoading, permissions } = useAuth();
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  role,
+  permission,
+  redirectTo = "/",
+}) => {
+  const { isAuthenticated, isLoading, permissions, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -19,7 +25,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, permis
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/signin" replace />;
+    return <Navigate to="/operatorlogin" replace />;
+  }
+
+  if (role && user?.role !== role) {
+    // redirect to their own dashboard
+    return (
+      <Navigate
+        to={user?.role === "superadmin" ? "/superadmin/dashboard" : "/operator/dashboard"}
+        replace
+      />
+    );
   }
 
   if (permission && !permissions?.[permission]) {
