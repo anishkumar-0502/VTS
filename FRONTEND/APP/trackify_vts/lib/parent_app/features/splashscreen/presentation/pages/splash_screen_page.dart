@@ -31,11 +31,6 @@ class ParentSplashScreenPage extends StatelessWidget {
               right: size.width * 0.15,
               child: const LocationPulseIcon(size: 52, delay: Duration(milliseconds: 250)),
             ),
-            // Positioned(
-            //   bottom: size.height * 0.22,
-            //   right: size.width * 0.18,
-            //   child: const LocationPulseIcon(size: 40, delay: Duration(milliseconds: 860), icon: Icons.map_rounded),
-            // ),
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,

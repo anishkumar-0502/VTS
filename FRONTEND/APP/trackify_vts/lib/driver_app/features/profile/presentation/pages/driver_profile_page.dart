@@ -1,7 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import '../../domain/models/profile_model.dart';
 import '../controllers/driver_profile_controller.dart';
+import 'personal_details_page.dart';
+import 'associated_operators_page.dart';
+import 'assigned_vehicle_page.dart';
+import 'driver_profile_details_page.dart';
+import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
+
+String _formatDateTime(DateTime date) {
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final year = date.year.toString();
+  final hour =
+      date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+  final minute = date.minute.toString().padLeft(2, '0');
+  final period = date.hour >= 12 ? 'PM' : 'AM';
+  return '$day-$month-$year $hour:$minute $period';
+}
+
+String _getInitials(String name) {
+  final parts = name.trim().split(' ');
+  if (parts.length >= 2) {
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  } else if (parts.isNotEmpty) {
+    return parts[0][0].toUpperCase();
+  }
+  return '';
+}
 
 class DriverProfilePage extends GetView<DriverProfileController> {
   const DriverProfilePage({super.key});
@@ -11,183 +38,480 @@ class DriverProfilePage extends GetView<DriverProfileController> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
     return Obx(() {
-      final details = controller.driverDetails;
-      return ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        children: [
-          const Text('Driver profile', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: primaryColor,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 32,
-                  backgroundColor: Colors.white,
-                  child: Text(details['name']?.split(' ').map((s) => s[0]).take(2).join() ?? '',
-                      style: TextStyle(color: primaryColor, fontSize: 22, fontWeight: FontWeight.w700)),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(details['name'] ?? '',
-                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text('Employee ID ${details['employeeId']}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text('Verified driver',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(onPressed: () {}, icon: const Icon(Icons.edit, color: Colors.white)),
-              ],
-            ),
+      print(
+        'Building DriverProfilePage, isLoading: ${controller.isLoading.value}, data: ${controller.profileData.value?.name}',
+      );
+      if (controller.isLoading.value) {
+        return const Scaffold(
+          backgroundColor: Color(0xFFF8F8F8),
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+      final data = controller.profileData.value;
+      if (data == null) {
+        return const Scaffold(
+          backgroundColor: Color(0xFFF8F8F8),
+          body: Center(child: Text('No profile data available')),
+        );
+      }
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F8F8),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildTopHeader(context, data, primaryColor),
+              _buildCommonCard(context, data, primaryColor),
+              _buildContentLabel(),
+              _buildSettingsList(context, data),
+            ],
           ),
-          const SizedBox(height: 22),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 6)),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.directions_bus, color: primaryColor),
-                    const SizedBox(width: 10),
-                    const Text('Vehicle details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _detailRow('Vehicle number', details['vehicleNumber'] ?? ''),
-                _detailRow('Assigned route', 'Morning Route A, Afternoon Route B'),
-                _detailRow('Experience', details['experience'] ?? ''),
-                _detailRow('License number', details['licenseNumber'] ?? ''),
-                _detailRow('License expiry', details['licenseExpiry'] ?? ''),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Compliance checklist', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                ...controller.complianceItems.map(
-                  (item) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.verified_outlined, color: primaryColor),
-                    title: Text(item['title'] ?? '',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    subtitle: Text(item['status'] ?? '',
-                        style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                    trailing: IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Documents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                ...controller.documents.map(
-                  (doc) => Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.description_outlined, color: primaryColor),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(doc['name'] ?? '',
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Text(doc['status'] ?? '',
-                                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                            ],
-                          ),
-                        ),
-                        TextButton(onPressed: () {}, child: const Text('View')),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-          OutlinedButton.icon(
-            onPressed: () => controller.confirmLogout(context),
-            icon: const Icon(Icons.logout),
-            label: const Text('Log out'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.redAccent,
-              side: const BorderSide(color: Colors.redAccent),
-              minimumSize: const Size.fromHeight(52),
-              textStyle: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
+        ),
       );
     });
   }
 
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildTopHeader(
+    BuildContext context,
+    ProfileData data,
+    Color primaryColor,
+  ) {
+    return Container(
+      height: 280,
+      decoration: BoxDecoration(
+        color: primaryColor,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: Stack(
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: Colors.black45)),
-          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          // Back Button
+          Positioned(
+            top: 50,
+            left: 20,
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ),
+
+          // Edit Button
+          Positioned(
+            top: 50,
+            right: 20,
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: IconButton(
+                icon: const Icon(Icons.edit, color: Colors.black),
+                onPressed: () {
+                  final data = controller.profileData.value;
+                  if (data == null) return;
+
+                  final nameController = TextEditingController(text: data.name);
+                  final phoneController = TextEditingController(
+                    text: data.phoneNumber.toString(),
+                  );
+
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) {
+                      return StatefulBuilder(
+                        builder: (context, setState) {
+                          String? imageBase64;
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            margin: EdgeInsets.only(
+                              bottom: MediaQuery.of(context).viewInsets.bottom,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20),
+                              ),
+                            ),
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    "Edit Profile",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final picked = await ImagePicker()
+                                          .pickImage(
+                                            source: ImageSource.gallery,
+                                          );
+                                      if (picked != null) {
+                                        final bytes =
+                                            await picked.readAsBytes();
+                                        imageBase64 = base64Encode(bytes);
+                                        setState(() {});
+                                      }
+                                    },
+                                    child: CircleAvatar(
+                                      radius: 40,
+                                      backgroundColor: Colors.grey[300],
+                                      backgroundImage:
+                                          imageBase64 != null
+                                              ? MemoryImage(
+                                                base64Decode(imageBase64!),
+                                              )
+                                              : null,
+                                      child:
+                                          imageBase64 == null
+                                              ? const Icon(
+                                                Icons.camera_alt,
+                                                color: Colors.black54,
+                                              )
+                                              : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: nameController,
+                                    autofillHints: const [AutofillHints.name],
+                                    enableSuggestions: false,
+                                    enableInteractiveSelection: false,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Name',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    autofillHints: const [
+                                      AutofillHints.telephoneNumber,
+                                    ],
+                                    enableSuggestions: false,
+                                    enableInteractiveSelection: false,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Phone Number',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      minimumSize: const Size(
+                                        double.infinity,
+                                        45,
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      final name = nameController.text.trim();
+                                      final phone =
+                                          int.tryParse(phoneController.text) ??
+                                          0;
+                                      controller.updateProfile(
+                                        name: name,
+                                        phoneNumber: phone,
+                                        profileImageBase64: imageBase64,
+                                      );
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: const Text('Save Changes'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // Profile Info
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.white,
+                  child: CircleAvatar(
+                    radius: 46,
+                    backgroundColor: Colors.grey[300],
+                    child: Text(
+                      _getInitials(data.name),
+                      style: const TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  data.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  data.email,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCommonCard(
+    BuildContext context,
+    ProfileData data,
+    Color primaryColor,
+  ) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow('Role', data.roleName),
+          const SizedBox(height: 12),
+          _buildInfoRow(
+            'Status',
+            data.status ? 'Active' : 'Inactive',
+            valueColor: data.status ? Colors.green : Colors.red,
+          ),
+          const SizedBox(height: 12),
+          _buildInfoRow('License Number', data.licenseNumber),
+          const SizedBox(height: 12),
+          _buildInfoRow('Phone', data.phoneNumber.toString()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? Colors.black,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContentLabel() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      alignment: Alignment.centerLeft,
+      child: const Text(
+        'CONTENT',
+        style: TextStyle(
+          color: Colors.grey,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Change Password',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: oldPasswordController,
+                obscureText: true,
+                autofillHints: const [AutofillHints.password],
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'Old Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: newPasswordController,
+                obscureText: true,
+                autofillHints: const [AutofillHints.newPassword],
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'New Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.grey),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('Change Password'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSettingsList(BuildContext context, ProfileData data) {
+    final settings = [
+      {'icon': Icons.person, 'title': 'Personal'},
+      {'icon': Icons.lock, 'title': 'Change Password'},
+      {'icon': Icons.business, 'title': 'Associated Operators'},
+      {'icon': Icons.directions_bus, 'title': 'Assigned Vehicle'},
+      {'icon': Icons.badge, 'title': 'Driver Profile'},
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: List.generate(settings.length, (index) {
+          final setting = settings[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: ListTile(
+              leading: Icon(
+                setting['icon'] as IconData,
+                color: Colors.grey[600],
+              ),
+              title: Text(
+                setting['title'] as String,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+              onTap: () {
+                switch (index) {
+                  case 0:
+                    Get.to(() => PersonalDetailsPage(data: data));
+                    break;
+                  case 1:
+                    _showChangePasswordDialog(context);
+                    break;
+                  case 2:
+                    Get.to(
+                      () => AssociatedOperatorsPage(
+                        operators: data.associatedOperators,
+                      ),
+                    );
+                    break;
+                  case 3:
+                    Get.to(
+                      () => AssignedVehiclePage(vehicle: data.assignedVehicle),
+                    );
+                    break;
+                  case 4:
+                    if (data.driverProfile != null) {
+                      Get.to(
+                        () => DriverProfileDetailsPage(
+                          driverProfile: data.driverProfile!,
+                        ),
+                      );
+                    } else {
+                      Get.snackbar('Error', 'Driver profile not available');
+                    }
+                    break;
+                }
+              },
+            ),
+          );
+        }),
       ),
     );
   }

@@ -2,6 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/driver_dashboard_controller.dart';
+import '../../../profile/presentation/controllers/driver_profile_controller.dart';
+import '../../../profile/presentation/pages/driver_profile_page.dart';
+
+String _getInitials(String name) {
+  final parts = name.trim().split(' ');
+  if (parts.length >= 2) {
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  } else if (parts.isNotEmpty) {
+    return parts[0][0].toUpperCase();
+  }
+  return '';
+}
 
 class DriverDashboardPage extends GetView<DriverDashboardController> {
   const DriverDashboardPage({super.key});
@@ -15,32 +27,43 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double width = constraints.maxWidth;
-        final double horizontalPadding = width >= 1100
-            ? 64
-            : width >= 900
+        final double horizontalPadding =
+            width >= 1100
+                ? 64
+                : width >= 900
                 ? 48
                 : width >= 600
-                    ? 28
-                    : 16;
+                ? 28
+                : 16;
         final double available = width - horizontalPadding * 2;
-        final int metricColumns = available >= 900
-            ? 3
-            : available >= 560
+        final int metricColumns =
+            available >= 900
+                ? 3
+                : available >= 560
                 ? 2
                 : 1;
         final double metricSpacing = 12;
-        final double metricWidth = metricColumns == 1
-            ? available
-            : (available - metricSpacing * (metricColumns - 1)).clamp(0, double.infinity) / metricColumns;
+        final double metricWidth =
+            metricColumns == 1
+                ? available
+                : (available - metricSpacing * (metricColumns - 1)).clamp(
+                      0,
+                      double.infinity,
+                    ) /
+                    metricColumns;
 
         return Obx(() {
           final tripStatus = controller.tripStatus.value;
           final syncedAt = controller.lastSyncedAt.value;
-          final syncTime = syncedAt == null
-              ? 'Not synced'
-              : '${syncedAt.hour.toString().padLeft(2, '0')}:${syncedAt.minute.toString().padLeft(2, '0')}';
+          final syncTime =
+              syncedAt == null
+                  ? 'Not synced'
+                  : '${syncedAt.hour.toString().padLeft(2, '0')}:${syncedAt.minute.toString().padLeft(2, '0')}';
           return ListView(
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 20),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 20,
+            ),
             children: [
               Center(
                 child: ConstrainedBox(
@@ -48,6 +71,8 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _buildProfileHeader(context, primaryColor),
+                      const SizedBox(height: 20),
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -65,19 +90,34 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                     color: Colors.white.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
-                                  child: const Icon(Icons.directions_bus, color: Colors.white, size: 28),
+                                  child: const Icon(
+                                    Icons.directions_bus,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      const Text('Good morning, Jordan',
-                                          style: TextStyle(color: Colors.white70, fontSize: 16)),
+                                      const Text(
+                                        'Good morning, Jordan',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                                       const SizedBox(height: 4),
-                                      Text(controller.selectedRouteName.value,
-                                          style: const TextStyle(
-                                              color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+                                      Text(
+                                        controller.selectedRouteName.value,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -87,8 +127,16 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                     backgroundColor: Colors.white,
                                     foregroundColor: primaryColor,
                                   ),
-                                  icon: Icon(controller.tripActive.value ? Icons.stop_circle : Icons.play_arrow_rounded),
-                                  label: Text(controller.tripActive.value ? 'End trip' : 'Start trip'),
+                                  icon: Icon(
+                                    controller.tripActive.value
+                                        ? Icons.stop_circle
+                                        : Icons.play_arrow_rounded,
+                                  ),
+                                  label: Text(
+                                    controller.tripActive.value
+                                        ? 'End trip'
+                                        : 'Start trip',
+                                  ),
                                 ),
                               ],
                             ),
@@ -99,11 +147,20 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                 Flexible(
                                   child: Text(
                                     tripStatus,
-                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                                Text('Last sync $syncTime',
-                                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                                Text(
+                                  'Last sync $syncTime',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -113,38 +170,55 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                       Wrap(
                         spacing: metricSpacing,
                         runSpacing: metricSpacing,
-                        children: controller.keyMetrics
-                            .map(
-                              (item) => SizedBox(
-                                width: metricColumns == 1 ? null : metricWidth,
-                                child: Container(
-                                  padding: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(color: Colors.grey.shade200),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.04),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 6),
+                        children:
+                            controller.keyMetrics
+                                .map(
+                                  (item) => SizedBox(
+                                    width:
+                                        metricColumns == 1 ? null : metricWidth,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(18),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: Colors.grey.shade200,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.04,
+                                            ),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 6),
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item['label'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            item['value'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(item['label'] ?? '',
-                                          style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                                      const SizedBox(height: 8),
-                                      Text(item['value'] ?? '',
-                                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
+                                )
+                                .toList(),
                       ),
                       const SizedBox(height: 24),
                       Container(
@@ -164,12 +238,19 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Upcoming stops',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                            const Text(
+                              'Upcoming stops',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             ...controller.upcomingStops.map(
                               (stop) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
                                 child: Row(
                                   children: [
                                     Container(
@@ -192,18 +273,31 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text(stop['name'] ?? '',
-                                              style: const TextStyle(
-                                                  fontSize: 16, fontWeight: FontWeight.w600)),
+                                          Text(
+                                            stop['name'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text(stop['status'] ?? '',
-                                              style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                                          Text(
+                                            stop['status'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
-                                    Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.grey.shade400,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -229,14 +323,21 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Quick actions',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                            const Text(
+                              'Quick actions',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(height: 16),
                             ...controller.quickActions.map(
                               (action) => Container(
                                 margin: const EdgeInsets.only(bottom: 12),
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                   color: Colors.grey.shade100,
@@ -247,18 +348,31 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text(action['title'] ?? '',
-                                              style: const TextStyle(
-                                                  fontSize: 15, fontWeight: FontWeight.w600)),
+                                          Text(
+                                            action['title'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                           const SizedBox(height: 4),
-                                          Text(action['subtitle'] ?? '',
-                                              style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                                          Text(
+                                            action['subtitle'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
-                                    Icon(Icons.chevron_right, color: Colors.grey.shade500),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.grey.shade500,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -275,5 +389,85 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
         });
       },
     );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, Color primaryColor) {
+    final profileController = Get.find<DriverProfileController>(
+      tag: 'driver_profile',
+    );
+    return Obx(() {
+      final driverName = profileController.driverDetails['name'] ?? 'Driver';
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: primaryColor.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: primaryColor.withValues(alpha: 0.15),
+                child: Text(
+                  _getInitials(driverName),
+                  style: TextStyle(
+                    color: primaryColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Good morning',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    driverName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => Get.to(() => DriverProfilePage()),
+              icon: Icon(
+                Icons.arrow_forward_ios,
+                color: primaryColor,
+                size: 20,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }

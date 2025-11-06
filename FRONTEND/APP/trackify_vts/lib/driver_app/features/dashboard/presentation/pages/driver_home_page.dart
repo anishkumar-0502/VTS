@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/driver_dashboard_controller.dart';
-import '../../../trips/presentation/controllers/driver_trips_controller.dart';
-import '../../../trips/presentation/pages/driver_trips_page.dart';
-import '../../../live_tracking/presentation/controllers/driver_live_tracking_controller.dart';
-import '../../../live_tracking/presentation/pages/driver_live_tracking_page.dart';
 import '../../../profile/presentation/controllers/driver_profile_controller.dart';
-import '../../../profile/presentation/pages/driver_profile_page.dart';
 import 'driver_dashboard_page.dart';
 
 class DriverHomePage extends StatefulWidget {
@@ -19,41 +14,16 @@ class DriverHomePage extends StatefulWidget {
 
 class _DriverHomePageState extends State<DriverHomePage> {
   late final DriverDashboardController controller;
-  late final List<_DriverNavItem> navItems;
+  late final DriverProfileController profileController;
 
   @override
   void initState() {
     super.initState();
     controller = Get.put(DriverDashboardController(), tag: 'driver_dashboard');
-    Get.lazyPut(() => DriverTripsController(), tag: 'driver_trips');
-    Get.lazyPut(() => DriverLiveTrackingController(), tag: 'driver_live_tracking');
-    Get.lazyPut(() => DriverProfileController(), tag: 'driver_profile');
-    navItems = const [
-      _DriverNavItem(
-        label: 'Home',
-        icon: Icons.home_outlined,
-        activeIcon: Icons.home,
-        page: DriverDashboardPage(),
-      ),
-      _DriverNavItem(
-        label: 'Live',
-        icon: Icons.location_on_outlined,
-        activeIcon: Icons.location_on,
-        page: DriverLiveTrackingPage(),
-      ),
-      _DriverNavItem(
-        label: 'Trips',
-        icon: Icons.event_note_outlined,
-        activeIcon: Icons.event_note,
-        page: DriverTripsPage(),
-      ),
-      _DriverNavItem(
-        label: 'Profile',
-        icon: Icons.person_outline,
-        activeIcon: Icons.person,
-        page: DriverProfilePage(),
-      ),
-    ];
+    profileController = Get.put(
+      DriverProfileController(),
+      tag: 'driver_profile',
+    );
   }
 
   @override
@@ -64,27 +34,8 @@ class _DriverHomePageState extends State<DriverHomePage> {
       builder: (context, constraints) {
         final bool isWide = constraints.maxWidth >= 900;
         return Obx(() {
-          final int index = controller.currentIndex.value;
           final bool tripActive = controller.tripActive.value;
           final bool isOffline = controller.isOffline.value;
-          final destinations = navItems.map((item) => item.toDestination()).toList();
-          final pages = navItems.map((item) => item.page).toList();
-          final bool onLiveTab = navItems[index].label == 'Live';
-          final Widget? fab = onLiveTab
-              ? FloatingActionButton.extended(
-                  onPressed: controller.toggleTrip,
-                  backgroundColor: tripActive ? Colors.redAccent : primaryColor,
-                  icon: Icon(tripActive ? Icons.stop_circle : Icons.play_arrow_rounded),
-                  label: Text(tripActive ? 'End trip' : 'Start trip'),
-                )
-              : null;
-          final navRailDestinations = navItems
-              .map((item) => NavigationRailDestination(
-                    icon: Icon(item.icon),
-                    selectedIcon: Icon(item.activeIcon),
-                    label: Text(item.label),
-                  ))
-              .toList();
 
           final scaffoldBody = Column(
             children: [
@@ -97,12 +48,19 @@ class _DriverHomePageState extends State<DriverHomePage> {
                 alignment: Alignment.centerLeft,
                 child: Row(
                   children: [
-                    Icon(Icons.cloud_off, color: Colors.orange.shade700, size: 20),
+                    Icon(
+                      Icons.cloud_off,
+                      color: Colors.orange.shade700,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Offline mode enabled. Updates will sync when connected.',
-                        style: TextStyle(color: Colors.orange.shade700, fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     TextButton(
@@ -117,10 +75,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1280),
-                    child: IndexedStack(
-                      index: index,
-                      children: pages,
-                    ),
+                    child: DriverDashboardPage(),
                   ),
                 ),
               ),
@@ -136,7 +91,11 @@ class _DriverHomePageState extends State<DriverHomePage> {
                 children: [
                   Text(
                     tripActive ? 'Trip in progress' : 'Trip ready',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -151,69 +110,303 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   child: ElevatedButton.icon(
                     onPressed: controller.toggleOfflineMode,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isOffline ? Colors.orange.shade50 : Colors.grey.shade200,
-                      foregroundColor: isOffline ? Colors.orange.shade700 : Colors.black,
+                      backgroundColor:
+                          isOffline
+                              ? Colors.orange.shade50
+                              : Colors.grey.shade200,
+                      foregroundColor:
+                          isOffline ? Colors.orange.shade700 : Colors.black,
                       elevation: 0,
                     ),
-                    icon: Icon(isOffline ? Icons.sync_disabled : Icons.wifi_tethering),
+                    icon: Icon(
+                      isOffline ? Icons.sync_disabled : Icons.wifi_tethering,
+                    ),
                     label: Text(isOffline ? 'Offline' : 'Online'),
                   ),
                 ),
               ],
             ),
-            body: isWide
-                ? Row(
-                    children: [
-                      NavigationRail(
-                        selectedIndex: index,
-                        onDestinationSelected: controller.switchTab,
-                        extended: constraints.maxWidth >= 1200,
-                        labelType:
-                            constraints.maxWidth >= 1200 ? NavigationRailLabelType.none : NavigationRailLabelType.all,
-                        destinations: navRailDestinations,
-                        backgroundColor: Colors.white,
-                      ),
-                      const VerticalDivider(width: 1),
-                      Expanded(child: scaffoldBody),
-                    ],
-                  )
-                : scaffoldBody,
-            floatingActionButton: fab,
-            bottomNavigationBar: isWide
-                ? null
-                : NavigationBar(
-                    selectedIndex: index,
-                    onDestinationSelected: controller.switchTab,
-                    destinations: destinations,
-                    backgroundColor: Colors.white,
-                    indicatorColor: primaryColor.withOpacity(0.1),
-                    surfaceTintColor: Colors.white,
+            drawer: Drawer(
+              backgroundColor: Colors.white,
+              child: Column(
+                children: [
+                  // Logo and Title Section
+                  Container(
+                    padding: const EdgeInsets.only(
+                      top: 50,
+                      bottom: 20,
+                      left: 20,
+                      right: 20,
+                    ),
+                    child: Column(
+                      children: [
+                        // Logo: Light bulb with blue outline and green lightning
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF2F80ED),
+                              width: 3,
+                            ),
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                Icons.lightbulb_outline,
+                                color: const Color(0xFF2F80ED),
+                                size: 30,
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                child: Icon(
+                                  Icons.flash_on,
+                                  color: Colors.green,
+                                  size: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // App Title
+                        Column(
+                          children: [
+                            Text(
+                              'Smart School',
+                              style: TextStyle(
+                                color: Colors.grey[800],
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'D R I V E R',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 14,
+                                letterSpacing: 2,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
+
+                  // Menu Items
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        // Students List
+                        _buildMenuItem(
+                          icon: Icons.group,
+                          title: 'Students list',
+                          subtitle: 'List of Students',
+                          onTap: () {
+                            Navigator.pop(context); // Close drawer
+                            // Navigate to students page
+                            Get.toNamed('/driver/students');
+                          },
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Change Language
+                        _buildMenuItem(
+                          icon: Icons.language,
+                          title: 'Change Language',
+                          subtitle: 'Select Preferred Language',
+                          onTap: () {
+                            Navigator.pop(context); // Close drawer
+                            // Show language selection dialog
+                            _showLanguageDialog(context);
+                          },
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Contact School
+                        _buildMenuItem(
+                          icon: Icons.phone,
+                          title: 'Contact School',
+                          subtitle: 'Call School Management',
+                          onTap: () {
+                            Navigator.pop(context); // Close drawer
+                            // Show contact options
+                            _showContactDialog(context);
+                          },
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Logout
+                        _buildMenuItem(
+                          icon: Icons.power_settings_new,
+                          title: 'Logout',
+                          subtitle: 'Sign out from App',
+                          onTap: () {
+                            Navigator.pop(context); // Close drawer
+                            profileController.confirmLogout(context);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Bottom Image
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Image.asset(
+                      'assets/images/schoolside.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            body: scaffoldBody,
+            floatingActionButton: FloatingActionButton.extended(
+              onPressed: controller.toggleTrip,
+              backgroundColor: tripActive ? Colors.redAccent : primaryColor,
+              icon: Icon(
+                tripActive ? Icons.stop_circle : Icons.play_arrow_rounded,
+              ),
+              label: Text(tripActive ? 'End trip' : 'Start trip'),
+            ),
           );
         });
       },
     );
   }
-}
 
-class _DriverNavItem {
-  const _DriverNavItem({
-    required this.label,
-    required this.icon,
-    required this.activeIcon,
-    required this.page,
-  });
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF2F80ED), size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+          ],
+        ),
+      ),
+    );
+  }
 
-  final String label;
-  final IconData icon;
-  final IconData activeIcon;
-  final Widget page;
+  void _showLanguageDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Language'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('English'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implement language change logic
+                },
+              ),
+              ListTile(
+                title: const Text('Spanish'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implement language change logic
+                },
+              ),
+              ListTile(
+                title: const Text('French'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implement language change logic
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-  NavigationDestination toDestination() {
-    return NavigationDestination(
-      icon: Icon(icon),
-      selectedIcon: Icon(activeIcon),
-      label: label,
+  void _showContactDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Contact School'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.phone, color: Color(0xFF2F80ED)),
+                title: const Text('Call School Management'),
+                subtitle: const Text('+1 (555) 123-4567'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implement call functionality
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.email, color: Color(0xFF2F80ED)),
+                title: const Text('Email School'),
+                subtitle: const Text('management@school.com'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implement email functionality
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
