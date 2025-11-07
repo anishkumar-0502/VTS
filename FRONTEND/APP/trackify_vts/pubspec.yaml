@@ -40,6 +40,9 @@ dependencies:
   shared_preferences: ^2.3.2
   panara_dialogs: ^0.1.5
   image_picker: ^1.1.2
+  flutter_map: ^6.0.0
+  latlong2: ^0.9.0
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +71,7 @@ flutter:
     - assets/logo/logo.png
     - assets/fonts/
     - assets/images/
+    - assets/icons/
 
   fonts:
     - family: Poppins

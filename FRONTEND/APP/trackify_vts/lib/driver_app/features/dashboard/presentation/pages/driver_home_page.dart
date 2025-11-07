@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../controllers/driver_dashboard_controller.dart';
 import '../../../profile/presentation/controllers/driver_profile_controller.dart';
+import '../../../scheduled_trips/presentation/pages/scheduled_trips_page.dart';
 import 'driver_dashboard_page.dart';
 
 class DriverHomePage extends StatefulWidget {
@@ -213,20 +214,17 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             Get.toNamed('/driver/students');
                           },
                         ),
-                        const SizedBox(height: 8),
 
-                        // Change Language
                         _buildMenuItem(
-                          icon: Icons.language,
-                          title: 'Change Language',
-                          subtitle: 'Select Preferred Language',
+                          icon: Icons.bus_alert,
+                          title: 'My Trips',
+                          subtitle: 'Monitor Daily Trips',
                           onTap: () {
                             Navigator.pop(context); // Close drawer
-                            // Show language selection dialog
-                            _showLanguageDialog(context);
+                            // Navigate to scheduled trips page
+                            Get.to(() => const ScheduledTripsPage(),transition: Transition.rightToLeft,duration: const Duration(milliseconds: 400),);
                           },
                         ),
-                        const SizedBox(height: 8),
 
                         // Contact School
                         _buildMenuItem(
@@ -239,7 +237,6 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             _showContactDialog(context);
                           },
                         ),
-                        const SizedBox(height: 8),
 
                         // Logout
                         _buildMenuItem(
@@ -260,7 +257,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     padding: const EdgeInsets.all(20),
                     child: Image.asset(
                       'assets/images/schoolside.png',
-                      fit: BoxFit.contain,
+                      fit: BoxFit.fill,
                     ),
                   ),
                 ],
