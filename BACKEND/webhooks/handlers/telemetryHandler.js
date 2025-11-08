@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Device = require('../../models/Device');
+const Vehicle = require('../../models/Vehicle');
 const TrackingData = require('../../models/TrackingData');
 const logger = require('../../utils/logger');
 const { generateEntityId } = require('../../utils/uuidUtils');
@@ -102,7 +103,7 @@ class TelemetryHandler {
   }
 
   static async ensureDevice(trackerId, payload = {}) {
-    const device = await Device.findOne({ imei: trackerId });
+    const device = await Device.findOne({ device_id: trackerId });
     if (!device) {
       await TelemetryHandler.recordUnregisteredDevice(trackerId, payload);
       logger.loggerWarn(`Unregistered tracker denied: ${trackerId}`);
@@ -167,9 +168,21 @@ class TelemetryHandler {
       const satellites = TelemetryHandler.toNumber(payload.satellites) ?? 0;
       const fixQuality = TelemetryHandler.toNumber(payload.fix_quality) ?? 0;
       const hdop = TelemetryHandler.toNumber(payload.hdop) ?? 0;
+      const assignedVehicleId = device.assigned_vehicle_id || null;
+      let vehicleNumber = payload.vehicle_number || payload.vehicleNumber || trackerId;
+      if (assignedVehicleId) {
+        const vehicleDoc = await Vehicle.findOne({ vehicle_id: assignedVehicleId })
+          .select('vehicle_number vehicle_id')
+          .lean();
+        if (vehicleDoc?.vehicle_number) {
+          vehicleNumber = vehicleDoc.vehicle_number;
+        } else {
+          vehicleNumber = assignedVehicleId;
+        }
+      }
       const trackingRecord = await TrackingData.create({
         device_id: device.device_id,
-        vehicle_id: device.assigned_vehicle_id || null,
+        vehicle_id: assignedVehicleId,
         latitude,
         longitude,
         altitude,
@@ -207,7 +220,7 @@ class TelemetryHandler {
             course,
             altitude,
             timestamp,
-            vehicle_number: device.assigned_vehicle_id || payload.vehicle_number || payload.vehicleNumber || trackerId || vehicleKey
+            vehicle_number: vehicleNumber
           },
           device.toObject()
         );
