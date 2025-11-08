@@ -9,8 +9,8 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.50:8787";
 interface Operator {
   operator_id: string;
   name: string;
-  email: string;
-  phone: string;
+  email: string;phone?: string;
+phone_number?: string;
   registration_number: string;
   address: string;
   city: string;
@@ -82,7 +82,23 @@ export default function ManageOperators() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const body = Object.fromEntries(formData.entries());
+    let body = Object.fromEntries(formData.entries());
+
+body = {
+  name: body.name,
+  email: body.email,
+  phone_number: body.phone || body.phone_number,
+  registration_number: body.registration_number,
+  company_name: body.company_name,
+  address: body.address,
+  city: body.city,
+  state: body.state,
+  postal_code: body.postal_code,
+  country: body.country,
+};
+
+
+
 
     try {
       const token = localStorage.getItem("token");
@@ -251,30 +267,70 @@ const unassignDevice = async (operator_id: string, device_id: string) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       const o = data.data;
+      const vehiclesHTML = o.vehicles?.length
+  ? o.vehicles
+      .map(
+        (v: any) =>
+          `<li><b>${v.vehicle_number}</b> (${v.vehicle_type || "N/A"})</li>`
+      )
+      .join("")
+  : "<li>No vehicles assigned</li>";
+
+const driversHTML = o.drivers?.length
+  ? o.drivers
+      .map(
+        (d: any) =>
+          `<li><b>${d.name}</b> (${d.email || "N/A"}, ${
+            d.phone_number || "N/A"
+          })</li>`
+      )
+      .join("")
+  : "<li>No drivers assigned</li>";
+
+const devicesHTML = o.devices?.length
+  ? o.devices
+      .map(
+        (dev: any) =>
+          `<li><b>${dev.device_id}</b> (${dev.device_name || "N/A"})</li>`
+      )
+      .join("")
+  : "<li>No devices assigned</li>";
+
 
       Swal.fire({
         ...swalBaseConfig,
         title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">Operator Details</h3>`,
-        html: `
-          <div style="text-align:left; font-size:14px; line-height:1.6;">
-            <p><b>Name:</b> ${o.name}</p>
-            <p><b>Email:</b> ${o.email}</p>
-            <p><b>Phone:</b> ${o.phone}</p>
-            <p><b>Registration #:</b> ${o.registration_number}</p>
-            <p><b>Address:</b> ${o.address}, ${o.city}, ${o.state}</p>
-            <p><b>Postal:</b> ${o.postal_code}</p>
-            <p><b>Country:</b> ${o.country}</p>
-            <hr style="margin:10px 0;border:none;border-top:1px solid ${
-              isDark ? "#374151" : "#e5e7eb"
-            };"/>
-            <p><b>Status:</b> ${
-              o.status
-                ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-                : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-            }</p>
-            <p><b>Created:</b> ${new Date(o.createdAt).toLocaleString()}</p>
-            <p><b>Updated:</b> ${new Date(o.updatedAt).toLocaleString()}</p>
-          </div>`,
+       html: `
+  <div style="text-align:left; font-size:14px; line-height:1.6;">
+    <p><b>Name:</b> ${o.name}</p>
+    <p><b>Email:</b> ${o.email}</p>
+    <p><b>Phone:</b> ${o.phone || o.phone_number || "N/A"}</p>
+    <p><b>Registration #:</b> ${o.registration_number}</p>
+    <p><b>Address:</b> ${o.address}, ${o.city}, ${o.state}</p>
+    <p><b>Postal:</b> ${o.postal_code}</p>
+    <p><b>Country:</b> ${o.country}</p>
+    <hr style="margin:10px 0;border:none;border-top:1px solid ${
+      isDark ? "#374151" : "#e5e7eb"
+    };" />
+    <p><b>Status:</b> ${
+      o.status
+        ? '<span style="color:#10b981;font-weight:600;">Active</span>'
+        : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
+    }</p>
+    <p><b>Created:</b> ${new Date(o.createdAt).toLocaleString()}</p>
+    <p><b>Updated:</b> ${new Date(o.updatedAt).toLocaleString()}</p>
+    <hr style="margin:10px 0;border:none;border-top:1px solid ${
+      isDark ? "#374151" : "#e5e7eb"
+    };" />
+    <h4><b>Vehicles:</b></h4>
+    <ul>${vehiclesHTML}</ul>
+    <h4><b>Drivers:</b></h4>
+    <ul>${driversHTML}</ul>
+    <h4><b>Devices:</b></h4>
+    <ul>${devicesHTML}</ul>
+  </div>
+`,
+
         confirmButtonText: "Close",
         width: 420,
         customClass: { popup: "rounded-xl shadow-lg" },
@@ -326,8 +382,9 @@ const unassignDevice = async (operator_id: string, device_id: string) => {
                 {[
                   "name",
                   "email",
-                  "phone",
+                  "phone_number",
                   "registration_number",
+                  "company_name", 
                   "address",
                   "city",
                   "state",
@@ -410,7 +467,7 @@ const unassignDevice = async (operator_id: string, device_id: string) => {
             >
               <td className="truncate px-3 py-2">{o.name}</td>
               <td className="truncate px-3 py-2">{o.email}</td>
-              <td className="truncate px-3 py-2">{o.phone}</td>
+              <td className="truncate px-3 py-2">{o.phone || o.phone_number}</td>
               <td className="px-3 py-2">
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-medium ${

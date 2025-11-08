@@ -796,4 +796,18 @@ body.swal2-shown > *:not(.swal2-container) {
   z-index: 100000; /* ensure popup stays on top */
 }
 
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
 
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+}

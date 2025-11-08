@@ -328,7 +328,7 @@ const handleView = async (device_id: string) => {
   <table className="min-w-full border-collapse">
     <thead>
       <tr className="border-b border-gray-200 dark:border-gray-700">
-        {["Device ID", "IMEI", "Type", "SIM", "Firmware", "Status", "Actions"].map((h) => (
+        {["Device ID", "IMEI", "SIM", "Status", "Actions"].map((h) => (
           <th
             key={h}
             className="px-2 py-1 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap"
@@ -347,9 +347,9 @@ const handleView = async (device_id: string) => {
         >
           <td className="px-2 py-1 font-normal">{device.device_id}</td>
           <td className="px-2 py-1 font-normal">{device.imei}</td>
-          <td className="px-2 py-1 font-normal">{device.device_type}</td>
+          {/* <td className="px-2 py-1 font-normal">{device.device_type}</td> */}
           <td className="px-2 py-1 font-normal">{device.sim_number}</td>
-          <td className="px-2 py-1 font-normal">{device.firmware_version}</td>
+          {/* <td className="px-2 py-1 font-normal">{device.firmware_version}</td> */}
           <td className="px-2 py-1">
             <span
               className={`px-3 py-1 rounded-full text-xs font-medium ${

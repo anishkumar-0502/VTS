@@ -112,9 +112,21 @@ const handleEdit = async (device: GPSDevice) => {
     html: `
       <div style="text-align:left">
         <label style="font-size:14px; font-weight:500;">Device ID</label>
-        <input id="swal-device_id" class="swal2-input" placeholder="Device ID" value="${device.device_id}">
+        <input 
+          id="swal-device_id" 
+          class="swal2-input" 
+          placeholder="Device ID" 
+          value="${device.device_id}" 
+          readonly
+          style="background-color:#f3f4f6; cursor:not-allowed;"
+        >
         <label style="font-size:14px; font-weight:500;">SIM Number</label>
-        <input id="swal-sim_number" class="swal2-input" placeholder="SIM Number" value="${device.sim_number}">
+        <input 
+          id="swal-sim_number" 
+          class="swal2-input" 
+          placeholder="SIM Number" 
+          value="${device.sim_number}"
+        >
       </div>
     `,
     focusConfirm: false,
@@ -122,13 +134,12 @@ const handleEdit = async (device: GPSDevice) => {
     confirmButtonText: "Save",
     confirmButtonColor: "#2563eb",
     preConfirm: () => {
-      const device_id = (document.getElementById("swal-device_id") as HTMLInputElement).value;
       const sim_number = (document.getElementById("swal-sim_number") as HTMLInputElement).value;
-      if (!device_id || !sim_number) {
+      if (!sim_number) {
         Swal.showValidationMessage("Please fill out all fields");
         return;
       }
-      return { device_id, sim_number };
+      return { sim_number };
     },
   });
 
@@ -136,7 +147,7 @@ const handleEdit = async (device: GPSDevice) => {
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `${API_BASE_URL}/operator/devices/${device.device_id}/update`, // ✅ your correct endpoint
+        `${API_BASE_URL}/operator/devices/${device.device_id}/update`,
         {
           method: "PUT",
           headers: {
@@ -158,6 +169,7 @@ const handleEdit = async (device: GPSDevice) => {
     }
   }
 };
+
 
 
   // 🔹 Toggle Activate/Deactivate Device

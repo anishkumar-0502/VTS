@@ -125,6 +125,12 @@ const operatorNavItems: NavItem[] = [
     path: "/manage-drivers",
     permission: "view_devices",
   },
+   {
+    icon: <UserCircleIcon />,
+    name: "Manage Trips",
+    path: "/manage-trips",
+    permission: "view_devices",
+  },
   {
     icon: <UserCircleIcon />,
     name: "Assign Device to Vehicle",
