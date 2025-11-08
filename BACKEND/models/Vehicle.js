@@ -67,6 +67,7 @@ const vehicleSchema = new mongoose.Schema(
     route_points: [
       {
         name: String,
+        landmark: String,
         latitude: Number,
         longitude: Number,
         order: Number,

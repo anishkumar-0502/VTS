@@ -388,6 +388,7 @@ class BulkImportService {
           if (routePoints.length > 0) {
             validVehicle.route_points = routePoints.map((point, idx) => ({
               name: point.name?.trim() || `Stop ${idx + 1}`,
+              landmark: point.landmark?.trim(),
               latitude: parseFloat(point.latitude),
               longitude: parseFloat(point.longitude),
               order: point.order || idx + 1,

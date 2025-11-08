@@ -110,39 +110,49 @@ class TrackerSim:
         durations: list[float],
         coordinates: list[tuple[float, float]],
     ) -> None:
-        self.speeds = speeds
-        self.distances = distances
-        self.durations = durations
-        self.coordinates = coordinates
-        self.segment_times = np.divide(self.distances, self.speeds, out=np.zeros_like(self.distances), where=self.speeds!=0)
+        self.speeds = np.array(speeds, dtype=float)
+        self.distances = np.array(distances, dtype=float)
+        self.durations = np.array(durations, dtype=float)
+        self.coordinates = np.array(coordinates, dtype=float)
+        if self.coordinates.shape[0] < 2:
+            raise ValueError("TrackerSim requires at least two coordinates")
+        with np.errstate(divide='ignore', invalid='ignore'):
+            self.segment_times = np.divide(
+                self.distances,
+                self.speeds,
+                out=np.full_like(self.distances, fill_value=1.0, dtype=float),
+                where=self.speeds > 0
+            )
         self.cumulative_times = np.cumsum(self.segment_times)
 
     def get_coords(self, elapsed_time: int) -> tuple[float, float]:
-        target_segment_index = np.searchsorted(self.cumulative_times, elapsed_time)
-        if target_segment_index > 0 and target_segment_index < len(self.coordinates):
-            start_coords = self.coordinates[target_segment_index - 1]
-            end_coords = self.coordinates[target_segment_index]
-            segment_duration = self.segment_times[target_segment_index - 1]
-            cumulative_time_before_segment = (
-                self.cumulative_times[target_segment_index - 2]
-                if target_segment_index > 1
-                else 0
-            )
-            fraction = (elapsed_time - cumulative_time_before_segment) / segment_duration if segment_duration > 0 else 0
-            estimated_lat = start_coords[0] + (end_coords[0] - start_coords[0]) * fraction
-            estimated_lng = start_coords[1] + (end_coords[1] - start_coords[1]) * fraction
-            return estimated_lat, estimated_lng
-        else:
-            return self.coordinates[0]
+        if elapsed_time <= 0:
+            return tuple(self.coordinates[0])
+        if elapsed_time >= self.cumulative_times[-1]:
+            return tuple(self.coordinates[-1])
+        target_segment_index = int(np.searchsorted(self.cumulative_times, elapsed_time, side='right'))
+        segment_index = max(0, min(target_segment_index - 1, self.coordinates.shape[0] - 2))
+        start_coords = self.coordinates[segment_index]
+        end_coords = self.coordinates[segment_index + 1]
+        cumulative_time_before_segment = self.cumulative_times[segment_index - 1] if segment_index > 0 else 0.0
+        segment_duration = self.segment_times[segment_index]
+        if segment_duration <= 0:
+            return tuple(end_coords)
+        fraction = (elapsed_time - cumulative_time_before_segment) / segment_duration
+        fraction = float(max(0.0, min(1.0, fraction)))
+        estimated_lat = start_coords[0] + (end_coords[0] - start_coords[0]) * fraction
+        estimated_lng = start_coords[1] + (end_coords[1] - start_coords[1]) * fraction
+        return estimated_lat, estimated_lng
 
     def get_extended_coords(self, elapsed_time: int) -> Dict[str, Any]:
         lat, lng = self.get_coords(elapsed_time)
-        target_segment_index = np.searchsorted(self.cumulative_times, elapsed_time)
-        speed_ms = self.speeds[target_segment_index - 1] if target_segment_index > 0 and target_segment_index <= len(self.speeds) else 0
+        target_segment_index = int(np.searchsorted(self.cumulative_times, elapsed_time, side='right'))
+        segment_index = max(0, min(target_segment_index - 1, len(self.speeds) - 1))
+        speed_ms = float(self.speeds[segment_index]) if len(self.speeds) else 0.0
         speed_kmh = speed_ms * 3.6
         course = 0.0
-        if target_segment_index > 1:
-            prev_lat, prev_lng = self.coordinates[target_segment_index - 2]
+        if segment_index > 0:
+            prev_lat, prev_lng = self.coordinates[segment_index]
             delta_lat = lat - prev_lat
             delta_lng = lng - prev_lng
             course = np.degrees(np.arctan2(delta_lng, delta_lat)) % 360
