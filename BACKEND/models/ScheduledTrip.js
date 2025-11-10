@@ -44,6 +44,17 @@ const scheduledTripSchema = new mongoose.Schema(
       longitude: Number,
       address: String
     },
+    route_points: {
+      type: [
+        {
+          name: String,
+          latitude: Number,
+          longitude: Number,
+          order: Number
+        }
+      ],
+      default: []
+    },
     repeat_days: {
       type: {
         Monday: { type: Boolean, default: false },
@@ -71,6 +82,18 @@ const scheduledTripSchema = new mongoose.Schema(
     associated_trip_id: {
       type: String,
       ref: 'Trip',
+      default: null
+    },
+    last_started_on: {
+      type: String,
+      default: null
+    },
+    last_completed_on: {
+      type: String,
+      default: null
+    },
+    last_status_change_at: {
+      type: Date,
       default: null
     },
     status: {

@@ -129,6 +129,10 @@ class TripService {
         status: 'active'
       };
 
+      if (tripPayload.route_points && !Array.isArray(tripPayload.route_points)) {
+        delete tripPayload.route_points;
+      }
+
       const trip = new OnDemandTrip(tripPayload);
 
       await trip.save();
@@ -212,6 +216,20 @@ class TripService {
       }
 
       await trip.save();
+      if (trip.scheduled_trip_id) {
+        const scheduledId = normalizeIdentifier(trip.scheduled_trip_id);
+        if (scheduledId) {
+          const completionTimestamp = new Date();
+          await ScheduledTrip.updateOne(
+            { scheduled_trip_id: scheduledId },
+            {
+              status: 'completed',
+              last_completed_on: completionTimestamp.toISOString().slice(0, 10),
+              last_status_change_at: completionTimestamp
+            }
+          );
+        }
+      }
       if (vehicleIdentifier) {
         await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicleIdentifier), { current_status: 'idle' });
       }
@@ -552,10 +570,16 @@ class TripService {
         operator_id: operator_id,
         route_name: scheduledTrip.route_name,
         start_location: scheduledTrip.start_location,
+        route_points: Array.isArray(scheduledTrip.route_points) ? scheduledTrip.route_points : undefined,
         start_time: new Date(),
         trip_period: scheduledTrip.trip_period,
+        scheduled_trip_id: scheduledTrip.scheduled_trip_id,
         status: 'active'
       };
+
+      if (!tripPayload.route_points) {
+        delete tripPayload.route_points;
+      }
 
       const trip = new OnDemandTrip(tripPayload);
       await trip.save();

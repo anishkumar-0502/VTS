@@ -177,12 +177,105 @@ class OperatorController {
       const activeDevices = devices.filter((device) => device.status && (device.battery_level ?? 0) > 0).length;
       const deviceIds = devices.map((device) => device.device_id);
 
-      const recentTracking = deviceIds.length
+      const recentTrackingDocs = deviceIds.length
         ? await TrackingData.find({ device_id: { $in: deviceIds } })
-          .sort({ timestamp: -1 })
-          .limit(10)
-          .lean()
+            .sort({ timestamp: -1 })
+            .limit(30)
+            .lean()
         : [];
+
+      const dedupedTracking = [];
+      const seenTrackerIds = new Set();
+      const seenVehicleIds = new Set();
+      recentTrackingDocs.forEach((entry) => {
+        if (!entry) {
+          return;
+        }
+        const trackerId = typeof entry.device_id === 'string' ? entry.device_id.trim() : null;
+        const vehicleId = typeof entry.vehicle_id === 'string' ? entry.vehicle_id.trim() : null;
+        if (trackerId) {
+          if (seenTrackerIds.has(trackerId)) {
+            return;
+          }
+          seenTrackerIds.add(trackerId);
+        } else if (vehicleId) {
+          if (seenVehicleIds.has(vehicleId)) {
+            return;
+          }
+          seenVehicleIds.add(vehicleId);
+        }
+        dedupedTracking.push(entry);
+      });
+
+      const vehicleIdSet = new Set();
+      const trackingDeviceSet = new Set();
+      dedupedTracking.forEach((entry) => {
+        if (entry?.vehicle_id) {
+          vehicleIdSet.add(entry.vehicle_id);
+        }
+        if (entry?.device_id) {
+          trackingDeviceSet.add(entry.device_id);
+        }
+      });
+
+      let vehicleDocs = [];
+      if (vehicleIdSet.size || trackingDeviceSet.size) {
+        const vehicleQuery = [];
+        if (vehicleIdSet.size) {
+          vehicleQuery.push({ vehicle_id: { $in: Array.from(vehicleIdSet) } });
+        }
+        if (trackingDeviceSet.size) {
+          vehicleQuery.push({ assigned_device_id: { $in: Array.from(trackingDeviceSet) } });
+        }
+        vehicleDocs = vehicleQuery.length
+          ? await Vehicle.find({ $or: vehicleQuery })
+              .select('vehicle_id vehicle_number assigned_device_id operator_id current_status')
+              .lean()
+          : [];
+      }
+
+      const vehicleById = new Map();
+      const vehicleByDevice = new Map();
+      vehicleDocs.forEach((vehicle) => {
+        if (vehicle?.vehicle_id) {
+          vehicleById.set(vehicle.vehicle_id, vehicle);
+        }
+        if (vehicle?.assigned_device_id) {
+          vehicleByDevice.set(vehicle.assigned_device_id, vehicle);
+        }
+      });
+
+      const recentTracking = dedupedTracking.map((entry) => {
+        const trackerId = typeof entry.device_id === 'string' ? entry.device_id : null;
+        const vehicleId = typeof entry.vehicle_id === 'string' ? entry.vehicle_id : null;
+        const vehicle =
+          (vehicleId && vehicleById.get(vehicleId)) ||
+          (trackerId && vehicleByDevice.get(trackerId)) ||
+          null;
+        const timestampValue =
+          entry.timestamp instanceof Date ? entry.timestamp : entry.timestamp ? new Date(entry.timestamp) : null;
+        const timestampIso =
+          timestampValue && !Number.isNaN(timestampValue.getTime()) ? timestampValue.toISOString() : null;
+        const speedValue = typeof entry.speed === 'number' ? entry.speed : 0;
+        const statusValue = vehicle?.current_status
+          ? vehicle.current_status
+          : timestampIso
+          ? speedValue > 1
+            ? 'active'
+            : 'idle'
+          : 'offline';
+
+        return {
+          ...entry,
+          vehicle_id: vehicle?.vehicle_id || vehicleId,
+          vehicle_number: vehicle?.vehicle_number || entry.vehicle_number || null,
+          operator_id: vehicle?.operator_id || entry.operator_id || null,
+          device_id: trackerId,
+          timestamp: timestampIso,
+          speed: speedValue,
+          status: statusValue
+        };
+      });
 
       res.status(200).json({
         error: false,
@@ -1171,7 +1264,6 @@ class OperatorController {
         chassis_number,
         color,
         seating_capacity,
-        route_points,
         standing_location
       } = req.body;
       const operator_id = req.user.operator_id || req.user.user_id;
@@ -1229,7 +1321,7 @@ class OperatorController {
         chassis_number,
         color,
         seating_capacity,
-        route_points: route_points || [],
+        route_points: [],
         standing_location: standing_location || {},
         current_status: 'offline',
         status: true
@@ -1441,7 +1533,6 @@ class OperatorController {
         chassis_number,
         color,
         seating_capacity,
-        route_points,
         standing_location
       } = req.body;
 
@@ -1526,10 +1617,6 @@ class OperatorController {
 
       if (typeof seating_capacity !== 'undefined') {
         vehicle.seating_capacity = seating_capacity;
-      }
-
-      if (typeof route_points !== 'undefined') {
-        vehicle.route_points = route_points;
       }
 
       if (typeof standing_location !== 'undefined') {
@@ -2077,20 +2164,20 @@ class OperatorController {
     try {
       const { name, phone_number } = req.body;
 
-      const user = await User.findOneAndUpdate(
-        { user_id: req.user.user_id },
-        { name, phone_number },
-        { new: true }
-      );
-
-      if (!user) {
-        throw new CustomError('User not found', 404);
+      const updatePayload = {};
+      if (typeof name !== 'undefined') {
+        updatePayload.name = name;
       }
+      if (typeof phone_number !== 'undefined') {
+        updatePayload.phone_number = phone_number;
+      }
+
+      const updatedUser = await UserService.updateUser(req.user.user_id, updatePayload);
 
       res.status(200).json({
         error: false,
         message: 'Profile updated successfully',
-        data: user
+        data: updatedUser
       });
     } catch (error) {
       next(error);
@@ -2283,13 +2370,24 @@ class OperatorController {
 
   static async createScheduledTrip(req, res, next) {
     try {
-      const { vehicle_id, driver_id, route_name, scheduled_start_time, trip_period, start_location, end_location, repeat_days } = req.body;
+      const { vehicle_id, driver_id, route_name, scheduled_start_time, trip_period, start_location, end_location, route_points, repeat_days } = req.body;
       const { CustomError } = require('../middlewares/errorHandler');
       const ScheduledTrip = require('../models/ScheduledTrip');
       const { generateScheduledTripId } = require('../utils/uuidUtils');
 
       if (!vehicle_id || !driver_id || !scheduled_start_time) {
         throw new CustomError('Vehicle ID, Driver ID, and scheduled start time are required', 400);
+      }
+
+      const conflictingTrip = await ScheduledTrip.findOne({
+        operator_id: req.user.operator_id,
+        scheduled_start_time,
+        is_active: true,
+        $or: [{ vehicle_id }, { driver_id }]
+      });
+
+      if (conflictingTrip) {
+        throw new CustomError('Driver or vehicle already scheduled at this time', 400);
       }
 
       const scheduledTrip = new ScheduledTrip({
@@ -2302,6 +2400,7 @@ class OperatorController {
         trip_period: trip_period || 'morning',
         start_location,
         end_location,
+        route_points: Array.isArray(route_points) ? route_points : [],
         repeat_days: repeat_days || [],
         is_active: true
       });
@@ -2378,7 +2477,11 @@ class OperatorController {
       const ScheduledTrip = require('../models/ScheduledTrip');
       const { CustomError } = require('../middlewares/errorHandler');
       const { scheduledTripId } = req.params;
-      const updateData = req.body;
+      const updateData = { ...req.body };
+
+      if (Object.prototype.hasOwnProperty.call(updateData, 'route_points')) {
+        updateData.route_points = Array.isArray(updateData.route_points) ? updateData.route_points : [];
+      }
 
       const scheduledTrip = await ScheduledTrip.findOneAndUpdate(
         { scheduled_trip_id: scheduledTripId, operator_id: req.user.operator_id },

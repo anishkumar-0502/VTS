@@ -3,6 +3,7 @@ const Role = require('../models/Role');
 const Operator = require('../models/Operator');
 const Device = require('../models/Device');
 const Vehicle = require('../models/Vehicle');
+const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 const EndUser = require('../models/EndUser');
@@ -16,35 +17,501 @@ const { sendCredentialsEmail } = require('../middlewares/emailer');
 class SuperadminController {
   static async getDashboardAnalytics(req, res, next) {
     try {
-      const totalOperators = await Operator.countDocuments({ status: true });
-      const totalUsers = await User.countDocuments({ status: true });
-      const totalDevices = await Device.countDocuments({ status: true });
-      const totalVehicles = await Vehicle.countDocuments({ current_status: { $ne: 'offline' } });
-      const activeDevices = await Device.countDocuments({ status: true });
-      const activeVehicles = await Vehicle.countDocuments({ current_status: 'active' });
+      const now = new Date();
+      await SuperadminController.updateVehicleStatuses(now);
+      const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const nextSevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      const recentTracking = await TrackingData.find().sort({ timestamp: -1 }).limit(10);
-      const usersByRole = await User.aggregate([
-        { $match: { status: true } },
-        { $group: { _id: '$role_id', count: { $sum: 1 } } }
+      const [
+        vehicleStatusResult,
+        totalOperators,
+        totalDevices,
+        activeDevices,
+        alertsByType,
+        operatorStats,
+        routeStats,
+        maintenanceSummaryResult,
+        upcomingMaintenance,
+        liveVehicleDocs,
+        activeUserDocs
+      ] = await Promise.all([
+        Vehicle.aggregate([
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              active: { $sum: { $cond: [{ $eq: ['$current_status', 'active'] }, 1, 0] } },
+              idle: { $sum: { $cond: [{ $eq: ['$current_status', 'idle'] }, 1, 0] } },
+              maintenance: { $sum: { $cond: [{ $eq: ['$current_status', 'maintenance'] }, 1, 0] } },
+              offline: { $sum: { $cond: [{ $eq: ['$current_status', 'offline'] }, 1, 0] } },
+              avgSpeed: { $avg: { $ifNull: ['$speed', 0] } }
+            }
+          }
+        ]),
+        Operator.countDocuments({ status: true }),
+        Device.countDocuments(),
+        Device.countDocuments({ status: true }),
+        Notification.aggregate([
+          {
+            $match: {
+              createdAt: { $gte: last24Hours }
+            }
+          },
+          {
+            $group: {
+              _id: '$type',
+              count: { $sum: 1 }
+            }
+          },
+          { $sort: { count: -1 } }
+        ]),
+        Vehicle.aggregate([
+          {
+            $match: { operator_id: { $ne: null } }
+          },
+          {
+            $group: {
+              _id: '$operator_id',
+              totalVehicles: { $sum: 1 },
+              activeVehicles: { $sum: { $cond: [{ $eq: ['$current_status', 'active'] }, 1, 0] } },
+              idleVehicles: { $sum: { $cond: [{ $eq: ['$current_status', 'idle'] }, 1, 0] } },
+              maintenanceVehicles: { $sum: { $cond: [{ $eq: ['$current_status', 'maintenance'] }, 1, 0] } },
+              offlineVehicles: { $sum: { $cond: [{ $eq: ['$current_status', 'offline'] }, 1, 0] } },
+              avgSpeed: { $avg: { $ifNull: ['$speed', 0] } }
+            }
+          },
+          { $sort: { activeVehicles: -1, totalVehicles: -1 } },
+          { $limit: 6 }
+        ]),
+        Vehicle.aggregate([
+          {
+            $match: { route_name: { $nin: [null, ''] } }
+          },
+          {
+            $group: {
+              _id: '$route_name',
+              vehicleCount: { $sum: 1 },
+              activeVehicles: { $sum: { $cond: [{ $eq: ['$current_status', 'active'] }, 1, 0] } },
+              issueVehicles: { $sum: { $cond: [{ $in: ['$current_status', ['maintenance', 'offline']] }, 1, 0] } },
+              avgSpeed: { $avg: { $ifNull: ['$speed', 0] } },
+              stopCount: {
+                $max: {
+                  $cond: [
+                    { $isArray: '$route_points' },
+                    { $size: '$route_points' },
+                    0
+                  ]
+                }
+              }
+            }
+          }
+        ]),
+        Vehicle.aggregate([
+          {
+            $match: { maintenance_due_date: { $ne: null } }
+          },
+          {
+            $group: {
+              _id: null,
+              overdue: { $sum: { $cond: [{ $lt: ['$maintenance_due_date', now] }, 1, 0] } },
+              dueSoon: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $gte: ['$maintenance_due_date', now] },
+                        { $lte: ['$maintenance_due_date', nextSevenDays] }
+                      ]
+                    },
+                    1,
+                    0
+                  ]
+                }
+              },
+              dueLater: { $sum: { $cond: [{ $gt: ['$maintenance_due_date', nextSevenDays] }, 1, 0] } }
+            }
+          }
+        ]),
+        Vehicle.find({ maintenance_due_date: { $ne: null } })
+          .select('vehicle_id vehicle_number maintenance_due_date current_status operator_id assigned_device_id')
+          .sort({ maintenance_due_date: 1 })
+          .limit(5)
+          .lean(),
+        Vehicle.find({
+          status: true,
+          assigned_device_id: { $ne: null }
+        })
+          .select('vehicle_id vehicle_number operator_id assigned_device_id current_status latitude longitude speed last_update updatedAt createdAt')
+          .sort({ last_update: -1, updatedAt: -1 })
+          .limit(50)
+          .lean(),
+        User.find({ status: true }).select('operator_id').lean()
       ]);
+
+      const vehicleStatus = vehicleStatusResult[0] || {
+        total: 0,
+        active: 0,
+        idle: 0,
+        maintenance: 0,
+        offline: 0,
+        avgSpeed: 0
+      };
+
+      const alertsLast24h = alertsByType.reduce((acc, item) => acc + (item.count || 0), 0);
+
+      const fleetOverview = {
+        totalVehicles: vehicleStatus.total || 0,
+        activeVehicles: vehicleStatus.active || 0,
+        idleVehicles: vehicleStatus.idle || 0,
+        maintenanceVehicles: vehicleStatus.maintenance || 0,
+        offlineVehicles: vehicleStatus.offline || 0,
+        totalOperators,
+        totalTrackers: totalDevices,
+        activeTrackers: activeDevices,
+        averageSpeed: Number((vehicleStatus.avgSpeed || 0).toFixed(2)),
+        alertsLast24h,
+        utilizationRate: vehicleStatus.total ? Number(((vehicleStatus.active / vehicleStatus.total) * 100).toFixed(2)) : 0
+      };
+
+      const alertSummary = {
+        totalAlerts24h: alertsLast24h,
+        alertsByType: alertsByType.map((entry) => ({
+          type: entry._id,
+          count: entry.count,
+          label: entry._id ? entry._id.replace(/_/g, ' ') : 'unknown'
+        })),
+        topAlertType: alertsByType.length ? alertsByType[0]._id : null
+      };
+
+      const operatorIdSet = new Set();
+      operatorStats.forEach((entry) => {
+        if (entry._id) {
+          operatorIdSet.add(entry._id);
+        }
+      });
+      upcomingMaintenance.forEach((entry) => {
+        if (entry.operator_id) {
+          operatorIdSet.add(entry.operator_id);
+        }
+      });
+      liveVehicleDocs.forEach((vehicle) => {
+        if (vehicle.operator_id) {
+          operatorIdSet.add(vehicle.operator_id);
+        }
+      });
+
+      const operatorLookup = operatorIdSet.size
+        ? await Operator.find({ operator_id: { $in: Array.from(operatorIdSet) } })
+            .select('operator_id name company_name')
+            .lean()
+        : [];
+      const operatorMap = new Map(operatorLookup.map((operator) => [operator.operator_id, operator]));
+
+      const topOperators = operatorStats.map((entry) => {
+        const operator = operatorMap.get(entry._id);
+        const label = operator?.company_name || operator?.name || entry._id;
+        const utilization = entry.totalVehicles
+          ? Number(((entry.activeVehicles / entry.totalVehicles) * 100).toFixed(2))
+          : 0;
+        const issues = (entry.maintenanceVehicles || 0) + (entry.offlineVehicles || 0);
+        return {
+          operatorId: entry._id,
+          operatorName: label,
+          totalVehicles: entry.totalVehicles || 0,
+          activeVehicles: entry.activeVehicles || 0,
+          idleVehicles: entry.idleVehicles || 0,
+          maintenanceVehicles: entry.maintenanceVehicles || 0,
+          offlineVehicles: entry.offlineVehicles || 0,
+          averageSpeed: Number((entry.avgSpeed || 0).toFixed(2)),
+          utilizationRate: utilization,
+          issueVehicles: issues
+        };
+      });
+
+      const liveVehicles = liveVehicleDocs.map((vehicle) => {
+        const operator = vehicle.operator_id ? operatorMap.get(vehicle.operator_id) : null;
+        const lastUpdateSource = vehicle.last_update || vehicle.updatedAt || vehicle.createdAt || null;
+        let lastUpdate = null;
+        if (lastUpdateSource) {
+          const dateValue = lastUpdateSource instanceof Date ? lastUpdateSource : new Date(lastUpdateSource);
+          if (!Number.isNaN(dateValue.getTime())) {
+            lastUpdate = dateValue.toISOString();
+          }
+        }
+        const latitude = typeof vehicle.latitude === 'number' ? vehicle.latitude : null;
+        const longitude = typeof vehicle.longitude === 'number' ? vehicle.longitude : null;
+
+        return {
+          vehicleId: vehicle.vehicle_id,
+          vehicleNumber: vehicle.vehicle_number,
+          operatorId: vehicle.operator_id || null,
+          operatorName: operator?.company_name || operator?.name || null,
+          operatorCountry: operator?.country || null,
+          trackerId: vehicle.assigned_device_id || null,
+          latitude,
+          longitude,
+          speed: Number((vehicle.speed || 0).toFixed(2)),
+          status: vehicle.current_status || 'unknown',
+          lastUpdate
+        };
+      });
+
+      const customerCountryMap = new Map();
+      const totalCustomerCount = activeUserDocs.length;
+      let knownCountryCount = 0;
+      activeUserDocs.forEach((userDoc) => {
+        const operatorId = userDoc?.operator_id;
+        if (!operatorId) {
+          return;
+        }
+        const operator = operatorMap.get(operatorId);
+        const country = operator?.country?.trim();
+        if (!country || !country.length) {
+          return;
+        }
+        const label = country;
+        const key = label.toLowerCase();
+        knownCountryCount += 1;
+        const existing = customerCountryMap.get(key);
+        if (existing) {
+          existing.customers += 1;
+        } else {
+          customerCountryMap.set(key, {
+            country: label,
+            customers: 1
+          });
+        }
+      });
+
+      let demographicCountries = Array.from(customerCountryMap.values())
+        .sort((a, b) => b.customers - a.customers)
+        .map((entry) => ({
+          country: entry.country,
+          customers: entry.customers,
+          percentage: knownCountryCount
+            ? Number(((entry.customers / knownCountryCount) * 100).toFixed(1))
+            : 0
+        }));
+
+      if (!demographicCountries.length && totalCustomerCount > 0) {
+        demographicCountries = [
+          {
+            country: 'India',
+            customers: totalCustomerCount,
+            percentage: 100
+          }
+        ];
+      }
+
+      const customerDemographics = {
+        totalCustomers: totalCustomerCount,
+        countries: demographicCountries
+      };
+
+      const routeSummary = {
+        totalRoutes: routeStats.length,
+        activeRoutes: routeStats.filter((route) => (route.activeVehicles || 0) > 0).length,
+        routesWithIssues: routeStats.filter((route) => (route.issueVehicles || 0) > 0).length,
+        averageRouteSpeed: routeStats.length
+          ? Number(
+              (
+                routeStats.reduce((sum, route) => sum + (route.avgSpeed || 0), 0) / routeStats.length
+              ).toFixed(2)
+            )
+          : 0
+      };
+
+      const slowRoutes = routeStats
+        .slice()
+        .sort((a, b) => (a.avgSpeed || 0) - (b.avgSpeed || 0))
+        .slice(0, 5)
+        .map((route) => ({
+          routeName: route._id,
+          averageSpeed: Number((route.avgSpeed || 0).toFixed(2)),
+          activeVehicles: route.activeVehicles || 0,
+          issueVehicles: route.issueVehicles || 0,
+          stopCount: route.stopCount || 0
+        }));
+
+      const routeHealth = {
+        summary: {
+          ...routeSummary,
+          onScheduleRate: routeSummary.totalRoutes
+            ? Number(
+                (
+                  ((routeSummary.totalRoutes - routeSummary.routesWithIssues) / routeSummary.totalRoutes) *
+                  100
+                ).toFixed(2)
+              )
+            : 0
+        },
+        slowRoutes
+      };
+
+      const maintenanceSummaryData = maintenanceSummaryResult[0] || {
+        overdue: 0,
+        dueSoon: 0,
+        dueLater: 0
+      };
+
+      const maintenance = {
+        summary: {
+          overdue: maintenanceSummaryData.overdue || 0,
+          dueSoon: maintenanceSummaryData.dueSoon || 0,
+          dueLater: maintenanceSummaryData.dueLater || 0
+        },
+        upcoming: upcomingMaintenance.map((item) => {
+          const dueDate = item.maintenance_due_date ? new Date(item.maintenance_due_date) : null;
+          const daysUntilDue = dueDate
+            ? Math.ceil((dueDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+            : null;
+          const operator = item.operator_id ? operatorMap.get(item.operator_id) : null;
+          return {
+            vehicleId: item.vehicle_id,
+            vehicleNumber: item.vehicle_number,
+            operatorId: item.operator_id || null,
+            operatorName: operator?.company_name || operator?.name || null,
+            trackerId: item.assigned_device_id || null,
+            status: item.current_status || 'unknown',
+            dueDate: dueDate ? dueDate.toISOString() : null,
+            daysUntilDue
+          };
+        })
+      };
 
       res.status(200).json({
         error: false,
         message: 'Dashboard analytics retrieved successfully',
         data: {
-          totalOperators,
-          totalUsers,
-          totalDevices,
-          totalVehicles,
-          activeDevices,
-          activeVehicles,
-          usersByRole,
-          recentTracking
+          fleetOverview,
+          alertSummary,
+          operatorPerformance: {
+            topOperators
+          },
+          routeHealth,
+          maintenance,
+          liveVehicles,
+          customerDemographics
         }
       });
     } catch (error) {
       next(error);
+    }
+  }
+
+  static async updateVehicleStatuses(referenceTime) {
+    const assignedVehicles = await Vehicle.find({
+      status: true,
+      assigned_device_id: { $ne: null }
+    })
+      .select('vehicle_id assigned_device_id current_status latitude longitude speed last_update')
+      .lean();
+
+    if (!assignedVehicles.length) {
+      return;
+    }
+
+    const deviceIds = assignedVehicles
+      .map((vehicle) => vehicle.assigned_device_id)
+      .filter((deviceId) => typeof deviceId === 'string' && deviceId.length);
+
+    if (!deviceIds.length) {
+      return;
+    }
+
+    const latestTracking = await TrackingData.aggregate([
+      {
+        $match: {
+          device_id: { $in: deviceIds }
+        }
+      },
+      {
+        $sort: { timestamp: -1 }
+      },
+      {
+        $group: {
+          _id: '$device_id',
+          timestamp: { $first: '$timestamp' },
+          speed: { $first: '$speed' },
+          latitude: { $first: '$latitude' },
+          longitude: { $first: '$longitude' }
+        }
+      }
+    ]);
+
+    const trackingMap = new Map(latestTracking.map((entry) => [entry._id, entry]));
+    const thresholdMs = 10 * 60 * 1000;
+    const bulkUpdates = [];
+    const nowMs = referenceTime instanceof Date ? referenceTime.getTime() : Date.now();
+
+    assignedVehicles.forEach((vehicle) => {
+      if (vehicle.current_status === 'maintenance') {
+        return;
+      }
+
+      const tracking = trackingMap.get(vehicle.assigned_device_id);
+      let nextStatus = 'offline';
+      let nextSpeed = typeof vehicle.speed === 'number' ? vehicle.speed : 0;
+      let nextLatitude = vehicle.latitude;
+      let nextLongitude = vehicle.longitude;
+      let nextLastUpdate = vehicle.last_update ? new Date(vehicle.last_update) : null;
+
+      if (tracking && tracking.timestamp) {
+        const trackTime = tracking.timestamp instanceof Date ? tracking.timestamp : new Date(tracking.timestamp);
+        if (!Number.isNaN(trackTime.getTime())) {
+          const ageMs = nowMs - trackTime.getTime();
+          if (ageMs <= thresholdMs) {
+            const speedValue = typeof tracking.speed === 'number' ? tracking.speed : 0;
+            nextSpeed = speedValue;
+            nextLatitude = typeof tracking.latitude === 'number' ? tracking.latitude : nextLatitude;
+            nextLongitude = typeof tracking.longitude === 'number' ? tracking.longitude : nextLongitude;
+            nextLastUpdate = trackTime;
+            nextStatus = speedValue > 1 ? 'active' : 'idle';
+          }
+        }
+      }
+
+      const updateDoc = {};
+
+      if (nextStatus !== vehicle.current_status) {
+        updateDoc.current_status = nextStatus;
+      }
+
+      if (typeof nextSpeed === 'number') {
+        const formattedSpeed = Number(nextSpeed.toFixed(2));
+        const currentSpeed = typeof vehicle.speed === 'number' ? Number(vehicle.speed.toFixed(2)) : null;
+        if (currentSpeed !== formattedSpeed) {
+          updateDoc.speed = formattedSpeed;
+        }
+      }
+
+      if (typeof nextLatitude === 'number' && nextLatitude !== vehicle.latitude) {
+        updateDoc.latitude = nextLatitude;
+      }
+
+      if (typeof nextLongitude === 'number' && nextLongitude !== vehicle.longitude) {
+        updateDoc.longitude = nextLongitude;
+      }
+
+      if (nextLastUpdate) {
+        const existingUpdate = vehicle.last_update ? new Date(vehicle.last_update).getTime() : null;
+        if (!existingUpdate || existingUpdate !== nextLastUpdate.getTime()) {
+          updateDoc.last_update = nextLastUpdate;
+        }
+      }
+
+      if (Object.keys(updateDoc).length) {
+        bulkUpdates.push({
+          updateOne: {
+            filter: { vehicle_id: vehicle.vehicle_id },
+            update: { $set: updateDoc }
+          }
+        });
+      }
+    });
+
+    if (bulkUpdates.length) {
+      await Vehicle.bulkWrite(bulkUpdates, { ordered: false });
     }
   }
 

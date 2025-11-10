@@ -111,19 +111,33 @@ const getDriverIdentifiers = async (userId) => {
 class DriverController {
   static async startTrip(req, res, next) {
     try {
-      const { vehicle_id, route_name, start_location } = req.body;
+      const { vehicle_id, route_name, start_location, route_points, selected_start_point, selected_end_point } = req.body;
 
       if (!vehicle_id) {
         throw new CustomError('Vehicle ID is required', 400);
       }
 
-      const trip = await TripService.startTrip({
+      const tripPayload = {
         vehicle_id,
         driver_id: req.user.user_id,
         operator_id: req.user.operator_id,
         route_name,
         start_location
-      });
+      };
+
+      if (Array.isArray(route_points)) {
+        tripPayload.route_points = route_points;
+      }
+
+      if (selected_start_point) {
+        tripPayload.selected_start_point = selected_start_point;
+      }
+
+      if (selected_end_point) {
+        tripPayload.selected_end_point = selected_end_point;
+      }
+
+      const trip = await TripService.startTrip(tripPayload);
 
       if (global.socketManager) {
         global.socketManager.emitToTrip(trip._id.toString(), 'trip_started', {
@@ -878,6 +892,23 @@ class DriverController {
     try {
       const ScheduledTrip = require('../models/ScheduledTrip');
       const driverIdentifiers = await getDriverIdentifiers(req.user.user_id);
+      const resetDateKey = new Date().toISOString().slice(0, 10);
+
+      await ScheduledTrip.updateMany(
+        {
+          driver_id: { $in: driverIdentifiers },
+          status: 'completed',
+          last_completed_on: { $ne: resetDateKey }
+        },
+        {
+          $set: {
+            status: 'pending',
+            associated_trip_id: null,
+            last_started_on: null,
+            last_status_change_at: new Date()
+          }
+        }
+      );
 
       const scheduledTrips = await ScheduledTrip.find({
         driver_id: { $in: driverIdentifiers },
@@ -889,6 +920,9 @@ class DriverController {
           const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
           const tripData = trip.toObject();
           tripData.vehicle_id = vehicle;
+          const completedToday = tripData.last_completed_on === resetDateKey;
+          tripData.isCompletedToday = completedToday;
+          tripData.daily_status = completedToday ? 'completed' : tripData.status;
           return tripData;
         })
       );
@@ -911,11 +945,33 @@ class DriverController {
       const todayName = dayNames[new Date().getDay()];
       const repeatDayKey = `repeat_days.${todayName}`;
       const driverIdentifiers = await getDriverIdentifiers(req.user.user_id);
+      const resetDateKey = new Date().toISOString().slice(0, 10);
+
+      await ScheduledTrip.updateMany(
+        {
+          driver_id: { $in: driverIdentifiers },
+          status: 'completed',
+          last_completed_on: { $ne: resetDateKey }
+        },
+        {
+          $set: {
+            status: 'pending',
+            associated_trip_id: null,
+            last_started_on: null,
+            last_status_change_at: new Date()
+          }
+        }
+      );
 
       const scheduledTrips = await ScheduledTrip.find({
         driver_id: { $in: driverIdentifiers },
         is_active: true,
-        [repeatDayKey]: true
+        [repeatDayKey]: true,
+        status: { $ne: 'completed' },
+        $or: [
+          { last_completed_on: { $ne: resetDateKey } },
+          { last_completed_on: null }
+        ]
       }).sort({ scheduled_start_time: 1 });
 
       const tripsWithVehicles = await Promise.all(
@@ -923,6 +979,9 @@ class DriverController {
           const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
           const tripData = trip.toObject();
           tripData.vehicle_id = vehicle;
+          const completedToday = tripData.last_completed_on === resetDateKey;
+          tripData.isCompletedToday = completedToday;
+          tripData.daily_status = completedToday ? 'completed' : tripData.status;
           return tripData;
         })
       );
@@ -956,6 +1015,12 @@ class DriverController {
         throw new CustomError('This trip is already in progress', 400);
       }
 
+      const now = new Date();
+      const todayKey = now.toISOString().slice(0, 10);
+      if (scheduledTrip.last_completed_on === todayKey) {
+        throw new CustomError('This trip has already been completed today', 400);
+      }
+
       const trip = await TripService.startTripFromScheduled({
         scheduledTrip,
         driver_id: req.user.user_id,
@@ -966,7 +1031,9 @@ class DriverController {
         { scheduled_trip_id: scheduledTripId },
         {
           associated_trip_id: trip.trip_id || trip._id,
-          status: 'in-progress'
+          status: 'in-progress',
+          last_started_on: todayKey,
+          last_status_change_at: now
         }
       );
 
