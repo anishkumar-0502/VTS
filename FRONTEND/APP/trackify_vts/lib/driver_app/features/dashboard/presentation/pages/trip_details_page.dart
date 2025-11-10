@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/driver_dashboard_controller.dart';
-import '../../domain/models/dashboard_model.dart';
+import '../../domain/models/dashboard_model.dart' as dashboard_models;
+import '../../../scheduled_trips/domain/models/scheduled_trip_model.dart'
+    as scheduled_models;
 
 class TripDetailsPage extends StatelessWidget {
-  final ScheduledTrip trip;
+  final scheduled_models.ScheduledTrip trip;
 
   const TripDetailsPage({required this.trip, super.key});
 
@@ -146,14 +148,14 @@ class TripDetailsPage extends StatelessWidget {
                       children: [
                         _buildLocationRow(
                           'Start Location',
-                          trip.startLocation.address,
+                          trip.startLocation?.address ?? 'N/A',
                           Icons.location_on,
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildLocationRow(
                           'End Location',
-                          trip.endLocation.address,
+                          trip.endLocation?.address ?? 'N/A',
                           Icons.flag,
                           primaryColor,
                         ),
@@ -170,25 +172,25 @@ class TripDetailsPage extends StatelessWidget {
                       children: [
                         _buildInfoRow(
                           'Vehicle Number',
-                          trip.vehicleId.vehicleNumber ?? 'N/A',
+                          trip.vehicleId?.vehicleNumber ?? 'N/A',
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildInfoRow(
                           'Vehicle Type',
-                          trip.vehicleId.vehicleType ?? 'N/A',
+                          trip.vehicleId?.vehicleType ?? 'N/A',
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildInfoRow(
                           'Color',
-                          trip.vehicleId.color ?? 'N/A',
+                          trip.vehicleId?.color ?? 'N/A',
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildInfoRow(
                           'Capacity',
-                          '${trip.vehicleId.seatingCapacity ?? 0} seats',
+                          '${trip.vehicleId?.seatingCapacity ?? 0} seats',
                           primaryColor,
                         ),
                       ],
@@ -197,13 +199,13 @@ class TripDetailsPage extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   // Route Stops Card
-                  if (trip.vehicleId.routePoints.isNotEmpty)
+                  if (trip.vehicleId?.routePoints.isNotEmpty ?? false)
                     _buildCard(
                       title: 'Route Stops',
                       primaryColor: primaryColor,
                       child: Column(
                         children: [
-                          ...trip.vehicleId.routePoints.map(
+                          ...?trip.vehicleId?.routePoints.map(
                             (point) => Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Row(
@@ -268,37 +270,37 @@ class TripDetailsPage extends StatelessWidget {
                       children: [
                         _buildDayChip(
                           'Mon',
-                          trip.repeatDays.monday,
+                          trip.repeatDays?.monday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Tue',
-                          trip.repeatDays.tuesday,
+                          trip.repeatDays?.tuesday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Wed',
-                          trip.repeatDays.wednesday,
+                          trip.repeatDays?.wednesday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Thu',
-                          trip.repeatDays.thursday,
+                          trip.repeatDays?.thursday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Fri',
-                          trip.repeatDays.friday,
+                          trip.repeatDays?.friday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Sat',
-                          trip.repeatDays.saturday,
+                          trip.repeatDays?.saturday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Sun',
-                          trip.repeatDays.sunday,
+                          trip.repeatDays?.sunday ?? false,
                           primaryColor,
                         ),
                       ],
@@ -591,14 +593,16 @@ class TripDetailsPage extends StatelessWidget {
     );
   }
 
-  String _formatDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return 'N/A';
-    try {
-      final date = DateTime.parse(dateStr);
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return 'N/A';
+  String _formatDate(Object? date) {
+    if (date == null) return 'N/A';
+    DateTime? parsed;
+    if (date is DateTime) {
+      parsed = date;
+    } else if (date is String && date.isNotEmpty) {
+      parsed = DateTime.tryParse(date);
     }
+    if (parsed == null) return 'N/A';
+    return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildStatusBadge(String label, Color color) {

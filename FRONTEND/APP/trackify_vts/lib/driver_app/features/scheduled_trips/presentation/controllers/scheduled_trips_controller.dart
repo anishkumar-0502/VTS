@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:trackify_vts/driver_app/Sessionhandler/session_controller.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/scheduled_trip_model.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/repositories/scheduled_trips_repository.dart';
 import 'package:trackify_vts/utilities/exception/exception.dart';
+import 'package:trackify_vts/utilities/widgets/status_banner.dart';
 
 class ScheduledTripsController extends GetxController {
   final ScheduledTripsRepository _repository = ScheduledTripsRepository();
@@ -14,11 +16,16 @@ class ScheduledTripsController extends GetxController {
   var todayTrips = <ScheduledTrip>[].obs;
   var errorMessage = ''.obs;
   var selectedTabIndex = 0.obs;
+  var isStartingTrip = false.obs;
+  var isStoppingTrip = false.obs;
+  var currentActiveTripId = RxnString();
+  var activeTrip = Rxn<ActiveTrip>();
 
   @override
   void onInit() {
     super.onInit();
     fetchScheduledTrips();
+    fetchActiveTrip();
   }
 
   Future<void> fetchScheduledTrips() async {
@@ -55,12 +62,127 @@ class ScheduledTripsController extends GetxController {
     } catch (e) {
       errorMessage.value = 'An unexpected error occurred';
       isLoading.value = false;
-      Get.snackbar('Error', 'An unexpected error occurred');
+      showStatusBanner(
+        'An unexpected error occurred while loading trips.',
+        Colors.red,
+        Icons.error_outline,
+      );
+    }
+  }
+
+  Future<void> fetchActiveTrip() async {
+    try {
+      final token = _sessionController.token.value;
+      if (token.isEmpty) {
+        return;
+      }
+
+      final response = await _repository.getActiveTrip(token);
+      if (!response.error && response.data != null) {
+        activeTrip.value = response.data;
+      } else {
+        activeTrip.value = null;
+      }
+    } catch (e) {
+      activeTrip.value = null;
+      debugPrint('Error fetching active trip: $e');
     }
   }
 
   Future<void> refreshTrips() async {
     await fetchScheduledTrips();
+    await fetchActiveTrip();
+  }
+
+  Future<void> startTrip(String scheduledTripId) async {
+    final token = _sessionController.token.value;
+    if (token.isEmpty) {
+      showStatusBanner(
+        'Authentication token not found. Please log in again.',
+        Colors.red,
+        Icons.error_outline,
+      );
+      return;
+    }
+
+    try {
+      isStartingTrip.value = true;
+      final response = await _repository.startScheduledTrip(
+        token: token,
+        scheduledTripId: scheduledTripId,
+      );
+
+      if (response['error'] == true) {
+        final message =
+            response['message']?.toString() ?? 'Unable to start trip.';
+        showStatusBanner(message, Colors.red, Icons.error_outline);
+        return;
+      }
+
+      final message =
+          response['message']?.toString() ?? 'Trip started successfully.';
+      showStatusBanner(message, Colors.green, Icons.check_circle_outline);
+      currentActiveTripId.value =
+          (response['data'] as Map<String, dynamic>?)?['trip_id']?.toString();
+      await fetchScheduledTrips();
+    } on HttpException catch (e) {
+      showStatusBanner(e.message, Colors.red, Icons.error_outline);
+    } catch (e) {
+      showStatusBanner(
+        'An unexpected error occurred.',
+        Colors.red,
+        Icons.error_outline,
+      );
+    } finally {
+      isStartingTrip.value = false;
+    }
+  }
+
+  Future<void> stopTrip({
+    required String tripId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final token = _sessionController.token.value;
+    if (token.isEmpty) {
+      showStatusBanner(
+        'Authentication token not found. Please log in again.',
+        Colors.red,
+        Icons.error_outline,
+      );
+      return;
+    }
+
+    try {
+      isStoppingTrip.value = true;
+      final response = await _repository.endTrip(
+        token: token,
+        tripId: tripId,
+        body: payload,
+      );
+
+      if (response['error'] == true) {
+        final message =
+            response['message']?.toString() ?? 'Unable to stop trip.';
+        showStatusBanner(message, Colors.red, Icons.error_outline);
+        return;
+      }
+
+      final message =
+          response['message']?.toString() ?? 'Trip ended successfully.';
+      showStatusBanner(message, Colors.green, Icons.check_circle_outline);
+      currentActiveTripId.value = null;
+      await fetchScheduledTrips();
+    } on HttpException catch (e) {
+      showStatusBanner(e.message, Colors.red, Icons.error_outline);
+    } catch (e) {
+      showStatusBanner(
+        'An unexpected error occurred while stopping the trip.',
+        Colors.red,
+        Icons.error_outline,
+      );
+    } finally {
+      isStoppingTrip.value = false;
+    }
   }
 
   void selectTrip(ScheduledTrip trip) {

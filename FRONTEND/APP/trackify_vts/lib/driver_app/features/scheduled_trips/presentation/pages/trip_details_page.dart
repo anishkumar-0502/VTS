@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:get/get.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/scheduled_trip_model.dart';
+import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/controllers/scheduled_trips_controller.dart';
+import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/pages/trip_map_page.dart';
 
-class TripDetailsPage extends StatelessWidget {
+class ScheduledTripDetailsPage extends StatelessWidget {
   final ScheduledTrip trip;
+  final Color primaryColor;
+  final ScheduledTripsController controller;
 
-  const TripDetailsPage({super.key, required this.trip});
+  const ScheduledTripDetailsPage({
+    super.key,
+    required this.trip,
+    required this.primaryColor,
+    required this.controller,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +79,7 @@ class TripDetailsPage extends StatelessWidget {
   }
 
   Widget _buildStatusChips(BuildContext context, String status, String period) {
-    final Color chipColor = Theme.of(context).primaryColor;
+    final Color chipColor = primaryColor;
     final Color chipBackground = chipColor.withOpacity(0.12);
 
     return Row(
@@ -108,21 +118,63 @@ class TripDetailsPage extends StatelessWidget {
             height: 260,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: FlutterMap(
-                options: MapOptions(
-                  initialCenter: LatLng(
-                    trip.startLocation!.latitude,
-                    trip.startLocation!.longitude,
-                  ),
-                  initialZoom: 12,
-                ),
+              child: Stack(
                 children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.trackify.driver',
+                  /// 🌍 Map Layer
+                  FlutterMap(
+                    options: MapOptions(
+                      initialCenter: LatLng(
+                        trip.startLocation!.latitude,
+                        trip.startLocation!.longitude,
+                      ),
+                      initialZoom: 12,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.trackify.driver',
+                      ),
+                      MarkerLayer(markers: markers),
+                    ],
                   ),
-                  MarkerLayer(markers: markers),
+
+                  /// 🔍 Zoom-In Icon (bottom-right)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: () {
+                        Get.to(
+                          () => TripMapPage(trip: trip),
+                          transition: Transition.rightToLeft,
+                        );
+                      },
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            'assets/icons/zoom-in.png',
+                            width: 22,
+                            height: 22,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

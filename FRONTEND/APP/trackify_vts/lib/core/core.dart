@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 
 class trackify_vts {
   // Define base URLs for each environment
-  static const String prodBaseUrl = 'http://192.168.0.60:8787'; //release
-  static const String devBaseUrl = 'http://192.168.0.60:8787'; //development ip
-  static const String testingBaseUrl = 'http://192.168.0.60:8787'; //testing
+  static const String prodBaseUrl = 'http://192.168.0.56:8787'; //release
+  static const String devBaseUrl = 'http://192.168.0.56:8787'; //development ip
+  static const String testingBaseUrl = 'http://192.168.0.56:8787'; //testing
 
   // Define WebSocket URLs for each environment
 

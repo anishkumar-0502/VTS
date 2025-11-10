@@ -180,7 +180,7 @@ class OperatorDetails {
   final String name;
   final String email;
   final String phone;
-  final String companyName;
+  final String? companyName;
   final String registrationNumber;
   final String address;
   final String city;
@@ -200,7 +200,7 @@ class OperatorDetails {
     required this.name,
     required this.email,
     required this.phone,
-    required this.companyName,
+    this.companyName,
     required this.registrationNumber,
     required this.address,
     required this.city,
@@ -222,7 +222,7 @@ class OperatorDetails {
       name: json['name'] as String,
       email: json['email'] as String,
       phone: json['phone'] as String,
-      companyName: json['company_name'] as String,
+      companyName: json['company_name'] as String?,
       registrationNumber: json['registration_number'] as String,
       address: json['address'] as String,
       city: json['city'] as String,
@@ -392,10 +392,10 @@ class AssignedVehicle {
       vehicleType: json['vehicle_type'] as String,
       routeName: json['route_name'] as String,
       assignedDriverId: json['assigned_driver_id'] as String,
-      capacity: json['capacity'] as int,
+      capacity: (json['capacity'] as num).toInt(),
       currentStatus: json['current_status'] as String,
       status: json['status'] as bool,
-      speed: json['speed'] as int,
+      speed: (json['speed'] as num).toInt(),
       routePoints:
           (json['route_points'] as List)
               .map((e) => RoutePoint.fromJson(e))
@@ -404,7 +404,7 @@ class AssignedVehicle {
       registrationNumber: json['registration_number'] as String,
       chassisNumber: json['chassis_number'] as String,
       color: json['color'] as String,
-      seatingCapacity: json['seating_capacity'] as int,
+      seatingCapacity: (json['seating_capacity'] as num).toInt(),
       vehicleId: json['vehicle_id'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -460,7 +460,7 @@ class RoutePoint {
       name: json['name'] as String,
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
-      order: json['order'] as int,
+      order: (json['order'] as num).toInt(),
       arrivalTime:
           json['arrival_time'] != null
               ? DateTime.parse(json['arrival_time'] as String)
@@ -520,9 +520,8 @@ class ChangePasswordResponse {
     return ChangePasswordResponse(
       error: json['error'] as bool,
       message: json['message'] as String,
-      data: json['data'] != null
-          ? Map<String, dynamic>.from(json['data'])
-          : null,
+      data:
+          json['data'] != null ? Map<String, dynamic>.from(json['data']) : null,
     );
   }
 }

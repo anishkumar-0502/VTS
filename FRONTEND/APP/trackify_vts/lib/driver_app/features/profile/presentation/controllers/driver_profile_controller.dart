@@ -104,7 +104,7 @@ class DriverProfileController extends GetxController {
     final operator = data.operatorDetails!;
     return [
       {'label': 'Operator name', 'value': operator.name},
-      {'label': 'Company', 'value': operator.companyName},
+      {'label': 'Company', 'value': operator.companyName ?? 'N/A'},
       {'label': 'Contact', 'value': operator.phone},
       {'label': 'Email', 'value': operator.email},
       {'label': 'Plan', 'value': operator.subscriptionPlan},

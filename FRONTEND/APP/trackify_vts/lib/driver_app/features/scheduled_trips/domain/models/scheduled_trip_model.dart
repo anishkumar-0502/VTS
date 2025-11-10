@@ -169,7 +169,7 @@ class VehicleData {
       vehicleNumber: json['vehicle_number'] as String? ?? '',
       vehicleType: json['vehicle_type'] as String? ?? '',
       routeName: json['route_name'] as String? ?? '',
-      capacity: json['capacity'] as int? ?? 0,
+      capacity: (json['capacity'] as num?)?.toInt() ?? 0,
       currentStatus: json['current_status'] as String? ?? '',
       status: json['status'] as bool? ?? false,
       speed: (json['speed'] as num?)?.toDouble() ?? 0.0,
@@ -191,7 +191,7 @@ class VehicleData {
       registrationNumber: json['registration_number'] as String? ?? '',
       chassisNumber: json['chassis_number'] as String? ?? '',
       color: json['color'] as String? ?? '',
-      seatingCapacity: json['seating_capacity'] as int? ?? 0,
+      seatingCapacity: (json['seating_capacity'] as num?)?.toInt() ?? 0,
       vehicleId: json['vehicle_id'] as String? ?? '',
       createdAt:
           json['createdAt'] != null
@@ -225,7 +225,7 @@ class RoutePoint {
       name: json['name'] as String? ?? '',
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      order: json['order'] as int? ?? 0,
+      order: (json['order'] as num?)?.toInt() ?? 0,
       id: json['_id'] as String? ?? '',
     );
   }
@@ -290,5 +290,88 @@ class RepeatDays {
     ];
 
     return dayValues[index];
+  }
+}
+
+class ActiveTripResponse {
+  final bool error;
+  final String message;
+  final ActiveTrip? data;
+
+  ActiveTripResponse({required this.error, required this.message, this.data});
+
+  factory ActiveTripResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return ActiveTripResponse(
+      error: json['error'] as bool,
+      message: json['message'] as String,
+      data: rawData != null ? ActiveTrip.fromJson(rawData) : null,
+    );
+  }
+}
+
+class ActiveTrip {
+  final LocationData startLocation;
+  final VehicleData vehicleId;
+  final String driverId;
+  final String operatorId;
+  final String? scheduledTripId;
+  final String startTime;
+  final String status;
+  final bool speedAlarmEnabled;
+  final int speedLimit;
+  final String tripId;
+  final List<dynamic> stops;
+  final List<dynamic> speedViolations;
+  final List<dynamic> routeDeviations;
+  final List<dynamic> passengers;
+  final List<RoutePoint> routePoints;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  ActiveTrip({
+    required this.startLocation,
+    required this.vehicleId,
+    required this.driverId,
+    required this.operatorId,
+    this.scheduledTripId,
+    required this.startTime,
+    required this.status,
+    required this.speedAlarmEnabled,
+    required this.speedLimit,
+    required this.tripId,
+    required this.stops,
+    required this.speedViolations,
+    required this.routeDeviations,
+    required this.passengers,
+    required this.routePoints,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory ActiveTrip.fromJson(Map<String, dynamic> json) {
+    return ActiveTrip(
+      startLocation: LocationData.fromJson(json['start_location']),
+      vehicleId: VehicleData.fromJson(json['vehicle_id']),
+      driverId: json['driver_id'] as String,
+      operatorId: json['operator_id'] as String,
+      scheduledTripId: json['scheduled_trip_id'] as String?,
+      startTime: json['start_time'] as String,
+      status: json['status'] as String,
+      speedAlarmEnabled: json['speed_alarm_enabled'] as bool,
+      speedLimit: (json['speed_limit'] as num).toInt(),
+      tripId: json['trip_id'] as String,
+      stops: json['stops'] as List? ?? [],
+      speedViolations: json['speed_violations'] as List? ?? [],
+      routeDeviations: json['route_deviations'] as List? ?? [],
+      passengers: json['passengers'] as List? ?? [],
+      routePoints:
+          (json['route_points'] as List?)
+              ?.map((e) => RoutePoint.fromJson(e))
+              .toList() ??
+          [],
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
   }
 }

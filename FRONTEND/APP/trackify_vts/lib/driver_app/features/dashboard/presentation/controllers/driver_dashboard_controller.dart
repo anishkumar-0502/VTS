@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import '../../domain/repositories/dashboard_repositories.dart';
-import '../../domain/models/dashboard_model.dart';
+import '../../domain/models/dashboard_model.dart' as dashboard_models;
 import 'package:trackify_vts/driver_app/Sessionhandler/session_controller.dart';
+import '../../../scheduled_trips/domain/repositories/scheduled_trips_repository.dart';
+import '../../../scheduled_trips/domain/models/scheduled_trip_model.dart'
+    as scheduled_models;
 
 class DriverDashboardController extends GetxController {
   final RxInt currentIndex = 0.obs;
@@ -14,11 +17,17 @@ class DriverDashboardController extends GetxController {
 
   // Trip related variables
   final DashboardRepositories _repository = DashboardRepositories();
+  final ScheduledTripsRepository _scheduledRepository =
+      ScheduledTripsRepository();
   final SessionController _sessionController = Get.find<SessionController>();
-  final RxList<ScheduledTrip> scheduledTrips = RxList<ScheduledTrip>();
-  final Rxn<ScheduledTrip> selectedTrip = Rxn<ScheduledTrip>();
+  final RxList<scheduled_models.ScheduledTrip> scheduledTrips =
+      RxList<scheduled_models.ScheduledTrip>();
+  final Rxn<scheduled_models.ScheduledTrip> selectedTrip =
+      Rxn<scheduled_models.ScheduledTrip>();
   final RxBool isLoadingTrips = false.obs;
   final RxString tripsError = ''.obs;
+  final Rxn<scheduled_models.ActiveTrip> activeTrip =
+      Rxn<scheduled_models.ActiveTrip>();
 
   final List<Map<String, String>> keyMetrics = [
     {'label': 'Students on board', 'value': '18/24'},
@@ -42,6 +51,7 @@ class DriverDashboardController extends GetxController {
   void onInit() {
     super.onInit();
     fetchTodaysScheduledTrips();
+    fetchActiveTrip();
   }
 
   /// Fetch today's scheduled trips from the API
@@ -78,8 +88,28 @@ class DriverDashboardController extends GetxController {
     }
   }
 
+  /// Fetch active trip from the API
+  Future<void> fetchActiveTrip() async {
+    try {
+      final token = _sessionController.token.value;
+      if (token.isEmpty) {
+        return;
+      }
+
+      final response = await _scheduledRepository.getActiveTrip(token);
+      if (!response.error && response.data != null) {
+        activeTrip.value = response.data;
+      } else {
+        activeTrip.value = null;
+      }
+    } catch (e) {
+      activeTrip.value = null;
+      debugPrint('Error fetching active trip: $e');
+    }
+  }
+
   /// Select a specific trip from the list
-  void selectTrip(ScheduledTrip trip) {
+  void selectTrip(scheduled_models.ScheduledTrip trip) {
     selectedTrip.value = trip;
     selectedRouteName.value = trip.routeName;
     tripStatus.value = _getTripStatusDisplay(trip.status);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../scheduled_trips/domain/models/scheduled_trip_model.dart'
+    as scheduled_models;
 import '../../../scheduled_trips/presentation/pages/scheduled_trips_page.dart';
 import '../controllers/driver_dashboard_controller.dart';
 import '../../../profile/presentation/controllers/driver_profile_controller.dart';
@@ -176,18 +178,27 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                           );
                         }
 
+                        final activeTrip = controller.activeTrip.value;
                         final selectedTrip = controller.selectedTrip.value;
-                        if (selectedTrip == null) {
+                        final tripToDisplay = activeTrip ?? selectedTrip;
+                        if (tripToDisplay == null) {
                           return const SizedBox.shrink();
                         }
 
                         return GestureDetector(
-                          onTap: () {
-                            Get.to(
-                              () => TripDetailsPage(trip: selectedTrip),
-                              transition: Transition.rightToLeft,
-                            );
-                          },
+                          onTap:
+                              tripToDisplay is scheduled_models.ActiveTrip
+                                  ? null
+                                  : () {
+                                    Get.to(
+                                      () => TripDetailsPage(
+                                        trip:
+                                            tripToDisplay
+                                                as scheduled_models.ScheduledTrip,
+                                      ),
+                                      transition: Transition.rightToLeft,
+                                    );
+                                  },
                           child: Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
@@ -225,11 +236,21 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                               const SizedBox(width: 10),
                                               Flexible(
                                                 child: Text(
-                                                  selectedTrip
+                                                  tripToDisplay
+                                                          is scheduled_models.ActiveTrip
+                                                      ? (tripToDisplay
+                                                              as scheduled_models.ActiveTrip)
+                                                          .vehicleId
+                                                          .routeName
+                                                      : (tripToDisplay
+                                                              as scheduled_models.ScheduledTrip)
                                                           .routeName
                                                           .isNotEmpty
-                                                      ? selectedTrip.routeName
-                                                      : (selectedTrip
+                                                      ? (tripToDisplay
+                                                              as scheduled_models.ScheduledTrip)
+                                                          .routeName
+                                                      : ((tripToDisplay
+                                                                  as scheduled_models.ScheduledTrip)
                                                               .vehicleId
                                                               ?.routeName ??
                                                           'School Route B'),
@@ -258,8 +279,15 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                                   BorderRadius.circular(8),
                                             ),
                                             child: Text(
-                                              (selectedTrip?.status ??
-                                                      'IN-PROGRESS')
+                                              (tripToDisplay
+                                                          is scheduled_models.ActiveTrip
+                                                      ? (tripToDisplay
+                                                              as scheduled_models.ActiveTrip)
+                                                          .status
+                                                      : ((tripToDisplay
+                                                                  as scheduled_models.ScheduledTrip)
+                                                              .status ??
+                                                          'IN-PROGRESS'))
                                                   .toUpperCase(),
                                               style: const TextStyle(
                                                 color: Colors.white,
@@ -283,7 +311,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
-                                              '${selectedTrip?.vehicleId.routePoints.length ?? 0} stops',
+                                              '${tripToDisplay is scheduled_models.ActiveTrip ? (tripToDisplay as scheduled_models.ActiveTrip).vehicleId.routePoints.length : ((tripToDisplay as scheduled_models.ScheduledTrip).vehicleId?.routePoints.length ?? 0)} stops',
                                               style: TextStyle(
                                                 color: Colors.white.withOpacity(
                                                   0.7,
@@ -415,7 +443,8 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Other scheduled trips',
@@ -427,16 +456,21 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                   GestureDetector(
                                     onTap: () {
                                       Get.to(
-                                            () => ScheduledTripsPage(),
-                                        transition: Transition.leftToRight, // 🔹 smooth left → right slide
-                                        duration: const Duration(milliseconds: 400), // optional smooth speed
+                                        () => ScheduledTripsPage(),
+                                        transition:
+                                            Transition
+                                                .leftToRight, // 🔹 smooth left → right slide
+                                        duration: const Duration(
+                                          milliseconds: 400,
+                                        ), // optional smooth speed
                                       );
                                     },
                                     child: Image.asset(
                                       'assets/icons/fast-forward.png',
                                       width: 15,
                                       height: 15,
-                                      color: Colors.black, // optional tint color
+                                      color:
+                                          Colors.black, // optional tint color
                                     ),
                                   ),
                                 ],
@@ -845,7 +879,12 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
               ),
             ),
             IconButton(
-              onPressed: () => Get.to(() => DriverProfilePage(),transition: Transition.rightToLeft,duration: const Duration(milliseconds: 400),),
+              onPressed:
+                  () => Get.to(
+                    () => DriverProfilePage(),
+                    transition: Transition.rightToLeft,
+                    duration: const Duration(milliseconds: 400),
+                  ),
               icon: Icon(
                 Icons.arrow_forward_ios,
                 color: primaryColor,

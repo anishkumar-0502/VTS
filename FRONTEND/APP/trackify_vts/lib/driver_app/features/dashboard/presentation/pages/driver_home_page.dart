@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:trackify_vts/core/Network/InternetStatusNotifier.dart';
 
 import '../controllers/driver_dashboard_controller.dart';
 import '../../../profile/presentation/controllers/driver_profile_controller.dart';
@@ -49,11 +50,11 @@ class _DriverHomePageState extends State<DriverHomePage> {
                 alignment: Alignment.centerLeft,
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.cloud_off,
-                      color: Colors.orange.shade700,
-                      size: 20,
-                    ),
+                    // Icon(
+                    //   Icons.cloud_off,
+                    //   color: Colors.orange.shade700,
+                    //   size: 20,
+                    // ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -88,10 +89,12 @@ class _DriverHomePageState extends State<DriverHomePage> {
               backgroundColor: Colors.white,
               elevation: 0,
               title: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    tripActive ? 'Trip in progress' : 'Trip ready',
+                    'Trackify Driver',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -108,21 +111,36 @@ class _DriverHomePageState extends State<DriverHomePage> {
               actions: [
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: isWide ? 24 : 16),
-                  child: ElevatedButton.icon(
-                    onPressed: controller.toggleOfflineMode,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isOffline
-                              ? Colors.orange.shade50
-                              : Colors.grey.shade200,
-                      foregroundColor:
-                          isOffline ? Colors.orange.shade700 : Colors.black,
-                      elevation: 0,
-                    ),
-                    icon: Icon(
-                      isOffline ? Icons.sync_disabled : Icons.wifi_tethering,
-                    ),
-                    label: Text(isOffline ? 'Offline' : 'Online'),
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: InternetStatusNotifier.instance.isOnline,
+                    builder: (context, isOnline, _) {
+                      return ElevatedButton.icon(
+                        onPressed: null, // no manual toggle
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isOnline
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                          foregroundColor:
+                              isOnline
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700,
+                          disabledBackgroundColor:
+                              isOnline
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                          disabledForegroundColor:
+                              isOnline
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700,
+                          elevation: 0,
+                        ),
+                        icon: Icon(
+                          isOnline ? Icons.wifi_tethering : Icons.wifi_off,
+                        ),
+                        label: Text(isOnline ? 'Online' : 'Offline'),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -222,7 +240,11 @@ class _DriverHomePageState extends State<DriverHomePage> {
                           onTap: () {
                             Navigator.pop(context); // Close drawer
                             // Navigate to scheduled trips page
-                            Get.to(() => const ScheduledTripsPage(),transition: Transition.rightToLeft,duration: const Duration(milliseconds: 400),);
+                            Get.to(
+                              () => const ScheduledTripsPage(),
+                              transition: Transition.rightToLeft,
+                              duration: const Duration(milliseconds: 400),
+                            );
                           },
                         ),
 
