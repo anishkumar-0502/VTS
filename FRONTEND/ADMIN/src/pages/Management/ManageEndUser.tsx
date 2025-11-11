@@ -238,40 +238,51 @@ export default function ManageEndUsers() {
 
       const darkMode = document.documentElement.classList.contains("dark");
 
-      Swal.fire({
-        background: darkMode ? "#1f2937" : "#ffffff",
-        color: darkMode ? "#e5e7eb" : "#111827",
-        title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">End User Details</h3>`,
-        html: `
-          <div style="text-align:left; font-size:14px; line-height:1.6;">
-            <p><b>Name:</b> ${u.name}</p>
-            <p><b>Email:</b> ${u.email}</p>
-            <p><b>Phone:</b> ${u.phone_number}</p>
-            <p><b>Status:</b> ${
-              u.status
-                ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-                : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-            }</p>
-            <hr style="margin:10px 0;border:none;border-top:1px solid ${
-              darkMode ? "#374151" : "#e5e7eb"
-            };"/>
-            <p><b>SOS Contact:</b> ${u.end_user_profile?.sos_contact?.name || "-"} (${
-          u.end_user_profile?.sos_contact?.phone_number || "-"
-        })</p>
-            <p><b>Pickup:</b> ${u.end_user_profile?.pickup_location?.address || "-"} (${
-          u.end_user_profile?.pickup_location?.name || "-"
-        })</p>
-            <p><b>Dropoff:</b> ${u.end_user_profile?.dropoff_location?.address || "-"} (${
-          u.end_user_profile?.dropoff_location?.name || "-"
-        })</p>
-            <p><b>Created:</b> ${new Date(u.createdAt).toLocaleString()}</p>
-            <p><b>Updated:</b> ${new Date(u.updatedAt).toLocaleString()}</p>
-          </div>`,
-        confirmButtonText: "Close",
-        confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
-        width: 420,
-        customClass: { popup: "rounded-xl shadow-lg" },
-      });
+     Swal.fire({
+  background: darkMode ? "#1f2937" : "#ffffff",
+  color: darkMode ? "#e5e7eb" : "#111827",
+  title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">End User Details</h3>`,
+  html: `
+    <div style="text-align:left; font-size:14px; line-height:1.6;">
+      <p><b>Name:</b> ${u.name}</p>
+      <p><b>Email:</b> ${u.email}</p>
+      <p><b>Phone:</b> ${u.phone_number}</p>
+      <p><b>Status:</b> ${
+        u.status
+          ? '<span style="color:#10b981;font-weight:600;">Active</span>'
+          : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
+      }</p>
+      <hr style="margin:10px 0;border:none;border-top:1px solid ${
+        darkMode ? "#374151" : "#e5e7eb"
+      };"/>
+      <p><b>SOS Contact:</b> ${u.end_user_profile?.sos_contact?.name || "-"} (${
+    u.end_user_profile?.sos_contact?.phone_number || "-"
+  })</p>
+      <p><b>Pickup:</b> ${u.end_user_profile?.pickup_location?.address || "-"} (${
+    u.end_user_profile?.pickup_location?.name || "-"
+  })</p>
+      <p><b>Dropoff:</b> ${u.end_user_profile?.dropoff_location?.address || "-"} (${
+    u.end_user_profile?.dropoff_location?.name || "-"
+  })</p>
+      <hr style="margin:10px 0;border:none;border-top:1px solid ${
+        darkMode ? "#374151" : "#e5e7eb"
+      };"/>
+      <p><b>Assigned Vehicle:</b> ${
+        u.assigned_vehicle?.vehicle_number || "-"
+      }</p>
+      <p><b>Assigned Driver:</b> ${
+        u.assigned_vehicle?.driver?.name || "-"
+      }</p>
+      <hr style="margin:10px 0;border:none;border-top:1px solid ${
+        darkMode ? "#374151" : "#e5e7eb"
+      };"/>
+    </div>`,
+  confirmButtonText: "Close",
+  confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
+  width: 420,
+  customClass: { popup: "rounded-xl shadow-lg" },
+});
+
     } catch (err: any) {
       Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
     }

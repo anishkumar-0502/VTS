@@ -10,6 +10,7 @@ export interface Permissions {
   view_dashboard: boolean;
   manage_roles: boolean;
   manage_alerts: boolean;
+  // manage_trips?: boolean; 
 }
 
 interface LoginPayload {

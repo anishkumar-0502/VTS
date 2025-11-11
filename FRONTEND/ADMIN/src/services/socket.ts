@@ -9,16 +9,32 @@ interface GPSDeviceInfo {
 }
 
 interface LocationUpdateData {
-  vehicleId: string;
-  gpsDeviceId: string;
-  latitude: number;
-  longitude: number;
-  speed: number;
-  timestamp: string;
+  vehicleId?: string;
+  gpsDeviceId?: string;
+  latitude?: number;
+  longitude?: number;
+  speed?: number;
+  timestamp?: string;
   course?: number;
   altitude?: number;
   ignition_status?: boolean;
-  device?: GPSDeviceInfo;
+  device?: GPSDeviceInfo | null;
+}
+
+interface LiveTrackingUpdate {
+  vehicleId?: string;
+  trackerId?: string;
+  gpsDeviceId?: string;
+  latitude?: number;
+  longitude?: number;
+  speed?: number;
+  timestamp?: string;
+  course?: number;
+  altitude?: number;
+  ignition_status?: boolean;
+  device?: GPSDeviceInfo | null;
+  vehicleNumber?: string;
+  vehicle_number?: string;
 }
 
 type EventCallback = (data: unknown) => void;
@@ -32,7 +48,7 @@ class SocketService {
     if (this.socket?.connected || this.isConnecting) return;
 
     this.isConnecting = true;
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
 
     console.log('Connecting to Socket.io at:', SOCKET_URL);
 
@@ -69,6 +85,21 @@ class SocketService {
       this.emit('location_update', data);
     });
 
+    this.socket.on('live_tracking_update', (data: LiveTrackingUpdate) => {
+      console.log('Live tracking update received from socket.io:', data);
+      this.emit('live_tracking_update', data);
+    });
+
+    this.socket.on('tracking_subscribed', (data: unknown) => {
+      console.log('Subscribed to live tracking stream:', data);
+      this.emit('tracking_subscribed', data);
+    });
+
+    this.socket.on('unsubscribe_live_tracking', (data: unknown) => {
+      console.log('Unsubscribed from live tracking stream');
+      this.emit('unsubscribe_live_tracking', data);
+    });
+
     this.socket.on('error', (error: string | Error) => {
       console.error('Socket error:', error);
       this.emit('error', error);
@@ -95,6 +126,22 @@ class SocketService {
       console.log('Joined admin room');
     } else {
       console.warn('Socket not connected, cannot join admin room');
+    }
+  }
+
+  subscribeLiveTracking(filters?: { operatorId?: string; vehicleId?: string; deviceId?: string }) {
+    if (this.socket?.connected) {
+      this.socket.emit('subscribe_live_tracking', filters ?? {});
+      console.log('Subscribed to live tracking with filters:', filters ?? {});
+    } else {
+      console.warn('Socket not connected, cannot subscribe to live tracking');
+    }
+  }
+
+  unsubscribeLiveTracking() {
+    if (this.socket?.connected) {
+      this.socket.emit('unsubscribe_live_tracking');
+      console.log('Requested live tracking unsubscribe');
     }
   }
 
@@ -147,4 +194,4 @@ class SocketService {
 }
 
 export const socketService = new SocketService();
-export type { LocationUpdateData };
+export type { LocationUpdateData, LiveTrackingUpdate };

@@ -2,60 +2,64 @@
 import { VectorMap } from "@react-jvectormap/core";
 import { worldMill } from "@react-jvectormap/world";
 
-// Define the component props
-interface CountryMapProps {
-  mapColor?: string;
+interface CountryMapMarker {
+  lat: number;
+  lng: number;
+  name: string;
 }
 
-const CountryMap: React.FC<CountryMapProps> = ({ mapColor }) => {
+interface CountryMapProps {
+  mapColor?: string;
+  markers?: CountryMapMarker[];
+}
+
+const defaultMarkers: CountryMapMarker[] = [
+  { lat: 37.2580397, lng: -104.657039, name: "United States" },
+  { lat: 20.7504374, lng: 73.7276105, name: "India" },
+  { lat: 53.613, lng: -11.6368, name: "United Kingdom" },
+  { lat: -25.0304388, lng: 115.2092761, name: "Sweden" },
+];
+
+const CountryMap: React.FC<CountryMapProps> = ({ mapColor, markers }) => {
+  const markerStyle: Record<string, string | number> = {
+    fill: "#465FFF",
+    borderWidth: 1,
+    borderColor: "white",
+    stroke: "#383f47",
+  };
+
+  const initialMarkerStyle: Record<string, string | number> = {
+    fill: "#465FFF",
+    r: 4,
+  };
+
+  const displayMarkers = (markers?.length ? markers : defaultMarkers).map((marker) => ({
+    latLng: [marker.lat, marker.lng] as [number, number],
+    name: marker.name,
+    style: markerStyle,
+  }));
+
   return (
     <VectorMap
       map={worldMill}
       backgroundColor="transparent"
       markerStyle={{
-        initial: {
-          fill: "#465FFF",
-          r: 4, // Custom radius for markers
-        } as any, // Type assertion to bypass strict CSS property checks
+        initial: initialMarkerStyle,
       }}
       markersSelectable={true}
-      markers={[
-        {
-          latLng: [37.2580397, -104.657039],
-          name: "United States",
-          style: {
-            fill: "#465FFF",
-            borderWidth: 1,
-            borderColor: "white",
-            stroke: "#383f47",
-          },
-        },
-        {
-          latLng: [20.7504374, 73.7276105],
-          name: "India",
-          style: { fill: "#465FFF", borderWidth: 1, borderColor: "white" },
-        },
-        {
-          latLng: [53.613, -11.6368],
-          name: "United Kingdom",
-          style: { fill: "#465FFF", borderWidth: 1, borderColor: "white" },
-        },
-        {
-          latLng: [-25.0304388, 115.2092761],
-          name: "Sweden",
-          style: {
-            fill: "#465FFF",
-            borderWidth: 1,
-            borderColor: "white",
-            strokeOpacity: 0,
-          },
-        },
-      ]}
+      regionsSelectable={true}
+      regionsSelectableOne={true}
+      markers={displayMarkers}
       zoomOnScroll={false}
       zoomMax={12}
       zoomMin={1}
       zoomAnimate={true}
       zoomStep={1.5}
+      containerStyle={{ width: "100%", height: "100%" }}
+      containerClassName="w-full h-full"
+      focusOn={{ x: 0.78, y: 0.62, scale: 1.8 }}
+      selectedRegions={["IN"]}
+      style={{ width: "100%", height: "100%" }}
       regionStyle={{
         initial: {
           fill: mapColor || "#D0D5DD",
@@ -74,7 +78,17 @@ const CountryMap: React.FC<CountryMapProps> = ({ mapColor }) => {
         selected: {
           fill: "#465FFF",
         },
-        selectedHover: {},
+        selectedHover: {
+          fill: "#465FFF",
+        },
+      }}
+      series={{
+        regions: [
+          {
+            values: { IN: "#465FFF" },
+            attribute: "fill",
+          },
+        ],
       }}
       regionLabelStyle={{
         initial: {

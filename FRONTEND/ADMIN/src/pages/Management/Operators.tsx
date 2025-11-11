@@ -9,8 +9,8 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.50:8787";
 interface Operator {
   operator_id: string;
   name: string;
-  email: string;
-  phone: string;
+  email: string;phone?: string;
+phone_number?: string;
   registration_number: string;
   address: string;
   city: string;
@@ -24,6 +24,25 @@ interface Device {
   device_id: string;
   device_name: string;
 }
+
+interface Driver {
+  name: string;
+  user_id: string;
+  assigned_vehicle_id?: string;
+}
+
+interface Device {
+  device_id: string;
+  assigned_vehicle_id?: string;
+}
+
+interface Vehicle {
+  vehicle_number: string;
+  vehicle_id: string;
+  assigned_driver_id?: string;
+  assigned_device_id?: string;
+}
+
 
 export default function ManageOperators() {
   const [showForm, setShowForm] = useState(false);
@@ -82,7 +101,23 @@ export default function ManageOperators() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const body = Object.fromEntries(formData.entries());
+    let body = Object.fromEntries(formData.entries());
+
+body = {
+  name: body.name,
+  email: body.email,
+  phone_number: body.phone || body.phone_number,
+  registration_number: body.registration_number,
+  company_name: body.company_name,
+  address: body.address,
+  city: body.city,
+  state: body.state,
+  postal_code: body.postal_code,
+  country: body.country,
+};
+
+
+
 
     try {
       const token = localStorage.getItem("token");
@@ -239,50 +274,149 @@ const unassignDevice = async (operator_id: string, device_id: string) => {
     });
   }
 };
+const handleViewDevices = async (operator_id: string) => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/superadmin/operators/${operator_id}/view`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+
+    const devices = data.data.devices;
+
+    const devicesHTML =
+      devices.length > 0
+        ? `<div style="overflow-x:auto; max-height:400px;">
+             <table style="
+               width:100%; 
+               border-collapse: collapse; 
+               font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+               font-size:12px;
+             ">
+               <thead>
+                 <tr style="background-color:#343a40; color:#fff; text-align:left;">
+                   <th style="padding:6px 8px; border:1px solid #dee2e6;">Device ID</th>
+                   <th style="padding:6px 8px; border:1px solid #dee2e6;">IMEI</th>
+                   <th style="padding:6px 8px; border:1px solid #dee2e6;">Type</th>
+                   <th style="padding:6px 8px; border:1px solid #dee2e6;">Battery</th>
+                   <th style="padding:6px 8px; border:1px solid #dee2e6;">Firmware</th>
+                   <th style="padding:6px 8px; border:1px solid #dee2e6;">SIM</th>
+                   <th style="padding:6px 8px; border:1px solid #dee2e6;">Status</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 ${devices
+                   .map(
+                     (d: any) => `
+                     <tr style="border-bottom:1px solid #dee2e6; background-color:#f8f9fa;">
+                       <td style="padding:4px 8px;">${d.device_id || "N/A"}</td>
+                       <td style="padding:4px 8px;">${d.imei || "N/A"}</td>
+                       <td style="padding:4px 8px;">${d.device_type || "N/A"}</td>
+                       <td style="padding:4px 8px;">${
+                         d.battery_level !== null && d.battery_level !== undefined
+                           ? d.battery_level + "%"
+                           : "N/A"
+                       }</td>
+                       <td style="padding:4px 8px;">${d.firmware_version || "N/A"}</td>
+                       <td style="padding:4px 8px;">${d.sim_number || "N/A"}</td>
+                       <td style="padding:4px 8px; color:${
+                         d.status ? "#28a745" : "#dc3545"
+                       }; font-weight:600;">${d.status ? "Active" : "Inactive"}</td>
+                     </tr>
+                   `
+                   )
+                   .join("")}
+               </tbody>
+             </table>
+           </div>`
+        : `<div style="font-size:12px; color:#6c757d; text-align:center;">No devices assigned.</div>`;
+
+    Swal.fire({
+      title: "Assigned Devices",
+      html: devicesHTML,
+      width: 800,
+      confirmButtonText: "Close",
+      customClass: { popup: "rounded-xl shadow-lg p-3" },
+      scrollbarPadding: false,
+      showCloseButton: true,
+    });
+  } catch (err: any) {
+    Swal.fire({ icon: "error", title: "Error", text: err.message });
+  }
+};
+
+
 
 
   // View operator details
-  const handleView = async (operator_id: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/superadmin/operators/${operator_id}/view`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      const o = data.data;
+const handleView = async (operator_id: string) => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/superadmin/operators/${operator_id}/view`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
 
-      Swal.fire({
-        ...swalBaseConfig,
-        title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">Operator Details</h3>`,
-        html: `
-          <div style="text-align:left; font-size:14px; line-height:1.6;">
-            <p><b>Name:</b> ${o.name}</p>
-            <p><b>Email:</b> ${o.email}</p>
-            <p><b>Phone:</b> ${o.phone}</p>
-            <p><b>Registration #:</b> ${o.registration_number}</p>
-            <p><b>Address:</b> ${o.address}, ${o.city}, ${o.state}</p>
-            <p><b>Postal:</b> ${o.postal_code}</p>
-            <p><b>Country:</b> ${o.country}</p>
-            <hr style="margin:10px 0;border:none;border-top:1px solid ${
-              isDark ? "#374151" : "#e5e7eb"
-            };"/>
-            <p><b>Status:</b> ${
+    const o = data.data;
+
+    // Build HTML for all assigned drivers
+   const assignedDriversHTML = o.drivers.length > 0
+  ? o.drivers.map((d: Driver) => `<div>${d.name}</div>`).join("")
+  : "<div>N/A</div>";
+
+const assignedDevicesHTML = o.devices.length > 0
+  ? o.devices.map((d: Device) => `<div>${d.device_id}</div>`).join("")
+  : "<div>N/A</div>";
+
+const assignedVehiclesHTML = o.vehicles.length > 0
+  ? o.vehicles.map((v: Vehicle) => `<div>${v.vehicle_number}</div>`).join("")
+  : "<div>N/A</div>";
+
+
+    Swal.fire({
+      ...swalBaseConfig,
+      title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">Operator Details</h3>`,
+      html: `
+        <div style="text-align:left; font-size:14px; line-height:1.6;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div><b>Name:</b> ${o.name}</div>
+            <div><b>Email:</b> ${o.email}</div>
+            <div><b>Phone:</b> ${o.phone || "N/A"}</div>
+            <div><b>Registration #:</b> ${o.registration_number}</div>
+            <div><b>Company:</b> ${o.company_name || "N/A"}</div>
+            <div><b>City/State:</b> ${o.city || "N/A"}, ${o.state || "N/A"}</div>
+            <div><b>Postal:</b> ${o.postal_code || "N/A"}</div>
+            <div><b>Country:</b> ${o.country || "N/A"}</div>
+            <div><b>Status:</b> ${
               o.status
                 ? '<span style="color:#10b981;font-weight:600;">Active</span>'
                 : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-            }</p>
-            <p><b>Created:</b> ${new Date(o.createdAt).toLocaleString()}</p>
-            <p><b>Updated:</b> ${new Date(o.updatedAt).toLocaleString()}</p>
-          </div>`,
-        confirmButtonText: "Close",
-        width: 420,
-        customClass: { popup: "rounded-xl shadow-lg" },
-      });
-    } catch (err: any) {
-      Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
-    }
-  };
+            }</div>
+          </div>
+
+          <hr style="margin:5px 0;border:none;border-top:1px solid ${isDark ? "#374151" : "#e5e7eb"};" />
+
+          <h4><b>Assigned Details:</b></h4>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div><b>Assigned Drivers:</b> ${assignedDriversHTML}</div>
+            <div><b>Assigned Devices:</b> ${assignedDevicesHTML}</div>
+            <div style="grid-column:span 2;"><b>Assigned Vehicles:</b> ${assignedVehiclesHTML}</div>
+          </div>
+        </div>
+      `,
+      confirmButtonText: "Close",
+      width: 550,
+      customClass: { popup: "rounded-xl shadow-lg" },
+    });
+  } catch (err: any) {
+    Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
+  }
+};
+
+
+
 
   if (loading)
     return (
@@ -326,8 +460,9 @@ const unassignDevice = async (operator_id: string, device_id: string) => {
                 {[
                   "name",
                   "email",
-                  "phone",
+                  "phone_number",
                   "registration_number",
+                  "company_name", 
                   "address",
                   "city",
                   "state",
@@ -389,110 +524,128 @@ const unassignDevice = async (operator_id: string, device_id: string) => {
     }} />
 
 
-    <table className="min-w-[900px] w-full border-collapse table-fixed">
-      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 z-10">
-        <tr className="border-b border-gray-200 dark:border-gray-700">
-          <th className="w-[15%] px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Name</th>
-          <th className="w-[25%] px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Email</th>
-          <th className="w-[15%] px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Phone</th>
-          <th className="w-[10%] px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Status</th>
-          <th className="w-[20%] px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Assign Device</th>
-          <th className="w-[15%] px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Actions</th>
-        </tr>
-      </thead>
+   <div className="overflow-x-auto no-scrollbar">
+  <table className="min-w-full border-collapse table-fixed">
+    <thead>
+      <tr className="border-b border-gray-200 dark:border-gray-700">
+        {["Name", "Email", "Phone", "Assign Device", "Status", "Actions"].map((h) => (
+          <th
+            key={h}
+            className="px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap"
+          >
+            {h}
+          </th>
+        ))}
+      </tr>
+    </thead>
 
-      <tbody>
-        {operators.length > 0 ? (
-          operators.map((o) => (
-            <tr
-              key={o.operator_id}
-              className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-            >
-              <td className="truncate px-3 py-2">{o.name}</td>
-              <td className="truncate px-3 py-2">{o.email}</td>
-              <td className="truncate px-3 py-2">{o.phone}</td>
-              <td className="px-3 py-2">
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    o.status
-                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                      : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                  }`}
-                >
-                  {o.status ? "Active" : "Inactive"}
-                </span>
-              </td>
-     <td className="px-3 py-2">
-  <div className="relative z-50"> {/* ensure positioned & high z-index */}
-    <label htmlFor={`device-select-${o.operator_id}`} className="sr-only">
-      Assign Device
-    </label>
-
+    <tbody>
+      {operators.length > 0 ? (
+        operators.map((o) => (
+          <tr
+            key={o.operator_id}
+            className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+          >
+            <td className="px-3 py-2 whitespace-nowrap">{o.name}</td>
+            <td className="px-3 py-2 whitespace-nowrap">{o.email}</td>
+            <td className="px-3 py-2 whitespace-nowrap">{o.phone || o.phone_number}</td>
+<td className="px-3 py-2 whitespace-nowrap" style={{ minWidth: "150px" }}>
+  <div className="flex gap-2 items-center">
+    <button
+      onClick={() => handleViewDevices(o.operator_id)}
+      className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+    >
+      View
+    </button>
     <select
       id={`device-select-${o.operator_id}`}
-      name="deviceSelect"
       defaultValue=""
       onChange={(e) => assignDevice(o.operator_id, e.target.value)}
-      className="w-full border rounded-lg px-3 py-1.5 text-gray-700 bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-      style={{ position: 'relative' }} // makes z-index apply on some browsers
+      className="flex-1 border rounded-lg px-2 py-1.5 text-gray-700 bg-white dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      style={{ minWidth: "120px" }}
+      disabled={devices.filter((d) => !(d as any).assigned_operator_id).length === 0} // disable if none
     >
-      <option value="" disabled className="text-gray-500">
-        Select device
-      </option>
-
-      {devices.map((d) => (
-        <option
-          key={d.device_id}
-          value={d.device_id}
-          // inline style helps override some browser theme quirks
-          style={{ color: '#1f2937', backgroundColor: '#ffffff' }}
-        >
-          {d.device_name}
+      {devices.filter((d) => !(d as any).assigned_operator_id).length > 0 ? (
+        <>
+          <option value="" disabled className="text-gray-500">
+            Select device
+          </option>
+          {devices
+            .filter((d) => !(d as any).assigned_operator_id)
+            .map((d) => (
+              <option
+                key={d.device_id}
+                value={d.device_id}
+                style={{ color: "#1f2937", backgroundColor: "#ffffff" }}
+              >
+                {d.device_id}
+              </option>
+            ))}
+        </>
+      ) : (
+        <option value="" disabled>
+          No unassigned devices
         </option>
-      ))}
+      )}
     </select>
   </div>
 </td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleView(o.operator_id)}
-                    className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    View
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingOperator(o);
-                      setShowForm(true);
-                    }}
-                    className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => toggleStatus(o.operator_id)}
-                    className={`text-xs px-3 py-1 rounded font-medium transition ${
-                      o.status
-                        ? "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800"
-                        : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
-                    }`}
-                  >
-                    {o.status ? "Deactivate" : "Activate"}
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))
-        ) : (
-          <tr>
-            <td colSpan={6} className="text-center py-6 text-gray-500 dark:text-gray-400">
-              No operators found.
+<td className="px-3 py-2 whitespace-nowrap">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  o.status
+                    ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                    : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                }`}
+              >
+                {o.status ? "Active" : "Inactive"}
+              </span>
+            </td>
+
+
+
+            <td className="px-3 py-2 whitespace-nowrap">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleView(o.operator_id)}
+                  className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingOperator(o);
+                    setShowForm(true);
+                  }}
+                  className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => toggleStatus(o.operator_id)}
+                  className={`text-xs px-3 py-1 rounded font-medium transition ${
+                    o.status
+                      ? "bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800"
+                      : "bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
+                  }`}
+                >
+                  {o.status ? "Deactivate" : "Activate"}
+                </button>
+              </div>
             </td>
           </tr>
-        )}
-      </tbody>
-    </table>
+        ))
+      ) : (
+        <tr>
+          <td colSpan={6} className="text-center py-6 text-gray-500 dark:text-gray-400">
+            No operators found.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+
   </div>
 </div>
 

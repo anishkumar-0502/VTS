@@ -125,61 +125,91 @@ export default function ManageDevices() {
 
   // ===========================
   // VIEW DEVICE DETAILS
-  // ===========================
- // ===========================
-// VIEW DEVICE DETAILS (Enhanced)
+// ===========================
+// VIEW DEVICE DETAILS
 // ===========================
 const handleView = async (device_id: string) => {
   try {
+    const token = localStorage.getItem("token");
     const res = await fetch(`${API_BASE_URL}/superadmin/devices/${device_id}/view`, {
-      headers: authHeaders,
+      headers: { Authorization: `Bearer ${token}` },
     });
-    const data = await res.json();
 
-    if (res.ok && data.data) {
-      const device = data.data;
-      Swal.fire({
-        title: `<h3 class="text-lg font-semibold mb-2">Device: ${device.device_id}</h3>`,
-        html: `
-          <div style="text-align:left; line-height:1.6; font-size:14px;">
-            <p><b>IMEI:</b> ${device.imei || "N/A"}</p>
-            <p><b>Device Type:</b> ${device.device_type || "N/A"}</p>
-            <p><b>SIM Number:</b> ${device.sim_number || "N/A"}</p>
-            <p><b>Firmware Version:</b> ${device.firmware_version || "N/A"}</p>
-            <p><b>Status:</b> ${
-              device.status
-                ? '<span style="color:green;font-weight:600;">Active</span>'
-                : '<span style="color:red;font-weight:600;">Inactive</span>'
-            }</p>
-            <hr style="margin:8px 0;">
-            <p><b>Assigned Operator ID:</b> ${device.assigned_operator_id || "N/A"}</p>
-            <p><b>Assigned Vehicle ID:</b> ${device.assigned_vehicle_id || "N/A"}</p>
-            <p><b>Assigned Date:</b> ${
-              device.assigned_date
-                ? new Date(device.assigned_date).toLocaleString()
-                : "N/A"
-            }</p>
-            <hr style="margin:8px 0;">
-            <p><b>Battery Level:</b> ${device.battery_level ?? "N/A"}%</p>
-            <p><b>Created At:</b> ${
-              device.createdAt ? new Date(device.createdAt).toLocaleString() : "N/A"
-            }</p>
-            <p><b>Updated At:</b> ${
-              device.updatedAt ? new Date(device.updatedAt).toLocaleString() : "N/A"
-            }</p>
-          </div>
-        `,
-        width: 500,
-        confirmButtonText: "Close",
-      });
-    } else {
-      Swal.fire("Error", data.message || "Failed to fetch device details", "error");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+
+    const d = data.data;
+    const darkMode = document.documentElement.classList.contains("dark");
+
+    // Fetch assigned operator name
+    let operatorName = "-";
+    if (d.assigned_operator_id) {
+      try {
+        const operatorRes = await fetch(
+          `${API_BASE_URL}/superadmin/operators/${d.assigned_operator_id}/view`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const operatorData = await operatorRes.json();
+        if (operatorRes.ok && operatorData.data) {
+          operatorName = operatorData.data.name || "-";
+        }
+      } catch {
+        operatorName = "-";
+      }
     }
-  } catch (err) {
-    console.error(err);
-    Swal.fire("Error", "Unable to view device details.", "error");
+
+    // Display SweetAlert
+    Swal.fire({
+      background: darkMode ? "#1f2937" : "#ffffff",
+      color: darkMode ? "#e5e7eb" : "#111827",
+      title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">Device Details</h3>`,
+      html: `
+        <div style="text-align:left; font-size:14px; line-height:1.6; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div><b>Device ID:</b> ${d.device_id}</div>
+          <div><b>IMEI:</b> ${d.imei}</div>
+          <div><b>Device Type:</b> ${d.device_type}</div>
+          <div><b>SIM Number:</b> ${d.sim_number}</div>
+          <div><b>Firmware:</b> ${d.firmware_version}</div>
+         
+          <div><b>Battery Level:</b> ${d.battery_level ?? "-"}%</div>
+          <div><b>Last Signal:</b> ${d.last_signal ? new Date(d.last_signal).toLocaleString() : "-"}</div>
+          <div><b>Last Location:</b> ${
+            d.last_latitude && d.last_longitude
+              ? `${d.last_latitude.toFixed(6)}, ${d.last_longitude.toFixed(6)}`
+              : "-"
+          }</div>
+          <div><b>Assigned Operator:</b> ${operatorName}</div>
+          <div><b>Assigned Date:</b> ${
+            d.assigned_date ? new Date(d.assigned_date).toLocaleString() : "-"
+          }</div>
+           <div><b>Status:</b> ${
+            d.status
+              ? '<span style="color:#10b981;font-weight:600;">Active</span>'
+              : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
+          }</div>
+        </div>
+      `,
+      confirmButtonText: "Close",
+      confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
+      width: 480,
+      customClass: { popup: "rounded-xl shadow-lg" },
+    });
+  } catch (err: any) {
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: err.message,
+      confirmButtonColor: "#ef4444",
+    });
   }
 };
+
+
+
+
+
+
+
 
 
   // ===========================
@@ -328,7 +358,7 @@ const handleView = async (device_id: string) => {
   <table className="min-w-full border-collapse">
     <thead>
       <tr className="border-b border-gray-200 dark:border-gray-700">
-        {["Device ID", "IMEI", "Type", "SIM", "Firmware", "Status", "Actions"].map((h) => (
+        {["Device ID", "IMEI", "SIM", "Status", "Actions"].map((h) => (
           <th
             key={h}
             className="px-2 py-1 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap"
@@ -347,9 +377,9 @@ const handleView = async (device_id: string) => {
         >
           <td className="px-2 py-1 font-normal">{device.device_id}</td>
           <td className="px-2 py-1 font-normal">{device.imei}</td>
-          <td className="px-2 py-1 font-normal">{device.device_type}</td>
+          {/* <td className="px-2 py-1 font-normal">{device.device_type}</td> */}
           <td className="px-2 py-1 font-normal">{device.sim_number}</td>
-          <td className="px-2 py-1 font-normal">{device.firmware_version}</td>
+          {/* <td className="px-2 py-1 font-normal">{device.firmware_version}</td> */}
           <td className="px-2 py-1">
             <span
               className={`px-3 py-1 rounded-full text-xs font-medium ${

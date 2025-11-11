@@ -190,6 +190,13 @@ export const alertsAPI = {
     api.get(`/alerts/stats/analytics`),
 };
 
+export const dashboardAPI = {
+  getAnalytics: (role?: string) =>
+    api.get(
+      role === 'operator' ? '/operator/analytics/dashboard' : '/superadmin/analytics/dashboard'
+    ),
+};
+
 export const gpsAPI = {
    getAll: () => api.get('/superadmin/devices/list'),
 

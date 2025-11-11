@@ -39,6 +39,7 @@ import AssignDeviceToVehicle from "./pages/Management/AssignDevicetoVehicle";
 import AssignDriverToVehicle from "./pages/Management/AssignDrivertoVehicle";
 import ManageAllUsers from "./pages/Management/ManageAllUsers";
 import ManageEndUser from "./pages/Management/ManageEndUser";
+import ManageTrips from "./pages/Management/ManageTrips";
 export default function App() {
   return (
     <AuthProvider>
@@ -113,7 +114,7 @@ export default function App() {
               }
             />
              <Route
-             path="/manage-user"
+             path="/view-user"
               element={
                 <ProtectedRoute permission="manage_users">
                   <User />
@@ -149,6 +150,14 @@ export default function App() {
               element={
                 <ProtectedRoute permission="view_devices">
                   <Drivers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manage-trips"
+              element={
+                <ProtectedRoute permission="view_devices">
+                  <ManageTrips />
                 </ProtectedRoute>
               }
             />
