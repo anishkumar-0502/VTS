@@ -57,19 +57,14 @@ class DeviceSimulator:
         """Get GPS coordinates with extended data for a specific elapsed time"""
         lat, lng = self.tracker_sim.get_coords(elapsed_time)
         
-        # Get speed info
-        target_segment_index = np.searchsorted(self.tracker_sim.cumulative_times, elapsed_time)
-        speed_ms = (
-            self.tracker_sim.speeds[target_segment_index - 1]
-            if target_segment_index > 0 and target_segment_index <= len(self.tracker_sim.speeds)
-            else 0
-        )
+        target_segment_index = int(np.searchsorted(self.tracker_sim.cumulative_times, elapsed_time, side='right'))
+        segment_index = max(0, min(target_segment_index - 1, len(self.tracker_sim.speeds) - 1))
+        speed_ms = float(self.tracker_sim.speeds[segment_index]) if len(self.tracker_sim.speeds) else 0.0
         speed_kmh = speed_ms * 3.6
         
-        # Calculate course
         course = 0.0
-        if target_segment_index > 1:
-            prev_lat, prev_lng = self.tracker_sim.coordinates[target_segment_index - 2]
+        if segment_index > 0:
+            prev_lat, prev_lng = self.tracker_sim.coordinates[segment_index]
             delta_lat = lat - prev_lat
             delta_lng = lng - prev_lng
             course = np.degrees(np.arctan2(delta_lng, delta_lat)) % 360

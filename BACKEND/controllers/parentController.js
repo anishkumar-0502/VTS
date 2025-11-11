@@ -23,7 +23,7 @@ class ParentController {
       }
 
       const trip = await Trip.findOne({
-        status: 'active',
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
         passengers: { $elemMatch: { user_id: childId } }
       }).populate('vehicle_id').populate('driver_id');
 
@@ -263,7 +263,7 @@ class ParentController {
       }
 
       const activeTrip = await Trip.findOne({
-        status: 'active',
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
         passengers: { $elemMatch: { user_id: childId } }
       }).populate('vehicle_id');
 
@@ -333,7 +333,7 @@ class ParentController {
 
       const trip = await Trip.findOne({
         driver_id: childId,
-        status: 'active'
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
       }).populate('vehicle_id');
 
       if (!trip) {
@@ -556,20 +556,26 @@ class ParentController {
     try {
       const { name, phone_number, email, sos_contact } = req.body;
 
-      const parent = await User.findOneAndUpdate(
-        { user_id: req.user.id },
-        { name, phone_number, email, sos_contact },
-        { new: true }
-      );
-
-      if (!parent) {
-        throw new CustomError('Parent not found', 404);
+      const updatePayload = {};
+      if (typeof name !== 'undefined') {
+        updatePayload.name = name;
       }
+      if (typeof phone_number !== 'undefined') {
+        updatePayload.phone_number = phone_number;
+      }
+      if (typeof email !== 'undefined') {
+        updatePayload.email = email;
+      }
+      if (typeof sos_contact !== 'undefined') {
+        updatePayload.sos_contact = sos_contact;
+      }
+
+      const updatedParent = await UserService.updateUser(req.user.id, updatePayload);
 
       res.status(200).json({
         error: false,
         message: 'Parent profile updated successfully',
-        data: parent
+        data: updatedParent
       });
     } catch (error) {
       next(error);
@@ -768,7 +774,7 @@ class ParentController {
 
       const currentTrip = await Trip.findOne({
         passengers: { $elemMatch: { user_id: childId } },
-        status: 'active'
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
       });
 
       res.status(200).json({

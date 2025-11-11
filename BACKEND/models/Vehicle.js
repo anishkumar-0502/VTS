@@ -48,7 +48,7 @@ const vehicleSchema = new mongoose.Schema(
     },
     current_status: {
       type: String,
-      enum: ['idle', 'active', 'maintenance', 'offline'],
+      enum: ['idle', 'active', 'en_route', 'at_stop', 'delayed', 'maintenance', 'offline'],
       default: 'offline'
     },
     status: {
@@ -67,6 +67,7 @@ const vehicleSchema = new mongoose.Schema(
     route_points: [
       {
         name: String,
+        landmark: String,
         latitude: Number,
         longitude: Number,
         order: Number,

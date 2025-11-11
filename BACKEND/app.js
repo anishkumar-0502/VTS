@@ -13,7 +13,7 @@ const logger = require('./utils/logger');
 const SocketManager = require('./utils/socketManager');
 const cacheService = require('./services/cacheService');
 const { errorHandler } = require('./middlewares/errorHandler');
-const { apiLimiter } = require('./middlewares/rate-limit');
+// const { apiLimiter } = require('./middlewares/rate-limit');
 const { auditTrailMiddleware } = require('./middlewares/auditTrail');
 const dbService = require('./config/db');
 const { initializeDatabase } = require('./seeds/initializeDatabase');
@@ -42,7 +42,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(bodyParser.json());
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
-app.use(apiLimiter);
+// app.use(apiLimiter);
 app.use(auditTrailMiddleware);
 
 app.use((req, res, next) => {

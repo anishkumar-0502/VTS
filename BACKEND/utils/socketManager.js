@@ -1,5 +1,7 @@
 const logger = require('./logger');
 const jwt = require('jsonwebtoken');
+const Device = require('../models/Device');
+const Vehicle = require('../models/Vehicle');
 
 class SocketManager {
   constructor(io) {
@@ -8,6 +10,7 @@ class SocketManager {
     this.vehicleTracking = new Map();
     this.tripSubscriptions = new Map();
     this.locationBuffer = new Map();
+    this.liveTrackingSubscribers = new Map();
 
     this.setupMiddleware();
     this.setupSocketListeners();
@@ -41,6 +44,33 @@ class SocketManager {
         role: socket.userRole,
         operatorId: socket.operatorId,
         connectedAt: new Date()
+      });
+
+      socket.on('subscribe_live_tracking', async (payload = {}) => {
+        try {
+          const filters = this.normalizeLiveTrackingFilters(payload);
+          this.liveTrackingSubscribers.set(socket.id, filters);
+          socket.join('live_tracking');
+          if (filters.operatorId) {
+            socket.join(`operator:${filters.operatorId}`);
+          }
+          if (filters.deviceId) {
+            socket.join(`device:${filters.deviceId}`);
+          }
+          logger.info(`[${socket.userRole}:${socket.userId}] subscribed to live tracking ${JSON.stringify(filters)}`);
+          socket.emit('tracking_subscribed', { status: 'subscribed', filters });
+          await this.pushInitialLiveTrackingSnapshot(socket, filters);
+        } catch (error) {
+          logger.error(`Failed to subscribe live tracking for ${socket.id}: ${error.message}`);
+          socket.emit('error', 'Failed to subscribe to live tracking');
+        }
+      });
+
+      socket.on('unsubscribe_live_tracking', () => {
+        socket.leave('live_tracking');
+        this.liveTrackingSubscribers.delete(socket.id);
+        logger.info(`[${socket.userRole}:${socket.userId}] unsubscribed from live tracking`);
+        socket.emit('unsubscribe_live_tracking', { status: 'unsubscribed' });
       });
 
       socket.on('subscribe_trip', ({ tripId, childId }) => {
@@ -129,6 +159,7 @@ class SocketManager {
 
       socket.on('disconnect', () => {
         this.connectedUsers.delete(socket.id);
+        this.liveTrackingSubscribers.delete(socket.id);
         logger.info(`[${socket.userRole}:${socket.userId}] disconnected: ${socket.id}`);
       });
 
@@ -158,7 +189,115 @@ class SocketManager {
     this.io.to('admin').emit(event, data);
   }
 
+  normalizeLiveTrackingFilters(payload = {}) {
+    const filters = {};
+    const operatorId = payload.operatorId || payload.operator_id || payload.operator;
+    const deviceId = payload.deviceId || payload.device_id || payload.device;
+
+    if (typeof operatorId === 'string' && operatorId.trim()) {
+      filters.operatorId = operatorId.trim();
+    }
+
+    if (typeof deviceId === 'string' && deviceId.trim()) {
+      filters.deviceId = deviceId.trim();
+    }
+
+    return filters;
+  }
+
+  async pushInitialLiveTrackingSnapshot(socket, filters) {
+    try {
+      const query = {};
+      if (filters.deviceId) {
+        query.device_id = filters.deviceId;
+      } else if (filters.operatorId) {
+        query.assigned_operator_id = filters.operatorId;
+      } else {
+        query.status = true;
+      }
+
+      const limit = filters.deviceId ? 1 : (filters.operatorId ? 100 : 200);
+
+      const devices = await Device.find(query)
+        .sort({ updatedAt: -1 })
+        .limit(limit)
+        .select('device_id assigned_operator_id assigned_vehicle_id status battery_level last_signal last_location last_speed last_course')
+        .lean();
+
+      if (!devices.length) {
+        return;
+      }
+
+      const vehicleIds = devices
+        .map((device) => device.assigned_vehicle_id)
+        .filter((value, index, array) => value && array.indexOf(value) === index);
+
+      let vehicleMap = new Map();
+      if (vehicleIds.length) {
+        const vehicles = await Vehicle.find({ vehicle_id: { $in: vehicleIds } })
+          .select('vehicle_id vehicle_number')
+          .lean();
+        vehicleMap = new Map(vehicles.map((vehicle) => [vehicle.vehicle_id, vehicle]));
+      }
+
+      devices.forEach((device) => {
+        const location = device.last_location;
+        if (!location || location.latitude == null || location.longitude == null) {
+          return;
+        }
+
+        const vehicle = device.assigned_vehicle_id ? vehicleMap.get(device.assigned_vehicle_id) : null;
+        const timestamp = location.timestamp || device.last_signal || new Date();
+
+        const payload = {
+          gpsDeviceId: device.device_id,
+          vehicleId: device.assigned_vehicle_id || device.device_id,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          altitude: 0,
+          speed: device.last_speed ?? 0,
+          course: device.last_course ?? 0,
+          timestamp: new Date(timestamp).toISOString(),
+          device: {
+            status: device.status ?? true,
+            battery_level: device.battery_level ?? null,
+            last_signal: device.last_signal ? new Date(device.last_signal).toISOString() : null
+          },
+          vehicle_number: vehicle?.vehicle_number || device.assigned_vehicle_id || device.device_id,
+          operatorId: device.assigned_operator_id || null
+        };
+
+        socket.emit('live_tracking_update', payload);
+      });
+    } catch (error) {
+      logger.error(`Failed to push initial live tracking snapshot: ${error.message}`);
+    }
+  }
+
+  emitLiveTrackingUpdate(update) {
+    this.liveTrackingSubscribers.forEach((filters, socketId) => {
+      const clientSocket = this.io.sockets.sockets.get(socketId);
+      if (!clientSocket) {
+        this.liveTrackingSubscribers.delete(socketId);
+        return;
+      }
+
+      if (filters.operatorId && filters.operatorId !== (update.operatorId || null)) {
+        return;
+      }
+
+      if (filters.deviceId && filters.deviceId !== (update.gpsDeviceId || update.device?.id || null)) {
+        return;
+      }
+
+      clientSocket.emit('live_tracking_update', update);
+    });
+  }
+
   broadcastLocationUpdate(vehicleId, gpsDeviceId, trackingData, gpsDevice) {
+    const operatorId = gpsDevice ? gpsDevice.assigned_operator_id || null : null;
+    const timestamp = trackingData.timestamp ? new Date(trackingData.timestamp).toISOString() : new Date().toISOString();
+    const lastSignal = gpsDevice?.last_signal ? new Date(gpsDevice.last_signal).toISOString() : null;
     const data = {
       vehicleId,
       gpsDeviceId,
@@ -166,19 +305,23 @@ class SocketManager {
       longitude: trackingData.longitude,
       speed: trackingData.speed,
       ignition_status: trackingData.ignition_status,
-      timestamp: trackingData.timestamp,
+      timestamp,
       course: trackingData.course || 0,
       altitude: trackingData.altitude || 0,
       device: gpsDevice ? {
+        id: gpsDevice.device_id || gpsDevice._id,
         status: gpsDevice.status,
         battery_level: gpsDevice.battery_level,
-        last_signal: gpsDevice.last_signal
-      } : null
+        last_signal: lastSignal
+      } : null,
+      vehicle_number: trackingData.vehicle_number || trackingData.vehicleNumber || gpsDevice?.assigned_vehicle_id || vehicleId,
+      operatorId
     };
 
     this.io.to('admin').emit('location_update', data);
     this.io.to(`vehicle:${vehicleId}`).emit('location_update', data);
     this.io.to(`device:${gpsDeviceId}`).emit('location_update', data);
+    this.emitLiveTrackingUpdate(data);
   }
 
   broadcastLiveTracking(trackingData) {

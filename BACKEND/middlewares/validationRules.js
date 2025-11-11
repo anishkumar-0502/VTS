@@ -2,6 +2,7 @@ const { body, query, param, validationResult } = require('express-validator');
 const PhoneFormatter = require('../utils/phoneFormatter');
 const Vehicle = require('../models/Vehicle');
 const mongoose = require('mongoose');
+const { ENTITY_PREFIXES } = require('../utils/uuidUtils');
 
 const validationErrorHandler = (req, res, next) => {
   const errors = validationResult(req);
@@ -14,6 +15,45 @@ const validationErrorHandler = (req, res, next) => {
     });
   }
   next();
+};
+
+const UUID_SUFFIX_PATTERN = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildEntityIdPattern = (prefixes) => {
+  const normalized = Array.isArray(prefixes) ? prefixes.filter(Boolean) : [prefixes].filter(Boolean);
+  const unique = [...new Set(normalized)];
+  const patternRoot = unique.length ? unique.map(escapeRegex).join('|') : '';
+  return new RegExp(`^(?:${patternRoot})-${UUID_SUFFIX_PATTERN}$`);
+};
+
+const applyEntityIdValidator = (validator, prefixes, label, options = {}) => {
+  const targetLabel = label || 'ID';
+  const pattern = buildEntityIdPattern(prefixes);
+  const optional = Boolean(options.optional);
+  if (!optional) {
+    validator.notEmpty().withMessage(`${targetLabel} is required`).bail();
+  } else {
+    validator.optional({ nullable: true, checkFalsy: true });
+  }
+  validator.isString().withMessage(`${targetLabel} must be a string`).bail();
+  validator.customSanitizer((value) => (typeof value === 'string' ? value.trim() : value));
+  return validator.matches(pattern).withMessage(`Invalid ${targetLabel} format`);
+};
+
+const entityIdParamRule = (field, prefixes, label, options = {}) => {
+  const validator = param(field).trim();
+  return applyEntityIdValidator(validator, prefixes, label, options);
+};
+
+const entityIdBodyRule = (field, prefixes, label, options = {}) => {
+  const validator = body(field);
+  return applyEntityIdValidator(validator, prefixes, label, options);
+};
+
+const optionalEntityIdBodyRule = (field, prefixes, label) => {
+  return entityIdBodyRule(field, prefixes, label, { optional: true });
 };
 
 const userValidationRules = () => {
@@ -57,10 +97,7 @@ const driverCreationRules = () => {
       .optional()
       .isISO8601()
       .withMessage('License expiry must be a valid date'),
-    body('assigned_vehicle_id')
-      .optional()
-      .isMongoId()
-      .withMessage('Invalid assigned vehicle ID')
+    optionalEntityIdBodyRule('assigned_vehicle_id', ENTITY_PREFIXES.VEHICLE, 'Assigned vehicle ID')
   ];
 };
 
@@ -234,6 +271,22 @@ const tripEndRules = () => {
 
 const locationUpdateRules = () => {
   return [
+    body('tripId')
+      .optional()
+      .isString()
+      .withMessage('Trip ID must be a string')
+      .notEmpty()
+      .withMessage('Trip ID must not be empty'),
+    body('deviceId')
+      .optional()
+      .isString()
+      .withMessage('Device ID must be a string')
+      .notEmpty()
+      .withMessage('Device ID must not be empty'),
+    body('recordedAt')
+      .optional()
+      .isISO8601()
+      .withMessage('recordedAt must be a valid ISO8601 timestamp'),
     body('latitude')
       .isFloat({ min: -90, max: 90 })
       .withMessage('Invalid latitude'),
@@ -284,6 +337,116 @@ const passengerStatusRules = () => {
       .withMessage('Status is required')
       .isIn(['picked_up', 'dropped'])
       .withMessage('Status must be either picked_up or dropped')
+  ];
+};
+
+const stopChecklistRules = () => {
+  return [
+    body('tripId')
+      .notEmpty()
+      .withMessage('Trip ID is required')
+      .isString()
+      .withMessage('Trip ID must be a string'),
+    body('stopId')
+      .notEmpty()
+      .withMessage('Stop ID is required')
+      .isString()
+      .withMessage('Stop ID must be a string'),
+    body('itemId')
+      .optional()
+      .isString()
+      .withMessage('itemId must be a string'),
+    body('label')
+      .optional()
+      .isString()
+      .withMessage('label must be a string'),
+    body('required')
+      .optional()
+      .isBoolean()
+      .withMessage('required must be a boolean'),
+    body('completed')
+      .optional()
+      .isBoolean()
+      .withMessage('completed must be a boolean'),
+    body('notes')
+      .optional()
+      .isString()
+      .withMessage('notes must be a string')
+  ];
+};
+
+const stopPhotoNoteRules = () => {
+  return [
+    body('tripId')
+      .notEmpty()
+      .withMessage('Trip ID is required')
+      .isString()
+      .withMessage('Trip ID must be a string'),
+    body('stopId')
+      .notEmpty()
+      .withMessage('Stop ID is required')
+      .isString()
+      .withMessage('Stop ID must be a string'),
+    body('photoUrl')
+      .notEmpty()
+      .withMessage('Photo URL is required')
+      .isString()
+      .withMessage('Photo URL must be a string'),
+    body('caption')
+      .optional()
+      .isString()
+      .withMessage('caption must be a string')
+  ];
+};
+
+const stopIncidentRules = () => {
+  return [
+    body('tripId')
+      .notEmpty()
+      .withMessage('Trip ID is required')
+      .isString()
+      .withMessage('Trip ID must be a string'),
+    body('stopId')
+      .notEmpty()
+      .withMessage('Stop ID is required')
+      .isString()
+      .withMessage('Stop ID must be a string'),
+    body('type')
+      .optional()
+      .isString()
+      .withMessage('type must be a string'),
+    body('severity')
+      .optional()
+      .isIn(['info', 'warning', 'critical'])
+      .withMessage('severity must be info, warning, or critical'),
+    body('description')
+      .optional()
+      .isString()
+      .withMessage('description must be a string'),
+    body('passengerId')
+      .optional()
+      .isString()
+      .withMessage('passengerId must be a string'),
+    body('photoUrls')
+      .optional()
+      .isArray()
+      .withMessage('photoUrls must be an array'),
+    body('photoUrls.*')
+      .optional()
+      .isString()
+      .withMessage('photoUrls must contain strings'),
+    body('resolvesBlocker')
+      .optional()
+      .isBoolean()
+      .withMessage('resolvesBlocker must be a boolean'),
+    body('resolved')
+      .optional()
+      .isBoolean()
+      .withMessage('resolved must be a boolean'),
+    body('resolutionNotes')
+      .optional()
+      .isString()
+      .withMessage('resolutionNotes must be a string')
   ];
 };
 
@@ -394,8 +557,66 @@ const notificationPreferencesRules = () => {
   ];
 };
 
+const assignDriverToVehicleRules = () => {
+  return [
+    entityIdBodyRule('driver_id', [ENTITY_PREFIXES.DRIVER, ENTITY_PREFIXES.USER], 'Driver ID'),
+    entityIdBodyRule('vehicle_id', ENTITY_PREFIXES.VEHICLE, 'Vehicle ID')
+  ];
+};
+
+const assignDeviceToVehicleRules = () => {
+  return [
+    entityIdBodyRule('device_id', ENTITY_PREFIXES.DEVICE, 'Device ID'),
+    entityIdBodyRule('vehicle_id', ENTITY_PREFIXES.VEHICLE, 'Vehicle ID')
+  ];
+};
+
+const assignEndUserToVehicleRules = () => {
+  return [
+    body()
+      .custom((value, { req }) => {
+        const { end_user_id, endUserId, user_id, vehicle_id, vehicleId } = req.body;
+        if (!end_user_id && !endUserId && !user_id) {
+          throw new Error('End-user ID is required');
+        }
+        if (!vehicle_id && !vehicleId) {
+          throw new Error('Vehicle ID is required');
+        }
+        return true;
+      })
+      .bail(),
+    optionalEntityIdBodyRule('end_user_id', [ENTITY_PREFIXES.END_USER, ENTITY_PREFIXES.USER], 'End-user ID'),
+    optionalEntityIdBodyRule('endUserId', [ENTITY_PREFIXES.END_USER, ENTITY_PREFIXES.USER], 'End-user ID'),
+    optionalEntityIdBodyRule('user_id', ENTITY_PREFIXES.USER, 'User ID'),
+    optionalEntityIdBodyRule('vehicle_id', ENTITY_PREFIXES.VEHICLE, 'Vehicle ID'),
+    optionalEntityIdBodyRule('vehicleId', ENTITY_PREFIXES.VEHICLE, 'Vehicle ID')
+  ];
+};
+
+const unassignEndUserFromVehicleRules = () => {
+  return [
+    body()
+      .custom((value, { req }) => {
+        const { end_user_id, endUserId, user_id } = req.body;
+        if (!end_user_id && !endUserId && !user_id) {
+          throw new Error('End-user ID is required');
+        }
+        return true;
+      })
+      .bail(),
+    optionalEntityIdBodyRule('end_user_id', [ENTITY_PREFIXES.END_USER, ENTITY_PREFIXES.USER], 'End-user ID'),
+    optionalEntityIdBodyRule('endUserId', [ENTITY_PREFIXES.END_USER, ENTITY_PREFIXES.USER], 'End-user ID'),
+    optionalEntityIdBodyRule('user_id', ENTITY_PREFIXES.USER, 'User ID'),
+    optionalEntityIdBodyRule('vehicle_id', ENTITY_PREFIXES.VEHICLE, 'Vehicle ID'),
+    optionalEntityIdBodyRule('vehicleId', ENTITY_PREFIXES.VEHICLE, 'Vehicle ID')
+  ];
+};
+
 module.exports = {
   validationErrorHandler,
+  entityIdParamRule,
+  entityIdBodyRule,
+  optionalEntityIdBodyRule,
   userValidationRules,
   driverCreationRules,
   parentCreationRules,
@@ -406,11 +627,18 @@ module.exports = {
   locationUpdateRules,
   speedRecordingRules,
   passengerStatusRules,
+  stopChecklistRules,
+  stopPhotoNoteRules,
+  stopIncidentRules,
   confirmationRules,
   paginationRules,
   deviceRules,
   fcmTokenRules,
   bulkAssignmentRules,
   geofenceRules,
-  notificationPreferencesRules
+  notificationPreferencesRules,
+  assignDriverToVehicleRules,
+  assignDeviceToVehicleRules,
+  assignEndUserToVehicleRules,
+  unassignEndUserFromVehicleRules
 };

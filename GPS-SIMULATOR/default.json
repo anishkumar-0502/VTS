@@ -6,5 +6,12 @@
   "start": "Coimbatore, Tamil Nadu, India",
   "tracker_id": "simulated-tracker-3",
   "webhook_api_key": "my-secret-key-123",
-  "webhook_url": "http://localhost:8787/webhook"
+  "webhook_url": "http://localhost:8787/webhook",
+  "mongo_uri": null,
+  "mongo_db": null,
+  "scheduled_trip_id": null,
+  "device_id": null,
+  "trip_period": "morning",
+  "day": null,
+  "default_speed_kmh": 30
 }

@@ -402,4 +402,22 @@ const sendCredentialsEmail = async (email, name, password, role) => {
     }
 };
 
-module.exports = { EmailConfig, sendPaymentEmail, sendCredentialsEmail }
+const sendStopArrivalEmail = async (email, studentName, stopName, direction, arrivalTime) => {
+    try {
+        if (!email || typeof email !== "string" || !email.includes("@")) {
+            return false;
+        }
+        const label = direction === "dropoff" ? "drop-off" : "pickup";
+        const resolvedStopName = stopName || "the stop";
+        const timestampText = arrivalTime ? new Date(arrivalTime).toLocaleString() : new Date().toLocaleString();
+        const studentLabel = studentName ? `${studentName}'s ` : "";
+        const subject = `${resolvedStopName} reached`;
+        const body = `The vehicle has reached ${resolvedStopName} for ${studentLabel}${label}. Arrival time: ${timestampText}.`;
+        return await sendEmail(email.trim(), subject, body);
+    } catch (error) {
+        logger.loggerError(`Error sending stop arrival email to ${email}: ${error}`);
+        return false;
+    }
+};
+
+module.exports = { EmailConfig, sendPaymentEmail, sendCredentialsEmail, sendStopArrivalEmail }

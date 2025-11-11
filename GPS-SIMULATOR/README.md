@@ -6,21 +6,10 @@ A Python-based simulator that mimics a GPS tracker moving along a defined route 
 
 ## ⚙️ Features
 
-✅ Simulate movement between two locations  
-✅ Send live GPS coordinates to a webhook endpoint  
-✅ Adjustable update interval and duration  
-✅ Google Maps API integration (Directions & Geocoding)
-
----
-
-## 🛠️ Upcoming Enhancements
-
-- Continuous looping mode (`--duration -1`)  
-- GPS inaccuracy simulation  
-- Connection blackout simulation  
-- Custom departure time  
-- Traffic delay simulation  
-- Alternative route selection  
+- **Dynamic scheduled-trip playback** powered by MongoDB device, vehicle, and route data
+- **Google Maps route simulation** between arbitrary start and end points
+- **Programmable update cadence** with adjustable intervals and durations
+- **Webhook delivery** for boot, heartbeat, status, and location messages
 
 ---
 
@@ -32,11 +21,15 @@ cd gps-simulator
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-⚙️ Configuration
-Update your default.json file with your route, API key, and webhook details:
+```
 
-json
-Copy code
+---
+
+## ⚙️ Configuration
+
+Update `default.json` with either Google Maps details or MongoDB connectivity:
+
+```json
 {
   "start": "Bishop Cotton Boys' School, Bengaluru, India",
   "end": "1st Cross Rd, Victoria Layout, Bengaluru, India",
@@ -45,18 +38,27 @@ Copy code
   "api_key": "<YOUR_GOOGLE_MAPS_API_KEY>",
   "webhook_url": "<YOUR_WEBHOOK_URL>",
   "tracker_id": "simulated-tracker-3",
-  "webhook_api_key": "<YOUR_WEBHOOK_API_KEY>"
+  "webhook_api_key": "<YOUR_WEBHOOK_API_KEY>",
+  "mongo_uri": "mongodb://localhost:27017/vts",
+  "mongo_db": "vts",
+  "scheduled_trip_id": null,
+  "device_id": null,
+  "trip_period": "morning",
+  "day": null,
+  "default_speed_kmh": 30
 }
-▶️ Usage
-Run the simulator with default configuration:
+```
 
-bash
-Copy code
-python simulate-tracker.py
-Or override parameters via command line:
+- **MongoDB fields** are optional; provide `mongo_uri` plus either `scheduled_trip_id` or `device_id` to drive simulation from stored routes.
+- **Google Maps fields** (`start`, `end`, `api_key`) are only required when not sourcing routes from MongoDB.
 
-bash
-Copy code
+---
+
+## ▶️ Usage
+
+### 1. Google Maps mode
+
+```bash
 python simulate-tracker.py \
   --start "Bengaluru" \
   --end "Mysuru" \
@@ -66,27 +68,46 @@ python simulate-tracker.py \
   --webhook_url "<YOUR_WEBHOOK_URL>" \
   --tracker_id "tracker-01" \
   --webhook_api_key "<YOUR_WEBHOOK_API_KEY>"
-🛰️ Webhook Payload
-Each GPS update is sent as a JSON payload:
+```
 
-json
-Copy code
+### 2. Scheduled trip playback from MongoDB
+
+```bash
+python simulate-tracker.py \
+  --mongo_uri "mongodb://localhost:27017/vts" \
+  --mongo_db "vts" \
+  --scheduled_trip_id "SCHTRP-123" \
+  --webhook_url "<YOUR_WEBHOOK_URL>" \
+  --interval 5 \
+  --default_speed_kmh 32
+```
+
+- Provide `--device_id "DEV-123"` instead of `--scheduled_trip_id` to auto-select the active trip for that tracker’s vehicle based on repeat days and period.
+- Use `--day` to force a particular weekday filter (defaults to current UTC weekday).
+
+---
+
+## 🛰️ Webhook payloads
+
+Location updates are posted as JSON payloads similar to:
+
+```json
 {
-  "id": "tracker-01",
-  "coordinates": {
-    "lat": 12.9716,
-    "lng": 77.5946
-  }
+  "message_type": "location_update",
+  "tracker_id": "tracker-01",
+  "latitude": 12.9716,
+  "longitude": 77.5946,
+  "speed_kmh": 28.4,
+  "timestamp": "2025-01-01T12:00:00Z"
 }
-🌍 Google Maps API Setup
-Visit the Google Cloud Console
+```
 
-Create or select a project
+Boot, heartbeat, and status notifications share the same tracker identifier.
 
-Enable these APIs:
+---
 
-Geocoding API
+## 🌍 Google Maps API setup
 
-Directions API
-
-Generate and copy your API Key
+1. Visit the Google Cloud Console
+2. Enable **Geocoding API** and **Directions API**
+3. Generate and copy your API key

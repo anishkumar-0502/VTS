@@ -1,5 +1,301 @@
 const mongoose = require('mongoose');
-const { generateTripId } = require('../utils/uuidUtils');
+const {
+  generateTripId,
+  generateRoutePointId,
+  generateStopChecklistItemId,
+  generateStopNoteId,
+  generateStopIncidentId
+} = require('../utils/uuidUtils');
+
+const normalizeRoutePoints = (routePoints) => {
+  if (!Array.isArray(routePoints)) {
+    return [];
+  }
+
+  return routePoints
+    .filter((point) => point)
+    .map((point, index) => {
+      const data = point ? point.toObject?.() ?? point : {};
+      if (!data.stop_id) {
+        data.stop_id = generateRoutePointId();
+      }
+      data.sequence = typeof data.sequence === 'number' ? data.sequence : index + 1;
+      data.order = typeof data.order === 'number' ? data.order : index + 1;
+      data.dwell_target_seconds = typeof data.dwell_target_seconds === 'number' ? data.dwell_target_seconds : 120;
+      data.sla_arrival_buffer_seconds = typeof data.sla_arrival_buffer_seconds === 'number' ? data.sla_arrival_buffer_seconds : 300;
+      data.geofence_radius_meters =
+        typeof data.geofence_radius_meters === 'number' && Number.isFinite(data.geofence_radius_meters)
+          ? data.geofence_radius_meters
+          : 100;
+      if (!data.status) {
+        data.status = 'pending';
+      }
+      if (typeof data.delay_seconds !== 'number' || Number.isNaN(data.delay_seconds)) {
+        data.delay_seconds = 0;
+      }
+      data.arrival_notified = typeof data.arrival_notified === 'boolean' ? data.arrival_notified : false;
+
+      if (!Array.isArray(data.checklist)) {
+        data.checklist = [];
+      } else {
+        data.checklist = data.checklist
+          .filter(Boolean)
+          .map((item) => {
+            const itemData = item ? item.toObject?.() ?? item : {};
+            if (!itemData.item_id) {
+              itemData.item_id = generateStopChecklistItemId();
+            }
+            itemData.label = typeof itemData.label === 'string' ? itemData.label : null;
+            itemData.required = itemData.required === undefined ? true : !!itemData.required;
+            itemData.completed = !!itemData.completed;
+            if (!itemData.completed) {
+              itemData.completed_at = null;
+              itemData.completed_by = null;
+            } else {
+              itemData.completed_at = itemData.completed_at ? new Date(itemData.completed_at) : new Date();
+              itemData.completed_by = typeof itemData.completed_by === 'string' ? itemData.completed_by : null;
+            }
+            itemData.notes = itemData.notes !== undefined && itemData.notes !== null ? String(itemData.notes) : null;
+            return itemData;
+          });
+      }
+
+      if (!Array.isArray(data.photo_notes)) {
+        data.photo_notes = [];
+      } else {
+        data.photo_notes = data.photo_notes
+          .filter(Boolean)
+          .map((note) => {
+            const noteData = note ? note.toObject?.() ?? note : {};
+            if (!noteData.note_id) {
+              noteData.note_id = generateStopNoteId();
+            }
+            noteData.photo_url = typeof noteData.photo_url === 'string' ? noteData.photo_url : null;
+            noteData.caption = typeof noteData.caption === 'string' ? noteData.caption : null;
+            noteData.created_by = typeof noteData.created_by === 'string' ? noteData.created_by : null;
+            noteData.created_at = noteData.created_at ? new Date(noteData.created_at) : new Date();
+            return noteData;
+          });
+      }
+
+      if (!Array.isArray(data.incidents)) {
+        data.incidents = [];
+      } else {
+        data.incidents = data.incidents
+          .filter(Boolean)
+          .map((incident) => {
+            const incidentData = incident ? incident.toObject?.() ?? incident : {};
+            if (!incidentData.incident_id) {
+              incidentData.incident_id = generateStopIncidentId();
+            }
+            incidentData.type = typeof incidentData.type === 'string' ? incidentData.type : null;
+            incidentData.severity = ['info', 'warning', 'critical'].includes(incidentData.severity)
+              ? incidentData.severity
+              : 'warning';
+            incidentData.description =
+              typeof incidentData.description === 'string' ? incidentData.description : null;
+            incidentData.passenger_id =
+              typeof incidentData.passenger_id === 'string' ? incidentData.passenger_id : null;
+            incidentData.photo_urls = Array.isArray(incidentData.photo_urls)
+              ? incidentData.photo_urls.filter((url) => typeof url === 'string')
+              : [];
+            incidentData.resolves_blocker = !!incidentData.resolves_blocker;
+            incidentData.resolved = !!incidentData.resolved;
+            incidentData.resolved_at = incidentData.resolved_at ? new Date(incidentData.resolved_at) : null;
+            incidentData.resolution_notes =
+              typeof incidentData.resolution_notes === 'string' ? incidentData.resolution_notes : null;
+            incidentData.created_by = typeof incidentData.created_by === 'string' ? incidentData.created_by : null;
+            incidentData.created_at = incidentData.created_at ? new Date(incidentData.created_at) : new Date();
+            return incidentData;
+          });
+      }
+
+      data.required_actions_completed = data.checklist.every((item) => !item.required || item.completed);
+
+      return data;
+    });
+};
+
+const stopChecklistItemSchema = new mongoose.Schema(
+  {
+    item_id: {
+      type: String,
+      default: generateStopChecklistItemId
+    },
+    label: {
+      type: String,
+      default: null
+    },
+    required: {
+      type: Boolean,
+      default: true
+    },
+    completed: {
+      type: Boolean,
+      default: false
+    },
+    completed_at: Date,
+    completed_by: String,
+    notes: {
+      type: String,
+      default: null
+    }
+  },
+  { _id: false }
+);
+
+const stopPhotoNoteSchema = new mongoose.Schema(
+  {
+    note_id: {
+      type: String,
+      default: generateStopNoteId
+    },
+    photo_url: {
+      type: String,
+      default: null
+    },
+    caption: {
+      type: String,
+      default: null
+    },
+    created_by: {
+      type: String,
+      default: null
+    },
+    created_at: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  { _id: false }
+);
+
+const stopIncidentSchema = new mongoose.Schema(
+  {
+    incident_id: {
+      type: String,
+      default: generateStopIncidentId
+    },
+    type: {
+      type: String,
+      default: null
+    },
+    severity: {
+      type: String,
+      enum: ['info', 'warning', 'critical'],
+      default: 'warning'
+    },
+    description: {
+      type: String,
+      default: null
+    },
+    passenger_id: {
+      type: String,
+      default: null
+    },
+    photo_urls: {
+      type: [String],
+      default: []
+    },
+    resolves_blocker: {
+      type: Boolean,
+      default: false
+    },
+    resolved: {
+      type: Boolean,
+      default: false
+    },
+    resolved_at: Date,
+    resolution_notes: {
+      type: String,
+      default: null
+    },
+    created_by: {
+      type: String,
+      default: null
+    },
+    created_at: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  { _id: false }
+);
+
+const routePointSchema = new mongoose.Schema(
+  {
+    stop_id: {
+      type: String,
+      default: generateRoutePointId
+    },
+    name: {
+      type: String,
+      default: null
+    },
+    latitude: {
+      type: Number,
+      default: null
+    },
+    longitude: {
+      type: Number,
+      default: null
+    },
+    sequence: {
+      type: Number,
+      default: 0
+    },
+    order: {
+      type: Number,
+      default: 0
+    },
+    dwell_target_seconds: {
+      type: Number,
+      default: 120
+    },
+    sla_arrival_buffer_seconds: {
+      type: Number,
+      default: 300
+    },
+    geofence_radius_meters: {
+      type: Number,
+      default: 100
+    },
+    planned_arrival_time: Date,
+    planned_departure_time: Date,
+    actual_arrival_time: Date,
+    actual_departure_time: Date,
+    status: {
+      type: String,
+      enum: ['pending', 'approaching', 'arrived', 'departed', 'skipped', 'delayed'],
+      default: 'pending'
+    },
+    delay_seconds: {
+      type: Number,
+      default: 0
+    },
+    checklist: {
+      type: [stopChecklistItemSchema],
+      default: []
+    },
+    photo_notes: {
+      type: [stopPhotoNoteSchema],
+      default: []
+    },
+    incidents: {
+      type: [stopIncidentSchema],
+      default: []
+    },
+    arrival_notified: {
+      type: Boolean,
+      default: false
+    },
+    required_actions_completed: {
+      type: Boolean,
+      default: true
+    }
+  },
+  { _id: false }
+);
 
 const onDemandTripSchema = new mongoose.Schema(
   {
@@ -30,6 +326,13 @@ const onDemandTripSchema = new mongoose.Schema(
       ref: 'ScheduledTrip',
       default: null
     },
+    planned_date: {
+      type: String,
+      index: true,
+      default: null
+    },
+    planned_start_time: Date,
+    planned_end_time: Date,
     start_time: {
       type: Date,
       required: true
@@ -51,7 +354,7 @@ const onDemandTripSchema = new mongoose.Schema(
     max_speed: Number,
     status: {
       type: String,
-      enum: ['active', 'completed', 'cancelled'],
+      enum: ['planned', 'active', 'en_route', 'at_stop', 'delayed', 'completed', 'cancelled'],
       default: 'active'
     },
     total_passengers: Number,
@@ -145,14 +448,43 @@ const onDemandTripSchema = new mongoose.Schema(
         }
       }
     ],
-    route_points: [
-      {
-        name: String,
-        latitude: Number,
-        longitude: Number,
-        order: Number
-      }
-    ],
+    route_points: {
+      type: [routePointSchema],
+      default: []
+    },
+    current_stop_index: {
+      type: Number,
+      default: 0
+    },
+    last_location: {
+      latitude: Number,
+      longitude: Number,
+      speed: Number,
+      heading: Number,
+      recorded_at: Date
+    },
+    anomalies: {
+      type: [
+        {
+          type: {
+            type: String
+          },
+          passenger_id: String,
+          stop_id: String,
+          message: String,
+          severity: {
+            type: String,
+            enum: ['info', 'warning', 'critical'],
+            default: 'warning'
+          },
+          created_at: {
+            type: Date,
+            default: Date.now
+          }
+        }
+      ],
+      default: []
+    },
     selected_start_point: {
       name: String,
       latitude: Number,
@@ -175,10 +507,16 @@ const onDemandTripSchema = new mongoose.Schema(
   { timestamps: true, id: false }
 );
 
+onDemandTripSchema.pre('validate', function (next) {
+  this.route_points = normalizeRoutePoints(this.route_points);
+  next();
+});
+
 onDemandTripSchema.pre('save', function (next) {
   if (!this.trip_id) {
     this.trip_id = generateTripId();
   }
+  this.route_points = normalizeRoutePoints(this.route_points);
   next();
 });
 

@@ -2,6 +2,7 @@ const Role = require('../models/Role');
 const User = require('../models/User');
 const Counter = require('../models/Counter');
 const logger = require('../utils/logger');
+const TelemetryHandler = require('../webhooks/handlers/telemetryHandler');
 
 const DEFAULT_ROLES = [
   { role_id: 1, role_name: 'superadmin', description: 'Super Administrator', status: true },
@@ -64,12 +65,24 @@ const initializeSuperAdmin = async () => {
   }
 };
 
+const initializeDeviceStatusSnapshots = async () => {
+  try {
+    logger.loggerInfo('Synchronizing device status snapshots...');
+    await TelemetryHandler.syncAllDeviceStatuses();
+    logger.loggerSuccess('Device status snapshots synchronized');
+  } catch (error) {
+    logger.loggerError(`Device status synchronization failed: ${error.message}`);
+    throw error;
+  }
+};
+
 const initializeDatabase = async () => {
   try {
     logger.loggerInfo('Starting database initialization...');
 
     await initializeRoles();
     await initializeSuperAdmin();
+    await initializeDeviceStatusSnapshots();
 
     logger.loggerSuccess('Database initialization completed successfully');
   } catch (error) {

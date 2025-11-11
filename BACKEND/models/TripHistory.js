@@ -25,6 +25,14 @@ const tripHistorySchema = new mongoose.Schema(
       required: true
     },
     route_name: String,
+    planned_date: {
+      type: String,
+      default: null
+    },
+    trip_period: {
+      type: String,
+      default: null
+    },
     start_time: Date,
     end_time: Date,
     start_location: {
@@ -37,8 +45,21 @@ const tripHistorySchema = new mongoose.Schema(
       longitude: Number,
       address: String
     },
+    completed_date: {
+      type: String,
+      index: true,
+      default: null
+    },
+    completed_day: {
+      type: String,
+      default: null
+    },
     distance_traveled: Number,
     duration: Number,
+    snapshot: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
     status: {
       type: String,
       enum: ['active', 'completed', 'cancelled'],

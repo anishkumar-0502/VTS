@@ -6,6 +6,7 @@ const BulkImportService = require('../services/bulkImportService');
 const TransactionService = require('../services/transactionService');
 const { CustomError } = require('../middlewares/errorHandler');
 const { generateEmailBasedPassword } = require('../utils/passwordGenerator');
+const { generateRoutePointId } = require('../utils/uuidUtils');
 const { sendCredentialsEmail } = require('../middlewares/emailer');
 const Role = require('../models/Role');
 const Operator = require('../models/Operator');
@@ -69,6 +70,44 @@ const resolveOperatorContext = async (userPayload) => {
   const primaryOperatorId = userRecord?.operator_id || userPayload.operator_id || operatorIds[0] || null;
 
   return { identifiers, operatorIds, primaryOperatorId };
+};
+
+const normalizeRoutePointsPayload = (routePoints) => {
+  if (!Array.isArray(routePoints)) {
+    return [];
+  }
+
+  return routePoints
+    .filter((point) => point)
+    .map((point, index) => {
+      const normalized = { ...point };
+      normalized.stop_id = normalized.stop_id || generateRoutePointId();
+      normalized.sequence =
+        typeof normalized.sequence === 'number' && Number.isFinite(normalized.sequence)
+          ? normalized.sequence
+          : index + 1;
+      normalized.order =
+        typeof normalized.order === 'number' && Number.isFinite(normalized.order)
+          ? normalized.order
+          : index + 1;
+      normalized.dwell_target_seconds =
+        typeof normalized.dwell_target_seconds === 'number' && Number.isFinite(normalized.dwell_target_seconds)
+          ? normalized.dwell_target_seconds
+          : 120;
+      normalized.sla_arrival_buffer_seconds =
+        typeof normalized.sla_arrival_buffer_seconds === 'number' && Number.isFinite(normalized.sla_arrival_buffer_seconds)
+          ? normalized.sla_arrival_buffer_seconds
+          : 300;
+      if (normalized.latitude !== undefined && normalized.latitude !== null) {
+        const parsedLatitude = Number(normalized.latitude);
+        normalized.latitude = Number.isFinite(parsedLatitude) ? parsedLatitude : null;
+      }
+      if (normalized.longitude !== undefined && normalized.longitude !== null) {
+        const parsedLongitude = Number(normalized.longitude);
+        normalized.longitude = Number.isFinite(parsedLongitude) ? parsedLongitude : null;
+      }
+      return normalized;
+    });
 };
 
 const buildVehicleIdentifierConditions = (identifier) => {
@@ -162,7 +201,11 @@ class OperatorController {
         : Promise.resolve(0);
 
       const activeVehicleCountPromise = operatorFilter
-        ? Vehicle.countDocuments({ ...operatorFilter, current_status: 'active', status: true })
+        ? Vehicle.countDocuments({
+            ...operatorFilter,
+            current_status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
+            status: true
+          })
         : Promise.resolve(0);
 
       const devices = await devicePromise;
@@ -177,12 +220,105 @@ class OperatorController {
       const activeDevices = devices.filter((device) => device.status && (device.battery_level ?? 0) > 0).length;
       const deviceIds = devices.map((device) => device.device_id);
 
-      const recentTracking = deviceIds.length
+      const recentTrackingDocs = deviceIds.length
         ? await TrackingData.find({ device_id: { $in: deviceIds } })
-          .sort({ timestamp: -1 })
-          .limit(10)
-          .lean()
+            .sort({ timestamp: -1 })
+            .limit(30)
+            .lean()
         : [];
+
+      const dedupedTracking = [];
+      const seenTrackerIds = new Set();
+      const seenVehicleIds = new Set();
+      recentTrackingDocs.forEach((entry) => {
+        if (!entry) {
+          return;
+        }
+        const trackerId = typeof entry.device_id === 'string' ? entry.device_id.trim() : null;
+        const vehicleId = typeof entry.vehicle_id === 'string' ? entry.vehicle_id.trim() : null;
+        if (trackerId) {
+          if (seenTrackerIds.has(trackerId)) {
+            return;
+          }
+          seenTrackerIds.add(trackerId);
+        } else if (vehicleId) {
+          if (seenVehicleIds.has(vehicleId)) {
+            return;
+          }
+          seenVehicleIds.add(vehicleId);
+        }
+        dedupedTracking.push(entry);
+      });
+
+      const vehicleIdSet = new Set();
+      const trackingDeviceSet = new Set();
+      dedupedTracking.forEach((entry) => {
+        if (entry?.vehicle_id) {
+          vehicleIdSet.add(entry.vehicle_id);
+        }
+        if (entry?.device_id) {
+          trackingDeviceSet.add(entry.device_id);
+        }
+      });
+
+      let vehicleDocs = [];
+      if (vehicleIdSet.size || trackingDeviceSet.size) {
+        const vehicleQuery = [];
+        if (vehicleIdSet.size) {
+          vehicleQuery.push({ vehicle_id: { $in: Array.from(vehicleIdSet) } });
+        }
+        if (trackingDeviceSet.size) {
+          vehicleQuery.push({ assigned_device_id: { $in: Array.from(trackingDeviceSet) } });
+        }
+        vehicleDocs = vehicleQuery.length
+          ? await Vehicle.find({ $or: vehicleQuery })
+              .select('vehicle_id vehicle_number assigned_device_id operator_id current_status')
+              .lean()
+          : [];
+      }
+
+      const vehicleById = new Map();
+      const vehicleByDevice = new Map();
+      vehicleDocs.forEach((vehicle) => {
+        if (vehicle?.vehicle_id) {
+          vehicleById.set(vehicle.vehicle_id, vehicle);
+        }
+        if (vehicle?.assigned_device_id) {
+          vehicleByDevice.set(vehicle.assigned_device_id, vehicle);
+        }
+      });
+
+      const recentTracking = dedupedTracking.map((entry) => {
+        const trackerId = typeof entry.device_id === 'string' ? entry.device_id : null;
+        const vehicleId = typeof entry.vehicle_id === 'string' ? entry.vehicle_id : null;
+        const vehicle =
+          (vehicleId && vehicleById.get(vehicleId)) ||
+          (trackerId && vehicleByDevice.get(trackerId)) ||
+          null;
+        const timestampValue =
+          entry.timestamp instanceof Date ? entry.timestamp : entry.timestamp ? new Date(entry.timestamp) : null;
+        const timestampIso =
+          timestampValue && !Number.isNaN(timestampValue.getTime()) ? timestampValue.toISOString() : null;
+        const speedValue = typeof entry.speed === 'number' ? entry.speed : 0;
+        const statusValue = vehicle?.current_status
+          ? vehicle.current_status
+          : timestampIso
+          ? speedValue > 1
+            ? 'active'
+            : 'idle'
+          : 'offline';
+
+        return {
+          ...entry,
+          vehicle_id: vehicle?.vehicle_id || vehicleId,
+          vehicle_number: vehicle?.vehicle_number || entry.vehicle_number || null,
+          operator_id: vehicle?.operator_id || entry.operator_id || null,
+          device_id: trackerId,
+          timestamp: timestampIso,
+          speed: speedValue,
+          status: statusValue
+        };
+      });
 
       res.status(200).json({
         error: false,
@@ -266,6 +402,120 @@ class OperatorController {
       res.status(200).json({
         error: false,
         message: 'Live tracking data retrieved successfully',
+        data
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getOperatorUsers(req, res, next) {
+    try {
+      const operator_id = req.user.operator_id || req.user.user_id;
+      const typeParam = typeof req.query.type === 'string' ? req.query.type.trim().toLowerCase() : 'all';
+      const includeDrivers =
+        typeParam === 'all' ||
+        typeParam === 'drivers' ||
+        typeParam === 'driver';
+      const includeEndUsers =
+        typeParam === 'all' ||
+        typeParam === 'end-users' ||
+        typeParam === 'endusers' ||
+        typeParam === 'end_users' ||
+        typeParam === 'enduser' ||
+        typeParam === 'end-user';
+      if (!includeDrivers && !includeEndUsers) {
+        throw new CustomError('Invalid type parameter', 400);
+      }
+      const driverUsersPromise =
+        includeDrivers || includeEndUsers
+          ? User.find({ operator_id, role_id: 3 }).lean()
+          : Promise.resolve([]);
+      const driverProfilesPromise =
+        includeDrivers || includeEndUsers
+          ? Driver.find({ operator_id }).lean()
+          : Promise.resolve([]);
+      const endUserUsersPromise = includeEndUsers
+        ? User.find({ operator_id, role_id: 4, status: true }).lean()
+        : Promise.resolve([]);
+      const endUserProfilesPromise = includeEndUsers
+        ? EndUser.find({ operator_id, status: true }).lean()
+        : Promise.resolve([]);
+      const [driverUsers, driverProfiles, endUserUsers, endUserProfiles] = await Promise.all([
+        driverUsersPromise,
+        driverProfilesPromise,
+        endUserUsersPromise,
+        endUserProfilesPromise
+      ]);
+      const driverProfileMap = new Map(driverProfiles.map((profile) => [profile.user_id, profile]));
+      const driverUserMap = new Map(driverUsers.map((user) => [user.user_id, user]));
+      const vehicleIdSet = new Set();
+      driverUsers.forEach((driver) => {
+        if (driver?.assigned_vehicle_id) {
+          vehicleIdSet.add(driver.assigned_vehicle_id);
+        }
+      });
+      endUserUsers.forEach((user) => {
+        if (user?.assigned_vehicle_id) {
+          vehicleIdSet.add(user.assigned_vehicle_id);
+        }
+      });
+      const vehicleRecords = vehicleIdSet.size
+        ? await Vehicle.find({ vehicle_id: { $in: Array.from(vehicleIdSet) } })
+            .select(
+              'vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids'
+            )
+            .lean()
+        : [];
+      const vehicleMap = new Map(vehicleRecords.map((vehicle) => [vehicle.vehicle_id, vehicle]));
+      const data = {};
+      if (includeDrivers) {
+        const drivers = driverUsers
+          .filter((driver) => driver.status)
+          .map((driver) => {
+            const vehicle = driver.assigned_vehicle_id ? vehicleMap.get(driver.assigned_vehicle_id) || null : null;
+            const assignedVehicle = vehicle ? { ...vehicle } : null;
+            return {
+              ...driver,
+              driver_profile: driverProfileMap.get(driver.user_id) || null,
+              assigned_vehicle: assignedVehicle
+            };
+          });
+        data.drivers = drivers;
+      }
+      if (includeEndUsers) {
+        const endUserProfileMap = new Map(endUserProfiles.map((profile) => [profile.user_id, profile]));
+        const endUsers = endUserUsers.map((record) => {
+          const profile = endUserProfileMap.get(record.user_id) || null;
+          let assignedVehicle = null;
+          if (record.assigned_vehicle_id) {
+            const vehicle = vehicleMap.get(record.assigned_vehicle_id) || null;
+            if (vehicle) {
+              assignedVehicle = { ...vehicle };
+              if (vehicle.assigned_driver_id) {
+                const driverUser = driverUserMap.get(vehicle.assigned_driver_id) || null;
+                if (driverUser) {
+                  const driverProfile = driverProfileMap.get(vehicle.assigned_driver_id) || null;
+                  assignedVehicle.driver = {
+                    ...driverUser,
+                    driver_profile: driverProfile || null
+                  };
+                }
+              }
+            }
+          }
+          return {
+            ...record,
+            end_user_profile: profile,
+            end_user_reference: profile?.end_user_id || null,
+            assigned_vehicle: assignedVehicle
+          };
+        });
+        data.end_users = endUsers;
+      }
+      res.status(200).json({
+        error: false,
+        message: 'Operator users retrieved successfully',
         data
       });
     } catch (error) {
@@ -1171,7 +1421,6 @@ class OperatorController {
         chassis_number,
         color,
         seating_capacity,
-        route_points,
         standing_location
       } = req.body;
       const operator_id = req.user.operator_id || req.user.user_id;
@@ -1229,7 +1478,7 @@ class OperatorController {
         chassis_number,
         color,
         seating_capacity,
-        route_points: route_points || [],
+        route_points: [],
         standing_location: standing_location || {},
         current_status: 'offline',
         status: true
@@ -1441,7 +1690,6 @@ class OperatorController {
         chassis_number,
         color,
         seating_capacity,
-        route_points,
         standing_location
       } = req.body;
 
@@ -1526,10 +1774,6 @@ class OperatorController {
 
       if (typeof seating_capacity !== 'undefined') {
         vehicle.seating_capacity = seating_capacity;
-      }
-
-      if (typeof route_points !== 'undefined') {
-        vehicle.route_points = route_points;
       }
 
       if (typeof standing_location !== 'undefined') {
@@ -2077,20 +2321,20 @@ class OperatorController {
     try {
       const { name, phone_number } = req.body;
 
-      const user = await User.findOneAndUpdate(
-        { user_id: req.user.user_id },
-        { name, phone_number },
-        { new: true }
-      );
-
-      if (!user) {
-        throw new CustomError('User not found', 404);
+      const updatePayload = {};
+      if (typeof name !== 'undefined') {
+        updatePayload.name = name;
       }
+      if (typeof phone_number !== 'undefined') {
+        updatePayload.phone_number = phone_number;
+      }
+
+      const updatedUser = await UserService.updateUser(req.user.user_id, updatePayload);
 
       res.status(200).json({
         error: false,
         message: 'Profile updated successfully',
-        data: user
+        data: updatedUser
       });
     } catch (error) {
       next(error);
@@ -2258,7 +2502,11 @@ class OperatorController {
       const operator_id = req.user.operator_id || req.user.user_id;
 
       const totalVehicles = await Vehicle.countDocuments({ operator_id, status: true });
-      const activeVehicles = await Vehicle.countDocuments({ operator_id, current_status: 'active', status: true });
+      const activeVehicles = await Vehicle.countDocuments({
+        operator_id,
+        current_status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
+        status: true
+      });
       const totalDevices = await Device.countDocuments({ assigned_operator_id: operator_id, status: true });
       const activeDevices = await Device.countDocuments({ assigned_operator_id: operator_id, status: true, battery_level: { $gt: 0 } });
       const totalDrivers = await User.countDocuments({ operator_id, role_id: 3, status: true });
@@ -2283,7 +2531,7 @@ class OperatorController {
 
   static async createScheduledTrip(req, res, next) {
     try {
-      const { vehicle_id, driver_id, route_name, scheduled_start_time, trip_period, start_location, end_location, repeat_days } = req.body;
+      const { vehicle_id, driver_id, route_name, scheduled_start_time, trip_period, start_location, end_location, route_points, repeat_days } = req.body;
       const { CustomError } = require('../middlewares/errorHandler');
       const ScheduledTrip = require('../models/ScheduledTrip');
       const { generateScheduledTripId } = require('../utils/uuidUtils');
@@ -2291,6 +2539,19 @@ class OperatorController {
       if (!vehicle_id || !driver_id || !scheduled_start_time) {
         throw new CustomError('Vehicle ID, Driver ID, and scheduled start time are required', 400);
       }
+
+      const conflictingTrip = await ScheduledTrip.findOne({
+        operator_id: req.user.operator_id,
+        scheduled_start_time,
+        is_active: true,
+        $or: [{ vehicle_id }, { driver_id }]
+      });
+
+      if (conflictingTrip) {
+        throw new CustomError('Driver or vehicle already scheduled at this time', 400);
+      }
+
+      const normalizedRoutePoints = normalizeRoutePointsPayload(route_points);
 
       const scheduledTrip = new ScheduledTrip({
         scheduled_trip_id: generateScheduledTripId(),
@@ -2302,6 +2563,7 @@ class OperatorController {
         trip_period: trip_period || 'morning',
         start_location,
         end_location,
+        route_points: normalizedRoutePoints,
         repeat_days: repeat_days || [],
         is_active: true
       });
@@ -2378,7 +2640,11 @@ class OperatorController {
       const ScheduledTrip = require('../models/ScheduledTrip');
       const { CustomError } = require('../middlewares/errorHandler');
       const { scheduledTripId } = req.params;
-      const updateData = req.body;
+      const updateData = { ...req.body };
+
+      if (Object.prototype.hasOwnProperty.call(updateData, 'route_points')) {
+        updateData.route_points = normalizeRoutePointsPayload(updateData.route_points);
+      }
 
       const scheduledTrip = await ScheduledTrip.findOneAndUpdate(
         { scheduled_trip_id: scheduledTripId, operator_id: req.user.operator_id },

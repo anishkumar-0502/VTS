@@ -153,7 +153,7 @@ class TransactionService {
         method: 'findByIdAndUpdate',
         filter: { _id: vehicleId },
         data: { 
-          current_status: 'active',
+          current_status: 'en_route',
           active_trip_id: tripData._id
         }
       },

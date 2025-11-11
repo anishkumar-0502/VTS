@@ -254,11 +254,81 @@ class UserService {
       });
 
       await user.save();
+      await this.syncRoleSpecificProfile(user, updateData);
       logger.loggerInfo(`User updated: ${user.email}`);
       return user;
     } catch (error) {
       logger.loggerError(`Error updating user: ${error.message}`);
       throw error;
+    }
+  }
+
+  static async syncRoleSpecificProfile(user, updateData) {
+    if (user.role_id === 2) {
+      const operatorUpdate = {};
+      if (Object.prototype.hasOwnProperty.call(updateData, 'name')) {
+        operatorUpdate.name = user.name;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateData, 'email')) {
+        operatorUpdate.email = user.email;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateData, 'phone_number')) {
+        operatorUpdate.phone = user.phone_number != null ? String(user.phone_number) : null;
+      }
+
+      if (Object.keys(operatorUpdate).length) {
+        const criteria = [{ admin_user_id: user.user_id }];
+        if (user.operator_id) {
+          criteria.push({ operator_id: user.operator_id });
+        }
+        if (user.email) {
+          criteria.push({ email: user.email });
+        }
+
+        if (criteria.length) {
+          await Operator.updateMany({ $or: criteria }, { $set: operatorUpdate });
+        }
+      }
+    }
+
+    if (user.role_id === 3) {
+      const driverUpdate = {};
+      if (Object.prototype.hasOwnProperty.call(updateData, 'name')) {
+        driverUpdate.name = user.name;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateData, 'email')) {
+        driverUpdate.email = user.email;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateData, 'phone_number')) {
+        driverUpdate.phone_number = user.phone_number;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateData, 'assigned_vehicle_id')) {
+        driverUpdate.assigned_vehicle_id = user.assigned_vehicle_id;
+      }
+
+      if (Object.keys(driverUpdate).length) {
+        await Driver.findOneAndUpdate({ user_id: user.user_id }, { $set: driverUpdate });
+      }
+    }
+
+    if (user.role_id === 4) {
+      const endUserUpdate = {};
+      if (Object.prototype.hasOwnProperty.call(updateData, 'sos_contact')) {
+        endUserUpdate.sos_contact = user.sos_contact;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateData, 'assigned_vehicle_id')) {
+        endUserUpdate.assigned_vehicle_id = user.assigned_vehicle_id;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateData, 'pickup_location')) {
+        endUserUpdate.pickup_location = user.pickup_location;
+      }
+      if (Object.prototype.hasOwnProperty.call(updateData, 'dropoff_location')) {
+        endUserUpdate.dropoff_location = user.dropoff_location;
+      }
+
+      if (Object.keys(endUserUpdate).length) {
+        await EndUser.findOneAndUpdate({ user_id: user.user_id }, { $set: endUserUpdate });
+      }
     }
   }
 
