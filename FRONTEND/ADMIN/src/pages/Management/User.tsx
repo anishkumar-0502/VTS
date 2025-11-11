@@ -127,49 +127,66 @@ export default function ManageUsers() {
   };
 
   // View user details
-  const handleView = async (user_id: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/superadmin/users/${user_id}/view`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      const u = data.data;
+const handleView = async (user_id: string) => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/superadmin/users/${user_id}/view`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+    const u = data.data;
 
-      const darkMode = document.documentElement.classList.contains("dark");
+    const darkMode = document.documentElement.classList.contains("dark");
 
-      Swal.fire({
-        background: darkMode ? "#1f2937" : "#ffffff",
-        color: darkMode ? "#e5e7eb" : "#111827",
-        title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">User Details</h3>`,
-        html: `
-          <div style="text-align:left; font-size:14px; line-height:1.6;">
-            <p><b>Name:</b> ${u.name}</p>
-            <p><b>Email:</b> ${u.email}</p>
-            <p><b>Phone:</b> ${u.phone_number}</p>
-            <p><b>Role ID:</b> ${u.role_id}</p>
-            <p><b>Operator ID:</b> ${u.operator_id}</p>
-            <p><b>Status:</b> ${
-              u.status
-                ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-                : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-            }</p>
-            <hr style="margin:10px 0;border:none;border-top:1px solid ${
-              darkMode ? "#374151" : "#e5e7eb"
-            };">
-            <p><b>Created:</b> ${new Date(u.createdAt).toLocaleString()}</p>
-            <p><b>Updated:</b> ${new Date(u.updatedAt).toLocaleString()}</p>
-          </div>`,
-        confirmButtonText: "Close",
-        confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
-        width: 420,
-        customClass: { popup: "rounded-xl shadow-lg" },
-      });
-    } catch (err: any) {
-      Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
-    }
-  };
+    const getRoleName = (roleId: number) => {
+      switch (roleId) {
+        case 1:
+          return "Super Admin";
+        case 2:
+          return "Operator";
+        case 3:
+          return "Driver";
+        case 4:
+          return "Parent/Guardian";
+        default:
+          return "Unknown";
+      }
+    };
+
+    Swal.fire({
+      background: darkMode ? "#1f2937" : "#ffffff",
+      color: darkMode ? "#e5e7eb" : "#111827",
+      title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">User Details</h3>`,
+      html: `
+        <div style="text-align:left; font-size:14px; line-height:1.6;">
+          <p><b>Name:</b> ${u.name}</p>
+          <p><b>Email:</b> ${u.email}</p>
+          <p><b>Phone:</b> ${u.phone_number}</p>
+          <p><b>Role:</b> ${getRoleName(u.role_id)}</p>
+          <p><b>Status:</b> ${
+            u.status
+              ? '<span style="color:#10b981;font-weight:600;">Active</span>'
+              : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
+          }</p>
+          <hr style="margin:10px 0;border:none;border-top:1px solid ${
+            darkMode ? "#374151" : "#e5e7eb"
+          };">
+          <p><b>Created:</b> ${new Date(u.createdAt).toLocaleString()}</p>
+          <p><b>Updated:</b> ${new Date(u.updatedAt).toLocaleString()}</p>
+          <p><b>Last Login:</b> ${u.last_login ? new Date(u.last_login).toLocaleString() : "N/A"}</p>
+        </div>
+      `,
+      confirmButtonText: "Close",
+      confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
+      width: 420,
+      customClass: { popup: "rounded-xl shadow-lg" },
+    });
+  } catch (err: any) {
+    Swal.fire({ icon: "error", title: "Error", text: err.message });
+  }
+};
+
 
   if (loading)
     return (
@@ -206,7 +223,7 @@ export default function ManageUsers() {
                 <option value={3}>Driver</option>
                 <option value={4}>Gardien</option>
               </select>
-              <Button
+              {/* <Button
                 size="sm"
                 onClick={() => {
                   setEditingUser(null);
@@ -214,7 +231,7 @@ export default function ManageUsers() {
                 }}
               >
                 + Add User
-              </Button>
+              </Button> */}
             </div>
           </div>
 

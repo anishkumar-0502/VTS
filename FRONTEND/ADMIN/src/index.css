@@ -801,13 +801,36 @@ body.swal2-shown > *:not(.swal2-container) {
   border: none !important;
 }
 
-
+/* ✅ Hide scrollbar globally but keep scroll functionality */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
 /* Hide scrollbar for Firefox */
 .no-scrollbar {
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+html, body {
+  overflow-x: hidden !important;
+}
+
+.no-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.no-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent !important;
+}
+
+html,
+body {
+  overflow: auto; /* or scroll, depending on your needs */
+  -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }

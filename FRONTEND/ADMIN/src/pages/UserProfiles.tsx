@@ -57,9 +57,22 @@ export default function UserProfiles() {
     }
   };
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
+ useEffect(() => {
+  const init = async () => {
+    setLoading(true);
+    try {
+      await fetchProfile();
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  init(); // call immediately on mount
+}, []);
+
 
   const getRoleInfo = () => {
     const storedUser = localStorage.getItem("user");
@@ -231,10 +244,25 @@ export default function UserProfiles() {
             {[
               { label: "Email", value: profileData.email, icon: Mail },
               { label: "Phone", value: profileData.phone_number || "N/A", icon: Phone },
-              { label: "Created At", value: profileData.createdAt, icon: Calendar },
+              { label: "Role", value: getRoleName(profileData.role_id), icon: Shield },
               { label: "Updated At", value: profileData.updatedAt, icon: Activity },
               { label: "Last Login", value: profileData.last_login, icon: Clock },
-              { label: "Role", value: getRoleName(profileData.role_id), icon: Shield },
+              {
+  label: "Status",
+  value: (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+        profileData.status
+          ? "bg-green-100 text-green-700"
+          : "bg-red-100 text-red-700"
+      }`}
+    >
+      {profileData.status ? "Active" : "Inactive"}
+    </span>
+  ),
+  icon: Activity,
+},
+
             ].map(({ label, value, icon: Icon }) => (
               <div
                 key={label}
@@ -247,13 +275,14 @@ export default function UserProfiles() {
                   <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {label}
                   </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
-                    {value
-                      ? ["Created At", "Updated At", "Last Login"].includes(label)
-                        ? new Date(value).toLocaleString()
-                        : value
-                      : "N/A"}
-                  </p>
+                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
+  {value
+    ? ["Updated At", "Last Login"].includes(label) && typeof value === "string"
+      ? new Date(value).toLocaleString()
+      : value
+    : "N/A"}
+</p>
+
                 </div>
               </div>
             ))}

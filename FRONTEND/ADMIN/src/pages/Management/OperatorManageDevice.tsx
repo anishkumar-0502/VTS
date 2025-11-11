@@ -56,53 +56,76 @@ export default function GPSDevices() {
   };
 
   // 🔹 View Device Details (SweetAlert Popup)
-  const handleView = async (device_id: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE_URL}/operator/devices/${device_id}/view`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+ const handleView = async (device_id: string) => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE_URL}/operator/devices/${device_id}/view`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      const result = await res.json();
-      if (!res.ok || result.error)
-        throw new Error(result.message || "Failed to view device");
+    const result = await res.json();
+    if (!res.ok || result.error)
+      throw new Error(result.message || "Failed to view device");
 
-      const d = result.data;
-      const formatDate = (dateStr: string) =>
-        dateStr ? new Date(dateStr).toLocaleString() : "—";
+    const d = result.data;
+    const formatDate = (dateStr: string) =>
+      dateStr ? new Date(dateStr).toLocaleString() : "-";
 
-      Swal.fire({
-        title: `<strong>Device Details</strong>`,
-        html: `
-          <div style="text-align:left; font-size:14px;">
-            <table style="width:100%; border-collapse:collapse;">
-              <tr><td><b>Device ID:</b></td><td>${d.device_id}</td></tr>
-              <tr><td><b>IMEI:</b></td><td>${d.imei}</td></tr>
-              <tr><td><b>Device Type:</b></td><td>${d.device_type || "—"}</td></tr>
-              <tr><td><b>Status:</b></td><td>${d.status ? "✅ Active" : "❌ Inactive"}</td></tr>
-              <tr><td><b>SIM Number:</b></td><td>${d.sim_number || "—"}</td></tr>
-              <tr><td><b>Battery Level:</b></td><td>${d.battery_level ?? "--"}%</td></tr>
-              <tr><td><b>Firmware Version:</b></td><td>${d.firmware_version || "—"}</td></tr>
-              <tr><td><b>Assigned Operator ID:</b></td><td>${d.assigned_operator_id || "—"}</td></tr>
-              <tr><td><b>Assigned Vehicle ID:</b></td><td>${d.assigned_vehicle_id || "—"}</td></tr>
-              <tr><td><b>Assigned Date:</b></td><td>${formatDate(d.assigned_date)}</td></tr>
-              <tr><td><b>Created At:</b></td><td>${formatDate(d.createdAt)}</td></tr>
-              <tr><td><b>Updated At:</b></td><td>${formatDate(d.updatedAt)}</td></tr>
-            </table>
-          </div>
-        `,
-        confirmButtonText: "Close",
-        confirmButtonColor: "#2563eb",
-        width: "500px",
-        background: "#fff",
-      });
-    } catch (err: any) {
-      Swal.fire("Error", err.message || "Failed to view device", "error");
-    }
-  };
+    const darkMode = document.documentElement.classList.contains("dark");
+
+    Swal.fire({
+      background: darkMode ? "#1f2937" : "#ffffff",
+      color: darkMode ? "#e5e7eb" : "#111827",
+      title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">Device Details</h3>`,
+      html: `
+        <div style="text-align:left; font-size:14px; line-height:1.6;">
+          <p><b>Device ID:</b> ${d.device_id}</p>
+          <p><b>IMEI:</b> ${d.imei}</p>
+          <p><b>Device Type:</b> ${d.device_type || "-"}</p>
+        
+          <hr style="margin:10px 0;border:none;border-top:1px solid ${
+            darkMode ? "#374151" : "#e5e7eb"
+          };"/>
+
+          <p><b>SIM Number:</b> ${d.sim_number || "-"}</p>
+          <p><b>Battery Level:</b> ${d.battery_level ?? "--"}%</p>
+          <p><b>Firmware Version:</b> ${d.firmware_version || "-"}</p>
+
+          <hr style="margin:10px 0;border:none;border-top:1px solid ${
+            darkMode ? "#374151" : "#e5e7eb"
+          };"/>
+          <p><b>Assigned Vehicle Number:</b> ${
+            d.assigned_vehicle?.vehicle_number || "-"
+          }</p>
+          <p><b>Assigned Date:</b> ${formatDate(d.assigned_date)}</p>
+           <p><b>Status:</b> ${
+            d.status
+              ? '<span style="color:#10b981;font-weight:600;">Active</span>'
+              : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
+          }</p>
+
+        </div>
+      `,
+      confirmButtonText: "Close",
+      confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
+      width: 420,
+      customClass: {
+        popup: "rounded-xl shadow-lg",
+      },
+    });
+  } catch (err: any) {
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: err.message || "Failed to view device",
+      confirmButtonColor: "#ef4444",
+    });
+  }
+};
+
 
   // 🔹 Edit Device
 // 🔹 Edit Device (SweetAlert popup form)

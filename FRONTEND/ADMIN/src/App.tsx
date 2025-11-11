@@ -114,7 +114,7 @@ export default function App() {
               }
             />
              <Route
-             path="/manage-user"
+             path="/view-user"
               element={
                 <ProtectedRoute permission="manage_users">
                   <User />

@@ -1,25 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import {
   MapContainer,
   TileLayer,
   useMap,
   Polyline,
+  Marker,
+  Popup,
 } from "react-leaflet";
 
 if (typeof L !== "undefined") {
-  const defaultPrototype = L.Icon.Default.prototype as unknown as Record<
-    string,
-    unknown
-  >;
+  const defaultPrototype = L.Icon.Default.prototype as unknown as Record<string, unknown>;
   delete defaultPrototype._getIconUrl;
   L.Icon.Default.mergeOptions({
-    iconRetinaUrl:
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-2x.png",
-    iconUrl:
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker.png",
-    shadowUrl:
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-2x.png",
+    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
   });
 }
 
@@ -32,7 +28,7 @@ interface Vehicle {
   course: number | null;
   last_update?: string;
   timestamp?: string;
-  path?: [number, number][]; // ✅ For polyline trail
+  path?: [number, number][];
   device?: {
     status: boolean;
     battery_level?: number | null;
@@ -44,14 +40,10 @@ interface OpenStreetMapLiveTrackingProps {
   selectedVehicleId?: string;
   onVehicleSelect?: (vehicleId: string) => void;
   height?: string;
-  showPolylines?: boolean; // ✅ Added this prop
+  showPolylines?: boolean;
 }
 
-const MapUpdater = ({
-  selectedVehicle,
-}: {
-  selectedVehicle: Vehicle | undefined;
-}) => {
+const MapUpdater = ({ selectedVehicle }: { selectedVehicle: Vehicle | undefined }) => {
   const map = useMap();
   const userInteractedRef = useRef(false);
   const lastVehicleIdRef = useRef<string | undefined>(undefined);
@@ -83,8 +75,8 @@ const MapUpdater = ({
   useEffect(() => {
     if (
       selectedVehicle &&
-      selectedVehicle.latitude &&
-      selectedVehicle.longitude &&
+      selectedVehicle.latitude != null &&
+      selectedVehicle.longitude != null &&
       !userInteractedRef.current
     ) {
       map.flyTo([selectedVehicle.latitude, selectedVehicle.longitude], 15, {
@@ -104,160 +96,131 @@ const getSpeedColor = (speed: number | null): string => {
   return "#EF4444";
 };
 
-const createCustomMarker = (
-  vehicle: Vehicle,
-  isSelected: boolean,
-  isConnected: boolean
-): HTMLDivElement => {
-  const div = document.createElement("div");
+const createVehicleIcon = (vehicle: Vehicle, isSelected: boolean, isConnected: boolean) => {
   const speedValue = vehicle.speed ?? 0;
   const speedColor = getSpeedColor(speedValue);
   const size = isSelected ? 32 : 28;
   const borderColor = isConnected ? "#10B981" : "#EF4444";
   const fillColor = isSelected ? "#3B82F6" : speedColor;
 
-  div.innerHTML = `
-    <div style="
-      width: ${size}px;
-      height: ${size}px;
-      background-color: ${fillColor};
-      border: 3px solid ${borderColor};
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      transition: all 0.2s;
-      font-weight: bold;
-      font-size: 10px;
-      color: white;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-    ">
-      ${Math.round(speedValue)}
-    </div>
-  `;
-  return div;
+  return L.divIcon({
+    html: `
+      <div style="
+        width: ${size}px;
+        height: ${size}px;
+        background-color: ${fillColor};
+        border: 3px solid ${borderColor};
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        transition: all 0.2s;
+        font-weight: bold;
+        font-size: 10px;
+        color: white;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      ">
+        ${Math.round(speedValue)}
+      </div>
+    `,
+    iconSize: [36, 36],
+    className: "vehicle-marker",
+  });
+};
+
+const VehicleMarker = ({
+  vehicle,
+  isSelected,
+  onVehicleSelect,
+}: {
+  vehicle: Vehicle;
+  isSelected: boolean;
+  onVehicleSelect?: (vehicleId: string) => void;
+}) => {
+  const isConnected = vehicle.device?.status !== false;
+  const markerIcon = useMemo(
+    () => createVehicleIcon(vehicle, isSelected, isConnected),
+    [vehicle, isSelected, isConnected]
+  );
+
+  const position: [number, number] = [vehicle.latitude ?? 0, vehicle.longitude ?? 0];
+  const speedLabel = typeof vehicle.speed === "number" ? vehicle.speed.toFixed(1) : "0.0";
+  const courseLabel = typeof vehicle.course === "number" ? vehicle.course.toFixed(1) : "0.0";
+  const batteryValue =
+    typeof vehicle.device?.battery_level === "number"
+      ? `${Math.round(vehicle.device.battery_level)}%`
+      : null;
+  const timestamp = vehicle.timestamp || vehicle.last_update || new Date().toISOString();
+  const trackerId = vehicle.device?.id || vehicle._id;
+
+  return (
+    <Marker
+      position={position}
+      icon={markerIcon}
+      eventHandlers={{
+        click: () => {
+          onVehicleSelect?.(vehicle._id);
+        },
+      }}
+    >
+      <Popup>
+        <div style={{ fontSize: "12px", color: "#000", maxWidth: "250px" }}>
+          <div>
+            <strong>Vehicle Number: {vehicle.vehicle_number || trackerId || "Unknown"}</strong>
+          </div>
+          {trackerId && <div>Tracker ID: {trackerId}</div>}
+          <div>Speed: {speedLabel} km/h</div>
+          <div>Course: {courseLabel}°</div>
+          <div>
+            Status: <span style={{ color: isConnected ? "green" : "red" }}>● {isConnected ? "Connected" : "Disconnected"}</span>
+          </div>
+          {batteryValue && <div>Battery: {batteryValue}</div>}
+          <div>Time: {new Date(timestamp).toLocaleTimeString()}</div>
+        </div>
+      </Popup>
+    </Marker>
+  );
 };
 
 const MarkerLayer = ({
   vehicles,
   selectedVehicleId,
   onVehicleSelect,
-  showPolylines = false, // ✅ default false
+  showPolylines = false,
 }: {
   vehicles: Vehicle[];
   selectedVehicleId?: string;
   onVehicleSelect?: (vehicleId: string) => void;
   showPolylines?: boolean;
 }) => {
-  const map = useMap();
-  const markersRef = useRef<Map<string, L.Marker>>(new Map());
-  const popupRef = useRef<L.Popup | null>(null);
-
-  useEffect(() => {
-    const activeVehicles = new Set<string>();
-    const markers = markersRef.current;
-
-    vehicles.forEach((vehicle) => {
-      if (
-        !vehicle.latitude ||
-        !vehicle.longitude ||
-        (vehicle.latitude === 0 && vehicle.longitude === 0)
-      )
-        return;
-
-      activeVehicles.add(vehicle._id);
-      const isSelected = selectedVehicleId === vehicle._id;
-      const isConnected = vehicle.device?.status !== false;
-      const position = L.latLng(vehicle.latitude, vehicle.longitude);
-
-      const existingMarker = markers.get(vehicle._id);
-
-      if (existingMarker) {
-        existingMarker.setLatLng(position);
-        const newIcon = L.divIcon({
-          html: createCustomMarker(vehicle, isSelected, isConnected).outerHTML,
-          iconSize: [36, 36],
-          className: "vehicle-marker",
-        });
-        existingMarker.setIcon(newIcon);
-      } else {
-        const marker = L.marker(position, {
-          icon: L.divIcon({
-            html: createCustomMarker(vehicle, isSelected, isConnected).outerHTML,
-            iconSize: [36, 36],
-            className: "vehicle-marker",
-          }),
-          title: vehicle.vehicle_number,
-        });
-
-        const popupContent = `
-          <div style="font-size: 12px; color: #000; max-width: 250px;">
-            <strong>${vehicle.vehicle_number}</strong>
-            <div>Speed: ${(vehicle.speed ?? 0).toFixed(1)} km/h</div>
-            <div>Course: ${(vehicle.course ?? 0).toFixed(1)}°</div>
-            ${
-              vehicle.device?.battery_level != null
-                ? `<div>Battery: ${vehicle.device.battery_level.toFixed(0)}%</div>`
-                : ""
-            }
-            <div>Status: <span style="color: ${
-              isConnected ? "green" : "red"
-            };">● ${isConnected ? "Connected" : "Disconnected"}</span></div>
-            <div>Time: ${new Date(
-              vehicle.last_update || vehicle.timestamp || new Date().toISOString()
-            ).toLocaleTimeString()}</div>
-          </div>
-        `;
-
-        marker.bindPopup(popupContent, {
-          maxWidth: 300,
-          className: "vehicle-popup",
-        });
-
-        marker.on("click", () => {
-          if (popupRef.current) map.closePopup(popupRef.current);
-          marker.openPopup();
-          popupRef.current = marker.getPopup() || null;
-          onVehicleSelect?.(vehicle._id);
-        });
-
-        marker.addTo(map);
-        markers.set(vehicle._id, marker);
-      }
-    });
-
-    markers.forEach((marker, vehicleId) => {
-      if (!activeVehicles.has(vehicleId)) {
-        map.removeLayer(marker);
-        markers.delete(vehicleId);
-      }
-    });
-
-    return () => {
-      markers.forEach((marker) => {
-        if (map.hasLayer(marker)) map.removeLayer(marker);
-      });
-      markers.clear();
-    };
-  }, [vehicles, selectedVehicleId, map, onVehicleSelect]);
-
   return (
     <>
+      {vehicles.map((vehicle) => {
+        if (vehicle.latitude == null || vehicle.longitude == null) {
+          return null;
+        }
+        return (
+          <VehicleMarker
+            key={vehicle._id}
+            vehicle={vehicle}
+            isSelected={selectedVehicleId === vehicle._id}
+            onVehicleSelect={onVehicleSelect}
+          />
+        );
+      })}
       {showPolylines &&
-        vehicles.map(
-          (vehicle) =>
-            vehicle.path &&
-            vehicle.path.length > 1 && (
-              <Polyline
-                key={`poly-${vehicle._id}`}
-                positions={vehicle.path}
-                color="#3B82F6"
-                weight={3}
-                opacity={0.7}
-              />
-            )
+        vehicles.map((vehicle) =>
+          vehicle.path && vehicle.path.length > 1 ? (
+            <Polyline
+              key={`poly-${vehicle._id}`}
+              positions={vehicle.path.map(([lat, lng]) => [lat, lng])}
+              color="#3B82F6"
+              weight={3}
+              opacity={0.7}
+            />
+          ) : null
         )}
     </>
   );
@@ -286,7 +249,7 @@ export default function OpenStreetMapLiveTracking({
         center={defaultCenter}
         zoom={5}
         style={{ height: "100%", width: "100%" }}
-        scrollWheelZoom={true}
+        scrollWheelZoom
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -297,7 +260,7 @@ export default function OpenStreetMapLiveTracking({
           vehicles={vehicles}
           selectedVehicleId={selectedVehicleId}
           onVehicleSelect={onVehicleSelect}
-          showPolylines={showPolylines} // ✅ pass to MarkerLayer
+          showPolylines={showPolylines}
         />
 
         <MapUpdater selectedVehicle={selectedVehicle} />

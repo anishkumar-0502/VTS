@@ -122,7 +122,7 @@ export default function ManageDrivers() {
   // ======================
   // VIEW DRIVER DETAILS
   // ======================
- const handleView = async (driver_id: string) => {
+const handleView = async (driver_id: string) => {
   try {
     const res = await fetch(`${API_BASE_URL}/operator/drivers/${driver_id}/view`, {
       headers: authHeaders,
@@ -131,66 +131,59 @@ export default function ManageDrivers() {
 
     if (res.ok && data.data) {
       const d = data.data;
-      const p = d.driver_profile || {};
+      const v = d.assigned_vehicle || {};
 
       Swal.fire({
-        title: `<h2 class='text-lg font-semibold mb-3 text-gray-800'>Driver Details</h2>`,
+        title: `<h2 class='text-base font-semibold mb-2 text-gray-800'>Driver Details</h2>`,
         html: `
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align:left; font-size:14px; line-height:1.6; color:#333;">
+          <div style="
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #333;
+            gap: 6px;
+          ">
+
+            <p><b>Name:</b> ${d.name}</p>
+            <p><b>Email:</b> ${d.email}</p>
+            <p><b>Phone Number:</b> ${d.phone_number}</p>
+            <p><b>Status:</b> ${
+            d.status
+              ? '<span style="color:#10b981;font-weight:600;">Active</span>'
+              : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
+          }</p>
             
-            <div>
-              <h4 style="font-weight:600;margin-bottom:5px;">Basic Information</h4>
-              <p><b>Name:</b> ${d.name}</p>
-              <p><b>Email:</b> ${d.email}</p>
-              <p><b>Phone Number:</b> ${d.phone_number}</p>
-              <p><b>Role ID:</b> ${d.role_id}</p>
-              <p><b>Status:</b> ${d.status ? "Active" : "Inactive"}</p>
-              <p><b>Operator ID:</b> ${d.operator_id}</p>
-              <p><b>Assigned Vehicle ID:</b> ${d.assigned_vehicle_id || "Not Assigned"}</p>
-              <p><b>License Number:</b> ${d.license_number}</p>
-              <p><b>License Expiry:</b> ${new Date(d.license_expiry).toLocaleDateString()}</p>
-            </div>
+            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 6px 0;">
 
-            <div>
-              <h4 style="font-weight:600;margin-bottom:5px;">Driver Profile</h4>
-              <p><b>Driver ID:</b> ${p.driver_id || "N/A"}</p>
-              <p><b>Name:</b> ${p.name || "N/A"}</p>
-              <p><b>Email:</b> ${p.email || "N/A"}</p>
-              <p><b>Phone Number:</b> ${p.phone_number || "N/A"}</p>
-              <p><b>License Number:</b> ${p.license_number || "N/A"}</p>
-              <p><b>License Expiry:</b> ${
-                p.license_expiry ? new Date(p.license_expiry).toLocaleDateString() : "N/A"
-              }</p>
-              <p><b>Status:</b> ${p.status ? "Active" : "Inactive"}</p>
-              <p><b>User ID:</b> ${d.user_id}</p>
-              <p><b>Operator ID:</b> ${p.operator_id || "N/A"}</p>
-            </div>
+            <p><b>License Number:</b> ${d.license_number || "N/A"}</p>
+            <p><b>License Expiry:</b> ${
+              d.license_expiry ? new Date(d.license_expiry).toLocaleDateString() : "N/A"
+            }</p>
 
-            <div style="grid-column: span 2; border-top:1px solid #ddd; margin-top:10px; padding-top:10px;">
-              <h4 style="font-weight:600;margin-bottom:5px;">Timestamps</h4>
-              <p><b>Created At:</b> ${new Date(d.createdAt).toLocaleString()}</p>
-              <p><b>Updated At:</b> ${new Date(d.updatedAt).toLocaleString()}</p>
-              <p><b>Profile Created At:</b> ${
-                p.createdAt ? new Date(p.createdAt).toLocaleString() : "N/A"
-              }</p>
-              <p><b>Profile Updated At:</b> ${
-                p.updatedAt ? new Date(p.updatedAt).toLocaleString() : "N/A"
-              }</p>
-            </div>
+            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 6px 0;">
+
+            <p><b>Assigned Vehicle Number:</b> ${v.vehicle_number || "Not Assigned"}</p>
+            <p><b>Vehicle Type:</b> ${v.vehicle_type || "N/A"}</p>
+            <p><b>Route Name:</b> ${v.route_name || "N/A"}</p>
+            <p><b>Capacity:</b> ${v.capacity || "N/A"}</p>
+            <p><b>Vehicle Status:</b> ${v.current_status || "N/A"}</p>
           </div>
         `,
-        width: 700,
+        width: 420,
         confirmButtonText: "Close",
         confirmButtonColor: "#2563eb",
       });
     } else {
-      Swal.fire("Error", data.message  || "Failed to fetch driver details", "error");
+      Swal.fire("Error", data.message || "Failed to fetch driver details", "error");
     }
   } catch (err) {
     console.error(err);
     Swal.fire("Error", "Unable to fetch driver details", "error");
   }
 };
+
 
 
   // ======================
