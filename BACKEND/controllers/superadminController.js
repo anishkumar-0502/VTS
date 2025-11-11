@@ -1499,7 +1499,7 @@ class SuperadminController {
       const totalDevices = await Device.countDocuments({ status: true });
       const totalVehicles = await Vehicle.countDocuments();
       const activeDevices = await Device.countDocuments({ status: true });
-      const activeVehicles = await Vehicle.countDocuments({ current_status: 'active' });
+      const activeVehicles = await Vehicle.countDocuments({ current_status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] } });
 
       res.status(200).json({
         error: false,

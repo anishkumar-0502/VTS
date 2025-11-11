@@ -23,7 +23,7 @@ class ParentController {
       }
 
       const trip = await Trip.findOne({
-        status: 'active',
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
         passengers: { $elemMatch: { user_id: childId } }
       }).populate('vehicle_id').populate('driver_id');
 
@@ -263,7 +263,7 @@ class ParentController {
       }
 
       const activeTrip = await Trip.findOne({
-        status: 'active',
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
         passengers: { $elemMatch: { user_id: childId } }
       }).populate('vehicle_id');
 
@@ -333,7 +333,7 @@ class ParentController {
 
       const trip = await Trip.findOne({
         driver_id: childId,
-        status: 'active'
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
       }).populate('vehicle_id');
 
       if (!trip) {
@@ -774,7 +774,7 @@ class ParentController {
 
       const currentTrip = await Trip.findOne({
         passengers: { $elemMatch: { user_id: childId } },
-        status: 'active'
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
       });
 
       res.status(200).json({

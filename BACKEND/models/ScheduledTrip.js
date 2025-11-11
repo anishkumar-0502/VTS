@@ -1,5 +1,72 @@
 const mongoose = require('mongoose');
-const { generateScheduledTripId } = require('../utils/uuidUtils');
+const { generateScheduledTripId, generateRoutePointId } = require('../utils/uuidUtils');
+
+const normalizeRoutePoints = (doc) => {
+  if (!Array.isArray(doc.route_points)) {
+    doc.route_points = [];
+    return;
+  }
+
+  doc.route_points = doc.route_points.map((point, index) => {
+    const data = point ? point.toObject?.() ?? point : {};
+    if (!data.stop_id) {
+      data.stop_id = generateRoutePointId();
+    }
+    data.sequence = typeof data.sequence === 'number' ? data.sequence : index + 1;
+    data.order = typeof data.order === 'number' ? data.order : index + 1;
+    data.dwell_target_seconds = typeof data.dwell_target_seconds === 'number' ? data.dwell_target_seconds : 120;
+    data.sla_arrival_buffer_seconds = typeof data.sla_arrival_buffer_seconds === 'number' ? data.sla_arrival_buffer_seconds : 300;
+    data.geofence_radius_meters =
+      typeof data.geofence_radius_meters === 'number' && Number.isFinite(data.geofence_radius_meters)
+        ? data.geofence_radius_meters
+        : 100;
+    return data;
+  });
+};
+
+const routePointSchema = new mongoose.Schema(
+  {
+    stop_id: {
+      type: String,
+      default: generateRoutePointId
+    },
+    name: {
+      type: String,
+      default: null
+    },
+    latitude: {
+      type: Number,
+      default: null
+    },
+    longitude: {
+      type: Number,
+      default: null
+    },
+    sequence: {
+      type: Number,
+      default: 0
+    },
+    order: {
+      type: Number,
+      default: 0
+    },
+    dwell_target_seconds: {
+      type: Number,
+      default: 120
+    },
+    sla_arrival_buffer_seconds: {
+      type: Number,
+      default: 300
+    },
+    geofence_radius_meters: {
+      type: Number,
+      default: 100
+    },
+    planned_arrival_time: Date,
+    planned_departure_time: Date
+  },
+  { _id: false }
+);
 
 const scheduledTripSchema = new mongoose.Schema(
   {
@@ -45,14 +112,7 @@ const scheduledTripSchema = new mongoose.Schema(
       address: String
     },
     route_points: {
-      type: [
-        {
-          name: String,
-          latitude: Number,
-          longitude: Number,
-          order: Number
-        }
-      ],
+      type: [routePointSchema],
       default: []
     },
     repeat_days: {
@@ -105,10 +165,16 @@ const scheduledTripSchema = new mongoose.Schema(
   { timestamps: true, id: false }
 );
 
+scheduledTripSchema.pre('validate', function (next) {
+  normalizeRoutePoints(this);
+  next();
+});
+
 scheduledTripSchema.pre('save', function (next) {
   if (!this.scheduled_trip_id) {
     this.scheduled_trip_id = generateScheduledTripId();
   }
+  normalizeRoutePoints(this);
   next();
 });
 

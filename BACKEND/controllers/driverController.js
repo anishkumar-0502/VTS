@@ -5,6 +5,7 @@ const TrackingData = require('../models/TrackingData');
 const { CustomError } = require('../middlewares/errorHandler');
 const logger = require('../utils/logger');
 const OnDemandTrip = require('../models/Trip');
+const TripHistory = require('../models/TripHistory');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Vehicle = require('../models/Vehicle');
@@ -215,7 +216,7 @@ class DriverController {
       const OnDemandTrip = require('../models/Trip');
       const trip = await OnDemandTrip.findOne({
         driver_id: req.user.user_id,
-        status: 'active'
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
       });
 
       if (!trip) {
@@ -236,27 +237,51 @@ class DriverController {
     }
   }
 
+  static async recordLocationUpdate(req, res, next) {
+    try {
+      const { latitude, longitude, speed, heading, tripId, deviceId, recordedAt } = req.body;
+      const result = await TripService.processLocationUpdate({
+        tripId,
+        driverId: req.user.user_id,
+        operatorId: req.user.operator_id,
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        speed: Number(speed),
+        heading: heading !== undefined && heading !== null ? Number(heading) : undefined,
+        deviceId,
+        recordedAt
+      });
+
+      res.status(200).json({
+        error: false,
+        message: 'Location update processed successfully',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getTripHistory(req, res, next) {
     try {
       const { skip, limit, page } = req.pagination;
 
-      const total = await OnDemandTrip.countDocuments({
-        driver_id: req.user.user_id
-      });
+      const filter = { driver_id: req.user.user_id };
+      const total = await TripHistory.countDocuments(filter);
 
-      const trips = await OnDemandTrip.find({
-        driver_id: req.user.user_id
-      })
+      const trips = await TripHistory.find(filter)
         .skip(skip)
         .limit(limit)
-        .sort({ start_time: -1 });
+        .sort({ completed_date: -1, end_time: -1 });
 
       const tripsWithVehicles = await Promise.all(
-        trips.map(async trip => {
-          const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
-          const tripData = trip.toObject();
-          tripData.vehicle_id = vehicle;
-          return tripData;
+        trips.map(async history => {
+          const historyData = history.toObject();
+          const vehicle = await findVehicleByIdentifier(historyData.vehicle_id, req.user.operator_id, { lean: true });
+          historyData.vehicle_id = vehicle;
+          historyData.trip_snapshot = historyData.snapshot || null;
+          delete historyData.snapshot;
+          return historyData;
         })
       );
 
@@ -391,7 +416,7 @@ class DriverController {
 
       const activeTrips = await OnDemandTrip.countDocuments({
         driver_id: req.user.user_id,
-        status: 'active'
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
       });
 
       res.status(200).json({
@@ -470,7 +495,7 @@ class DriverController {
         driver_id: req.user.user_id,
         vehicle_id: driver.assigned_vehicle_id,
         start_time: { $gte: today, $lt: tomorrow },
-        status: 'active'
+        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
       })
         .lean()
         .select('_id trip_id route_name passengers route_points');
@@ -629,6 +654,93 @@ class DriverController {
     }
   }
 
+  static async updateStopChecklist(req, res, next) {
+    try {
+      const { tripId, stopId, itemId, label, required, completed, notes } = req.body;
+      const result = await TripService.updateStopChecklistItem({
+        tripId,
+        stopId,
+        driverId: req.user.user_id,
+        item: {
+          itemId,
+          item_id: itemId,
+          label,
+          required,
+          completed,
+          notes
+        }
+      });
+
+      res.status(200).json({
+        error: false,
+        message: 'Stop checklist updated successfully',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async addStopPhotoNote(req, res, next) {
+    try {
+      const { tripId, stopId, photoUrl, caption } = req.body;
+      const result = await TripService.addStopPhotoNote({
+        tripId,
+        stopId,
+        driverId: req.user.user_id,
+        photoUrl,
+        caption
+      });
+
+      res.status(200).json({
+        error: false,
+        message: 'Stop photo note added successfully',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async recordStopIncident(req, res, next) {
+    try {
+      const {
+        tripId,
+        stopId,
+        type,
+        severity,
+        description,
+        passengerId,
+        photoUrls,
+        resolvesBlocker,
+        resolved,
+        resolutionNotes
+      } = req.body;
+
+      const result = await TripService.recordStopIncident({
+        tripId,
+        stopId,
+        driverId: req.user.user_id,
+        type,
+        severity,
+        description,
+        passengerId,
+        photoUrls,
+        resolvesBlocker,
+        resolved,
+        resolutionNotes
+      });
+
+      res.status(200).json({
+        error: false,
+        message: 'Stop incident recorded successfully',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getProfile(req, res, next) {
     try {
       const cacheKey = `driver_profile:${req.user.user_id}`;
@@ -705,10 +817,10 @@ class DriverController {
 
       const updatedDriverDocument = hasUpdates
         ? await User.findOneAndUpdate(
-            { user_id: driverUser.user_id },
-            updatePayload,
-            { new: true, lean: true }
-          )
+          { user_id: driverUser.user_id },
+          updatePayload,
+          { new: true, lean: true }
+        )
         : await User.findOne({ user_id: driverUser.user_id }).lean();
 
       if (!updatedDriverDocument) {
@@ -839,7 +951,7 @@ class DriverController {
 
       const driver = await User.findOneAndUpdate(
         { user_id: req.user.user_id },
-        { 
+        {
           fcm_token: fcmToken,
           $addToSet: { fcm_tokens: fcmToken }
         },
@@ -915,6 +1027,9 @@ class DriverController {
         is_active: true
       }).sort({ scheduled_start_time: 1 });
 
+      const plannedTrips = await TripService.ensurePlannedTripsForScheduledTrips(scheduledTrips, resetDateKey);
+      const plannedTripMap = new Map(plannedTrips.map(planned => [planned.scheduled_trip_id, planned]));
+
       const tripsWithVehicles = await Promise.all(
         scheduledTrips.map(async trip => {
           const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
@@ -923,6 +1038,15 @@ class DriverController {
           const completedToday = tripData.last_completed_on === resetDateKey;
           tripData.isCompletedToday = completedToday;
           tripData.daily_status = completedToday ? 'completed' : tripData.status;
+          const plannedTrip = plannedTripMap.get(tripData.scheduled_trip_id);
+          if (plannedTrip) {
+            tripData.planned_trip_id = plannedTrip.trip_id || plannedTrip._id;
+            tripData.planned_start_time = plannedTrip.planned_start_time;
+            tripData.planned_end_time = plannedTrip.planned_end_time;
+            tripData.planned_route_points = plannedTrip.route_points;
+            tripData.passenger_manifest = plannedTrip.passengers;
+            tripData.total_passengers_planned = plannedTrip.total_passengers;
+          }
           return tripData;
         })
       );
@@ -974,6 +1098,9 @@ class DriverController {
         ]
       }).sort({ scheduled_start_time: 1 });
 
+      const plannedTrips = await TripService.ensurePlannedTripsForScheduledTrips(scheduledTrips, resetDateKey);
+      const plannedTripMap = new Map(plannedTrips.map(planned => [planned.scheduled_trip_id, planned]));
+
       const tripsWithVehicles = await Promise.all(
         scheduledTrips.map(async trip => {
           const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
@@ -982,6 +1109,15 @@ class DriverController {
           const completedToday = tripData.last_completed_on === resetDateKey;
           tripData.isCompletedToday = completedToday;
           tripData.daily_status = completedToday ? 'completed' : tripData.status;
+          const plannedTrip = plannedTripMap.get(tripData.scheduled_trip_id);
+          if (plannedTrip) {
+            tripData.planned_trip_id = plannedTrip.trip_id || plannedTrip._id;
+            tripData.planned_start_time = plannedTrip.planned_start_time;
+            tripData.planned_end_time = plannedTrip.planned_end_time;
+            tripData.planned_route_points = plannedTrip.route_points;
+            tripData.passenger_manifest = plannedTrip.passengers;
+            tripData.total_passengers_planned = plannedTrip.total_passengers;
+          }
           return tripData;
         })
       );
@@ -1015,7 +1151,17 @@ class DriverController {
         throw new CustomError('This trip is already in progress', 400);
       }
 
+      if (!scheduledTrip.is_active) {
+        throw new CustomError('This trip is inactive', 400);
+      }
+
       const now = new Date();
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const todayName = dayNames[now.getDay()];
+      if (!scheduledTrip.repeat_days?.[todayName]) {
+        throw new CustomError('This trip is not scheduled for today', 400);
+      }
+
       const todayKey = now.toISOString().slice(0, 10);
       if (scheduledTrip.last_completed_on === todayKey) {
         throw new CustomError('This trip has already been completed today', 400);

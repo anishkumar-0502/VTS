@@ -11,7 +11,11 @@ const ENTITY_PREFIXES = {
   TRACKING_DATA: 'TRK',
   NOTIFICATION: 'NOT',
   END_USER: 'EUS',
-  SCHEDULED_TRIP: 'SCHTRP'
+  SCHEDULED_TRIP: 'SCHTRP',
+  ROUTE_POINT: 'STP',
+  STOP_CHECKLIST_ITEM: 'CHK',
+  STOP_NOTE: 'SNT',
+  STOP_INCIDENT: 'INC'
 };
 
 const generateEntityId = (prefix) => {
@@ -32,6 +36,10 @@ const generateTrackingDataId = () => generateEntityId(ENTITY_PREFIXES.TRACKING_D
 const generateNotificationId = () => generateEntityId(ENTITY_PREFIXES.NOTIFICATION);
 const generateEndUserId = () => generateEntityId(ENTITY_PREFIXES.END_USER);
 const generateScheduledTripId = () => generateEntityId(ENTITY_PREFIXES.SCHEDULED_TRIP);
+const generateRoutePointId = () => generateEntityId(ENTITY_PREFIXES.ROUTE_POINT);
+const generateStopChecklistItemId = () => generateEntityId(ENTITY_PREFIXES.STOP_CHECKLIST_ITEM);
+const generateStopNoteId = () => generateEntityId(ENTITY_PREFIXES.STOP_NOTE);
+const generateStopIncidentId = () => generateEntityId(ENTITY_PREFIXES.STOP_INCIDENT);
 
 module.exports = {
   generateEntityId,
@@ -46,5 +54,9 @@ module.exports = {
   generateNotificationId,
   generateEndUserId,
   generateScheduledTripId,
+  generateRoutePointId,
+  generateStopChecklistItemId,
+  generateStopNoteId,
+  generateStopIncidentId,
   ENTITY_PREFIXES
 };

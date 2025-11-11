@@ -12,6 +12,9 @@ const {
   locationUpdateRules,
   speedRecordingRules,
   passengerStatusRules,
+  stopChecklistRules,
+  stopPhotoNoteRules,
+  stopIncidentRules,
   fcmTokenRules
 } = require('../middlewares/validationRules');
 const {
@@ -36,12 +39,16 @@ router.post('/trips/select-start-end', DriverController.selectTripStartEnd);
 // ========== ACTIVE TRIP - MANAGEMENT ==========
 router.post('/trips/start', tripCreationRules(), validationErrorHandler, DriverController.startTrip);
 router.get('/trips/active', DriverController.getActiveTrip);
+router.post('/trips/location', locationUpdateRules(), validationErrorHandler, DriverController.recordLocationUpdate);
 router.put('/trips/:tripId/end', tripEndRules(), validationErrorHandler, DriverController.endTrip);
 router.get('/trips', DriverController.getTripHistory);
 router.get('/trips/:tripId', DriverController.getTripDetails);
 
 // ========== ACTIVE TRIP - PASSENGER MANAGEMENT ==========
 router.post('/trips/passenger/update-status', passengerStatusRules(), validationErrorHandler, DriverController.updatePassengerStatus);
+router.post('/trips/stop/checklist', stopChecklistRules(), validationErrorHandler, DriverController.updateStopChecklist);
+router.post('/trips/stop/photo-note', stopPhotoNoteRules(), validationErrorHandler, DriverController.addStopPhotoNote);
+router.post('/trips/stop/incident', stopIncidentRules(), validationErrorHandler, DriverController.recordStopIncident);
 
 // ========== ACTIVE TRIP - SPEED MONITORING ==========
 router.post('/speed/record', speedRecordingLimiter, speedRecordingRules(), validationErrorHandler, DriverController.recordSpeed);
