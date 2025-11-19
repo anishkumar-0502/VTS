@@ -7,7 +7,12 @@ import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/co
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/scheduled_trip_model.dart';
 import 'package:trackify_vts/utilities/widgets/status_banner.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/pages/trip_details_page.dart';
-import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/pages/trip_map_page.dart';
+import 'package:trackify_vts/driver_app/features/dashboard/presentation/controllers/driver_dashboard_controller.dart';
+import 'package:trackify_vts/driver_app/features/dashboard/presentation/pages/live_tracking_map_page.dart';
+import 'package:panara_dialogs/panara_dialogs.dart';
+import 'package:shimmer/shimmer.dart';
+
+import '../../../../../services/open_route_service.dart';
 
 class ScheduledTripsPage extends StatefulWidget {
   const ScheduledTripsPage({super.key});
@@ -31,7 +36,20 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        // Refresh dashboard when going back
+        try {
+          final dashboardController = Get.find<DriverDashboardController>(tag: 'driver_dashboard');
+          dashboardController.fetchTodaysScheduledTrips();
+          dashboardController.fetchActiveTrip();
+          dashboardController.fetchTripHistory();
+        } catch (e) {
+          // Ignore if controller not found
+        }
+        return true;
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF4F6FC),
       appBar: AppBar(
         elevation: 0,
@@ -139,8 +157,8 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                       ),
                     ),
                     onPressed: controller.refreshTrips,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
+                    icon: const Icon(Icons.refresh,color: Colors.white,),
+                    label: const Text('Retry',style: TextStyle(color: Colors.white),),
                   ),
                 ],
               ),
@@ -205,58 +223,103 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
             // Active Trip Section
             Obx(() {
               if (controller.activeTrip.value != null) {
-                return Container(
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF81C784), // 🌿 mild green (soft tone)
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF81C784).withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
+                // 🕓 Convert UTC to IST (Indian Standard Time)
+                final utcTime = DateTime.parse(
+                  controller.activeTrip.value!.startTime,
+                );
+                final istTime = utcTime.add(
+                  const Duration(hours: 5, minutes: 30),
+                );
+
+                String _formatDate(DateTime time) {
+                  final day = time.day.toString().padLeft(2, '0');
+                  final month = time.month.toString().padLeft(2, '0');
+                  final year = time.year.toString().substring(2); // gives '25' instead of '2025'
+                  return '$day/$month/$year';
+                }
+
+
+                String _formatTimeWithAmPm(DateTime time) {
+                  final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+                  final minute = time.minute.toString().padLeft(2, '0');
+                  final period = time.hour >= 12 ? 'PM' : 'AM';
+                  return '$hour:$minute $period';
+                }
+
+
+
+                return GestureDetector(
+                  onTap: () => _showActiveTripModal(context, controller.activeTrip.value!, primaryColor),
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF81C784), // 🌿 Mild green tone
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF81C784).withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.play_circle_fill,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Active Trip',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                      // Left column - text content
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: const [
+                                Icon(
+                                  Icons.play_circle_fill,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Active Trip',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        controller.activeTrip.value!.vehicleId.routeName,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 16,
+                            const SizedBox(height: 8),
+                            Text(
+                              controller.activeTrip.value!.routeName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Started on ${_formatDate(istTime)} at ${_formatTimeWithAmPm(istTime)}',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        'Started at ${controller.activeTrip.value!.startTime}',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 14,
-                        ),
+
+                      // Right side image (bus icon)
+                      Image.asset(
+                        'assets/icons/bus.png',
+                        height: 60, // 📏 adjust size as needed
+                        width: 60,
+                        fit: BoxFit.contain,
+                        color: Colors.white,
                       ),
                     ],
                   ),
+                ),
                 );
               }
               return const SizedBox.shrink();
@@ -347,19 +410,27 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                       )
                       : RefreshIndicator(
                         onRefresh: controller.refreshTrips,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                          itemCount: controller.currentTrips.length,
-                          itemBuilder: (context, index) {
-                            final trip = controller.currentTrips[index];
-                            return _buildTripCard(trip, primaryColor);
-                          },
-                        ),
+                        child: controller.isLoading.value
+                            ? ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                              itemCount: 4,
+                              itemBuilder: (context, index) {
+                                return _buildTripCardShimmer();
+                              },
+                            )
+                            : ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                              itemCount: controller.currentTrips.length,
+                              itemBuilder: (context, index) {
+                                final trip = controller.currentTrips[index];
+                                return _buildTripCard(trip, primaryColor);
+                              },
+                            ),
                       ),
             ),
           ],
         );
-      }),
+      }),),
     );
   }
 
@@ -413,6 +484,84 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
               color: isSelected ? Colors.white : Colors.black87,
             ),
             child: Text(label),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTripCardShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+          border: Border.all(color: const Color(0xFFE0E7FF), width: 1),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 12,
+                            width: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            height: 16,
+                            width: 150,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      height: 28,
+                      width: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -857,9 +1006,11 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                             ),
                             if (!showMap)
                               IconButton(
-                                icon: const Icon(
-                                  Icons.map,
-                                  color: Colors.white,
+                                icon: Image.asset(
+                                  'assets/icons/map.png',
+                                  height: 24, // adjust size as needed
+                                  width: 24,
+                                  color: Colors.white, // optional: keeps the white tint
                                 ),
                                 onPressed: () => setState(() => showMap = true),
                               ),
@@ -889,6 +1040,8 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                                         context: context,
                                         trip: trip,
                                         primaryColor: primaryColor,
+                                        onStartSuccess: () => Navigator.of(context).pop(),
+                                        onStopSuccess: () => Navigator.of(context).pop(),
                                       ),
                                       const SizedBox(height: 16),
                                       _buildInfoSection('Trip Schedule', [
@@ -1151,22 +1304,211 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     return markers;
   }
 
+// --- The updated map builder function ---
   Widget _buildMapView(ScheduledTrip trip, Color primaryColor) {
-    return FlutterMap(
-      options: MapOptions(
-        initialCenter: LatLng(
-          trip.startLocation!.latitude,
-          trip.startLocation!.longitude,
-        ),
-        initialZoom: 12,
-      ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.trackify.driver',
-        ),
-        MarkerLayer(markers: _buildMarkersForMap(trip)),
-      ],
+    final mapController = MapController();
+    double currentZoom = 12.0;
+    final openRouteService = OpenRouteService(
+      "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjU1MDE2ODk0OTMwYjQ0YjViOGNjODMyOTYzYjI4NGZiIiwiaCI6Im11cm11cjY0In0=", // 🔑 Your API key here
+    );
+
+    final startLocation = trip.startLocation;
+    final endLocation = trip.endLocation;
+
+    if (startLocation == null || endLocation == null) {
+      return const Center(child: Text('Route data unavailable'));
+    }
+
+    final orderedStops = List<RoutePoint>.from(trip.vehicleId?.routePoints ?? [])
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final filteredStops = orderedStops.where((stop) {
+      return stop.latitude != 0 || stop.longitude != 0;
+    }).toList();
+
+    final waypointChain = <LatLng>[
+      LatLng(startLocation.latitude, startLocation.longitude),
+      ...filteredStops.map((stop) => LatLng(stop.latitude, stop.longitude)),
+      LatLng(endLocation.latitude, endLocation.longitude),
+    ];
+
+    final normalizedWaypoints = <LatLng>[];
+    for (final point in waypointChain) {
+      if (normalizedWaypoints.isEmpty ||
+          normalizedWaypoints.last.latitude != point.latitude ||
+          normalizedWaypoints.last.longitude != point.longitude) {
+        normalizedWaypoints.add(point);
+      }
+    }
+
+    if (normalizedWaypoints.length < 2) {
+      return const Center(child: Text('Route data unavailable'));
+    }
+
+    List<LatLng> routePoints = [];
+    bool isFetchingRoute = false;
+    String? routeError;
+    bool hasRequestedRoute = false;
+
+    LatLng computeAverage(List<LatLng> points) {
+      final lat = points.fold<double>(0, (sum, value) => sum + value.latitude) /
+          points.length;
+      final lon = points.fold<double>(0, (sum, value) => sum + value.longitude) /
+          points.length;
+      return LatLng(lat, lon);
+    }
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        Future<void> loadRoute() async {
+          setState(() {
+            isFetchingRoute = true;
+            routeError = null;
+          });
+          try {
+            final fetchedRoute =
+                await openRouteService.getRouteThrough(normalizedWaypoints);
+            if (!context.mounted) {
+              return;
+            }
+            if (fetchedRoute.isEmpty) {
+              setState(() {
+                routeError = 'Route unavailable';
+                isFetchingRoute = false;
+                routePoints = normalizedWaypoints;
+              });
+              return;
+            }
+            final center = computeAverage(fetchedRoute);
+            mapController.move(center, currentZoom);
+            setState(() {
+              routePoints = fetchedRoute;
+              isFetchingRoute = false;
+            });
+          } catch (_) {
+            if (!context.mounted) {
+              return;
+            }
+            setState(() {
+              routeError = 'Unable to load route';
+              isFetchingRoute = false;
+              routePoints = [];
+            });
+          }
+        }
+
+        if (!hasRequestedRoute) {
+          hasRequestedRoute = true;
+          loadRoute();
+        }
+
+        void zoomIn() {
+          currentZoom += 1;
+          mapController.move(mapController.camera.center, currentZoom);
+        }
+
+        void zoomOut() {
+          currentZoom -= 1;
+          mapController.move(mapController.camera.center, currentZoom);
+        }
+
+        return Stack(
+          children: [
+            FlutterMap(
+              mapController: mapController,
+              options: MapOptions(
+                initialCenter: normalizedWaypoints.first,
+                initialZoom: currentZoom,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.trackify.driver',
+                ),
+                if (routePoints.length > 1)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: routePoints,
+                        color: primaryColor,
+                        strokeWidth: 5,
+                      ),
+                    ],
+                  ),
+                MarkerLayer(markers: _buildMarkersForMap(trip)),
+              ],
+            ),
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: Column(
+                children: [
+                  _ZoomButton(
+                    iconPath: 'assets/icons/zoom-in.png',
+                    onTap: zoomIn,
+                  ),
+                  const SizedBox(height: 10),
+                  _ZoomButton(
+                    iconPath: 'assets/icons/zoom-out.png',
+                    onTap: zoomOut,
+                  ),
+                ],
+              ),
+            ),
+            if (isFetchingRoute)
+              Positioned(
+                top: 20,
+                right: 20,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            if (routeError != null && routePoints.isEmpty && !isFetchingRoute)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    routeError!,
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -1185,6 +1527,8 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     required BuildContext context,
     required ScheduledTrip trip,
     required Color primaryColor,
+    VoidCallback? onStartSuccess,
+    VoidCallback? onStopSuccess,
   }) {
     return Obx(() {
       final isLoading = controller.isStartingTrip.value;
@@ -1233,6 +1577,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                           },
                           'distance_traveled': 0,
                         },
+                        onSuccess: onStopSuccess,
                       );
                     }
                   },
@@ -1271,7 +1616,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
         onPressed:
             isDisabled || isLoading
                 ? null
-                : () => controller.startTrip(trip.scheduledTripId),
+                : () => controller.startTrip(trip.scheduledTripId, onSuccess: onStartSuccess),
         icon:
             isLoading
                 ? SizedBox(
@@ -1710,6 +2055,275 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
       ),
     );
   }
+
+  void _showActiveTripModal(BuildContext context, ActiveTrip activeTrip, Color primaryColor) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: primaryColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Active Trip',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      activeTrip.routeName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Trip Info
+                        _buildActiveTripInfo(activeTrip, primaryColor),
+
+                        const SizedBox(height: 24),
+
+                        // Action Buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  Get.to(() => LiveTrackingMapPage(
+                                    assignedVehicleId: activeTrip.vehicleId.vehicleId,
+                                    routePoints: activeTrip.routePoints,
+                                    stops: activeTrip.stops,
+                                    primaryColor: primaryColor,
+                                    tripId: activeTrip.tripId,
+                                  ));
+                                },
+                                icon: const Icon(Icons.location_on, color: Colors.black),
+                                label: const Text('Live Tracking', style: TextStyle(color: Colors.black)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryColor,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  _showStopTripConfirmation(context, activeTrip, primaryColor);
+                                },
+                                icon: const Icon(Icons.stop, color: Colors.red),
+                                label: const Text('Stop Trip', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.red, width: 2),
+                                  backgroundColor: Colors.red.withOpacity(0.05),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActiveTripInfo(ActiveTrip activeTrip, Color primaryColor) {
+    final utcTime = DateTime.parse(activeTrip.startTime);
+    final istTime = utcTime.add(const Duration(hours: 5, minutes: 30));
+
+    String _formatDate(DateTime time) {
+      final day = time.day.toString().padLeft(2, '0');
+      final month = time.month.toString().padLeft(2, '0');
+      final year = time.year.toString().substring(2);
+      return '$day/$month/$year';
+    }
+
+    String _formatTimeWithAmPm(DateTime time) {
+      final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+      final minute = time.minute.toString().padLeft(2, '0');
+      final period = time.hour >= 12 ? 'PM' : 'AM';
+      return '$hour:$minute $period';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Trip Details',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildInfoRow('Vehicle', activeTrip.vehicleId.vehicleNumber),
+        _buildInfoRow('Status', activeTrip.status),
+        _buildInfoRow('Started', '${_formatDate(istTime)} at ${_formatTimeWithAmPm(istTime)}'),
+        _buildInfoRow('Passengers', '${activeTrip.passengers.length}'),
+        _buildInfoRow('Speed Limit', '${activeTrip.speedLimit} km/h'),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStopTripConfirmation(BuildContext context, ActiveTrip activeTrip, Color primaryColor) {
+    PanaraConfirmDialog.show(
+      context,
+      title: 'Stop Trip',
+      message: 'Are you sure you want to stop this trip? This action cannot be undone.',
+      confirmButtonText: 'Stop Trip',
+      cancelButtonText: 'Cancel',
+      onTapConfirm: () {
+        try {
+          Navigator.pop(context);
+        } catch (e) {
+          // Ignore if nav fails
+        }
+        controller.stopTrip(
+          tripId: activeTrip.tripId,
+          payload: {
+            'end_location': {
+              'latitude': activeTrip.startLocation.latitude,
+              'longitude': activeTrip.startLocation.longitude,
+            },
+            'distance_traveled': 0,
+          },
+          onSuccess: () {
+            try {
+              Navigator.pop(context);
+            } catch (e) {
+              // Ignore if nav fails
+            }
+            showStatusBanner('Trip stopped successfully', Colors.green, Icons.check_circle);
+            controller.fetchActiveTrip();
+          },
+        );
+      },
+      onTapCancel: () {
+        try {
+          Navigator.pop(context);
+        } catch (e) {
+          // Ignore if nav fails
+        }
+      },
+      panaraDialogType: PanaraDialogType.warning,
+      barrierDismissible: false,
+    );
+  }
+}
+
+class _ZoomButton extends StatelessWidget {
+  final String iconPath;
+  final VoidCallback onTap;
+
+  const _ZoomButton({required this.iconPath, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 45,
+        height: 45,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(8),
+        child: Image.asset(iconPath, fit: BoxFit.contain),
+      ),
+    );
+  }
 }
 
 class _InfoRowData {
@@ -1866,7 +2480,7 @@ extension on _ScheduledTripsPageState {
           ),
         ],
       ),
-    );
+      );
   }
 
   Color _getStatusColor(String status) {

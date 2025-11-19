@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/driver_dashboard_controller.dart';
-import '../../domain/models/dashboard_model.dart' as dashboard_models;
 import '../../../scheduled_trips/domain/models/scheduled_trip_model.dart'
     as scheduled_models;
+import 'package:trackify_vts/utilities/widgets/status_banner.dart';
 
-class TripDetailsPage extends StatelessWidget {
+class TripDetailsPage extends StatefulWidget {
   final scheduled_models.ScheduledTrip trip;
 
   const TripDetailsPage({required this.trip, super.key});
+
+  @override
+  State<TripDetailsPage> createState() => _TripDetailsPageState();
+}
+
+class _TripDetailsPageState extends State<TripDetailsPage> {
+  bool _isStarted = false;
+  bool _isStopped = false;
 
   DriverDashboardController get controller =>
       Get.find<DriverDashboardController>(tag: 'driver_dashboard');
@@ -16,6 +24,12 @@ class TripDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color primaryColor = Theme.of(context).colorScheme.primary;
+    final String normalizedStatus = widget.trip.status.toLowerCase();
+    final bool isPending = normalizedStatus == 'pending';
+    final bool isInProgress =
+        normalizedStatus == 'in-progress' ||
+        normalizedStatus == 'in progress' ||
+        normalizedStatus == 'inprogress';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -27,7 +41,20 @@ class TripDetailsPage extends StatelessWidget {
             pinned: true,
             elevation: 0,
             backgroundColor: primaryColor,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
             flexibleSpace: FlexibleSpaceBar(
+              centerTitle: false,
+              titlePadding: const EdgeInsets.only(
+                left: 64,
+                bottom: 16,
+                right: 24,
+              ),
               title: const Text(
                 'Trip Details',
                 style: TextStyle(
@@ -36,8 +63,6 @@ class TripDetailsPage extends StatelessWidget {
                   fontSize: 18,
                 ),
               ),
-              centerTitle: false,
-              titlePadding: const EdgeInsets.only(left: 24, bottom: 16),
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -73,43 +98,12 @@ class TripDetailsPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            trip.routeName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              _buildStatusBadge(
-                                trip.status.toUpperCase(),
-                                const Color(0xFF4CAF50),
-                              ),
-                              const SizedBox(width: 10),
-                              _buildStatusBadge(
-                                trip.tripPeriod.toUpperCase(),
-                                const Color(0xFF2196F3),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
             ),
           ),
+
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -124,14 +118,14 @@ class TripDetailsPage extends StatelessWidget {
                       children: [
                         _buildScheduleRow(
                           'Start Time',
-                          trip.scheduledStartTime,
+                          widget.trip.scheduledStartTime,
                           Icons.schedule,
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildScheduleRow(
                           'Trip Period',
-                          trip.tripPeriod,
+                          widget.trip.tripPeriod,
                           Icons.event,
                           primaryColor,
                         ),
@@ -148,14 +142,14 @@ class TripDetailsPage extends StatelessWidget {
                       children: [
                         _buildLocationRow(
                           'Start Location',
-                          trip.startLocation?.address ?? 'N/A',
+                          widget.trip.startLocation?.address ?? 'N/A',
                           Icons.location_on,
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildLocationRow(
                           'End Location',
-                          trip.endLocation?.address ?? 'N/A',
+                          widget.trip.endLocation?.address ?? 'N/A',
                           Icons.flag,
                           primaryColor,
                         ),
@@ -172,25 +166,25 @@ class TripDetailsPage extends StatelessWidget {
                       children: [
                         _buildInfoRow(
                           'Vehicle Number',
-                          trip.vehicleId?.vehicleNumber ?? 'N/A',
+                          widget.trip.vehicleId?.vehicleNumber ?? 'N/A',
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildInfoRow(
                           'Vehicle Type',
-                          trip.vehicleId?.vehicleType ?? 'N/A',
+                          widget.trip.vehicleId?.vehicleType ?? 'N/A',
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildInfoRow(
                           'Color',
-                          trip.vehicleId?.color ?? 'N/A',
+                          widget.trip.vehicleId?.color ?? 'N/A',
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildInfoRow(
                           'Capacity',
-                          '${trip.vehicleId?.seatingCapacity ?? 0} seats',
+                          '${widget.trip.vehicleId?.seatingCapacity ?? 0} seats',
                           primaryColor,
                         ),
                       ],
@@ -199,13 +193,13 @@ class TripDetailsPage extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   // Route Stops Card
-                  if (trip.vehicleId?.routePoints.isNotEmpty ?? false)
+                  if (widget.trip.vehicleId?.routePoints.isNotEmpty ?? false)
                     _buildCard(
                       title: 'Route Stops',
                       primaryColor: primaryColor,
                       child: Column(
                         children: [
-                          ...?trip.vehicleId?.routePoints.map(
+                          ...?widget.trip.vehicleId?.routePoints.map(
                             (point) => Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Row(
@@ -270,37 +264,37 @@ class TripDetailsPage extends StatelessWidget {
                       children: [
                         _buildDayChip(
                           'Mon',
-                          trip.repeatDays?.monday ?? false,
+                          widget.trip.repeatDays?.monday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Tue',
-                          trip.repeatDays?.tuesday ?? false,
+                          widget.trip.repeatDays?.tuesday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Wed',
-                          trip.repeatDays?.wednesday ?? false,
+                          widget.trip.repeatDays?.wednesday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Thu',
-                          trip.repeatDays?.thursday ?? false,
+                          widget.trip.repeatDays?.thursday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Fri',
-                          trip.repeatDays?.friday ?? false,
+                          widget.trip.repeatDays?.friday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Sat',
-                          trip.repeatDays?.saturday ?? false,
+                          widget.trip.repeatDays?.saturday ?? false,
                           primaryColor,
                         ),
                         _buildDayChip(
                           'Sun',
-                          trip.repeatDays?.sunday ?? false,
+                          widget.trip.repeatDays?.sunday ?? false,
                           primaryColor,
                         ),
                       ],
@@ -314,52 +308,156 @@ class TripDetailsPage extends StatelessWidget {
                     primaryColor: primaryColor,
                     child: Column(
                       children: [
-                        _buildInfoRow(
-                          'Trip ID',
-                          trip.scheduledTripId ?? 'N/A',
-                          primaryColor,
-                          isMonospace: true,
-                        ),
-                        const Divider(height: 20),
-                        _buildInfoRow(
-                          'Is Active',
-                          trip.isActive ? 'Yes' : 'No',
-                          primaryColor,
-                        ),
-                        const Divider(height: 20),
+                        // _buildInfoRow(
+                        //   'Trip ID',
+                        //   widget.trip.scheduledTripId ?? 'N/A',
+                        //   primaryColor,
+                        //   isMonospace: true,
+                        // ),
+                        // const Divider(height: 20),
+
                         _buildInfoRow(
                           'Created',
-                          _formatDate(trip.createdAt),
+                          _formatDate(widget.trip.createdAt),
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildInfoRow(
                           'Last Updated',
-                          _formatDate(trip.updatedAt),
+                          _formatDate(widget.trip.updatedAt),
                           primaryColor,
                         ),
+                        const Divider(height: 20),
+                        _buildInfoRow(
+                          'Is Active',
+                          widget.trip.isActive ? 'Yes' : 'No',
+                          primaryColor,
+                        ),
+
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
 
                   // Action Buttons
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        controller.selectTrip(trip);
-                        Get.back();
-                      },
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text('Select This Trip'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  if (isPending) ...[
+                    Obx(() {
+                      final isStarting = controller.isStartingTrip.value;
+                      return SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed:
+                              isStarting || _isStarted
+                                  ? null
+                                  : () async {
+                                    final scheduledTripId = widget.trip.scheduledTripId;
+                                    if (scheduledTripId.isEmpty) {
+                                      showStatusBanner(
+                                        'Trip identifier unavailable',
+                                        Colors.redAccent,
+                                        Icons.error_outline,
+                                      );
+                                      return;
+                                    }
+                                    final success = await controller
+                                        .startScheduledTrip(
+                                      scheduledTripId: scheduledTripId,
+                                    );
+                                    if (success) {
+                                      setState(() => _isStarted = true);
+                                      controller.selectTrip(widget.trip);
+                                    }
+                                  },
+                          icon:
+                              isStarting
+                                  ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                  : const Icon(Icons.not_started_outlined),
+                          label: Text(
+                            isStarting ? 'Starting...' : (_isStarted ? 'Trip in progress' : 'Start this trip'),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                  ],
+                  if (isInProgress) ...[
+                    Obx(() {
+                      final isStopping = controller.isStoppingTrip.value;
+                      return SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isStopped ? null : (isStopping ? null : () async {
+                            final associatedTripId =
+                                widget.trip.associatedTripId;
+                            if (associatedTripId == null ||
+                                associatedTripId.isEmpty) {
+                              showStatusBanner(
+                                'Trip identifier unavailable',
+                                Colors.redAccent,
+                                Icons.error_outline,
+                              );
+                              return;
+                            }
+                            final stopLocation =
+                                widget.trip.endLocation ?? widget.trip.startLocation;
+                            if (stopLocation == null) {
+                              showStatusBanner(
+                                'Stop location unavailable',
+                                Colors.redAccent,
+                                Icons.error_outline,
+                              );
+                              return;
+                            }
+                            final success = await controller
+                                .stopActiveTrip(
+                                  tripId: associatedTripId,
+                                  payload: {
+                                    'end_location': {
+                                      'latitude': stopLocation.latitude,
+                                      'longitude':
+                                          stopLocation.longitude,
+                                    },
+                                    'distance_traveled': 0,
+                                  },
+                                );
+                            if (success) {
+                              setState(() => _isStopped = true);
+                              // Don't navigate back immediately, let user see the stopped state
+                            }
+                          }),
+                          icon: _isStopped
+                              ? const Icon(Icons.check_circle_rounded)
+                              : (isStopping
+                                  ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                  : const Icon(Icons.stop_rounded)),
+                          label: Text(_isStopped ? 'Trip has been stopped' : (isStopping ? 'Stopping...' : 'Stop trip')),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _isStopped ? Colors.green : Colors.redAccent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                  ],
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(

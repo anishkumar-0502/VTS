@@ -141,7 +141,7 @@ class RoutePoint {
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       order: (json['order'] as num?)?.toInt() ?? 0,
-      id: json['_id'] as String?,
+      id: json['stop_id'] as String?,
     );
   }
 
@@ -201,8 +201,8 @@ class RepeatDays {
 }
 
 class GettodaystripResponse {
-  final bool error; // Updated to match the response structure
-  final String message; // Message field
+  final bool error;
+  final String message;
   final List<scheduled_models.ScheduledTrip>? data;
 
   GettodaystripResponse({
@@ -211,7 +211,6 @@ class GettodaystripResponse {
     this.data,
   });
 
-  // Factory constructor for creating an instance from JSON
   factory GettodaystripResponse.fromJson(Map<String, dynamic> json) {
     List<scheduled_models.ScheduledTrip>? trips;
     if (json['data'] is List) {
@@ -222,9 +221,308 @@ class GettodaystripResponse {
               .toList();
     }
     return GettodaystripResponse(
-      error: json['error'] as bool, // Parse 'error' field
-      message: json['message'] as String, // Parse 'message' field
+      error: json['error'] as bool? ?? true,
+      message: json['message'] as String? ?? '',
       data: trips,
+    );
+  }
+}
+
+class DriverTripHistoryResponse {
+  final bool error;
+  final String message;
+  final List<DriverTripHistory>? data;
+
+  DriverTripHistoryResponse({
+    required this.error,
+    required this.message,
+    this.data,
+  });
+
+  factory DriverTripHistoryResponse.fromJson(Map<String, dynamic> json) {
+    List<DriverTripHistory>? trips;
+    if (json['data'] is List) {
+      trips =
+          (json['data'] as List)
+              .cast<Map<String, dynamic>>()
+              .map((t) => DriverTripHistory.fromJson(t))
+              .toList();
+    }
+    return DriverTripHistoryResponse(
+      error: json['error'] as bool? ?? true,
+      message: json['message'] as String? ?? '',
+      data: trips,
+    );
+  }
+}
+
+class DriverTripHistory {
+  final Location? startLocation;
+  final Location? endLocation;
+  final scheduled_models.VehicleData? vehicleId;
+  final String driverId;
+  final String operatorId;
+  final String? routeName;
+  final String? scheduledTripId;
+  final String startTime;
+  final String status;
+  final bool speedAlarmEnabled;
+  final int speedLimit;
+  final String tripId;
+  final List<dynamic> stops;
+  final List<dynamic> speedViolations;
+  final List<dynamic> routeDeviations;
+  final List<dynamic> passengers;
+  final List<scheduled_models.RoutePoint> routePoints;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  DriverTripHistory({
+    required this.startLocation,
+    required this.endLocation,
+    required this.vehicleId,
+    required this.driverId,
+    required this.operatorId,
+    required this.routeName,
+    required this.scheduledTripId,
+    required this.startTime,
+    required this.status,
+    required this.speedAlarmEnabled,
+    required this.speedLimit,
+    required this.tripId,
+    required this.stops,
+    required this.speedViolations,
+    required this.routeDeviations,
+    required this.passengers,
+    required this.routePoints,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory DriverTripHistory.fromJson(Map<String, dynamic> json) {
+    return DriverTripHistory(
+      startLocation:
+          json['start_location'] != null
+              ? Location.fromJson(json['start_location'] as Map<String, dynamic>)
+              : null,
+      endLocation:
+          json['end_location'] != null
+              ? Location.fromJson(json['end_location'] as Map<String, dynamic>)
+              : null,
+      vehicleId:
+          json['vehicle_id'] != null
+              ? scheduled_models.VehicleData.fromJson(
+                  json['vehicle_id'] as Map<String, dynamic>,
+                )
+              : null,
+      driverId: json['driver_id'] as String? ?? '',
+      operatorId: json['operator_id'] as String? ?? '',
+      routeName: json['route_name'] as String?,
+      scheduledTripId: json['scheduled_trip_id'] as String?,
+      startTime: json['start_time'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      speedAlarmEnabled: json['speed_alarm_enabled'] as bool? ?? false,
+      speedLimit: (json['speed_limit'] as num?)?.toInt() ?? 0,
+      tripId: json['trip_id'] as String? ?? '',
+      stops: List<dynamic>.from((json['stops'] as List?) ?? []),
+      speedViolations:
+          List<dynamic>.from((json['speed_violations'] as List?) ?? []),
+      routeDeviations:
+          List<dynamic>.from((json['route_deviations'] as List?) ?? []),
+      passengers: List<dynamic>.from((json['passengers'] as List?) ?? []),
+      routePoints:
+          (json['route_points'] as List?)
+                  ?.map(
+                    (e) => scheduled_models.RoutePoint.fromJson(
+                      e as Map<String, dynamic>,
+                    ),
+                  )
+                  .toList() ??
+              <scheduled_models.RoutePoint>[],
+      createdAt:
+          json['createdAt'] != null
+              ? DateTime.tryParse(json['createdAt'] as String)
+              : null,
+      updatedAt:
+          json['updatedAt'] != null
+              ? DateTime.tryParse(json['updatedAt'] as String)
+              : null,
+    );
+  }
+}
+
+class DriverTripDetailResponse {
+  final bool error;
+  final String message;
+  final DriverTripDetailData? data;
+
+  DriverTripDetailResponse({
+    required this.error,
+    required this.message,
+    this.data,
+  });
+
+  factory DriverTripDetailResponse.fromJson(Map<String, dynamic> json) {
+    return DriverTripDetailResponse(
+      error: json['error'] as bool? ?? true,
+      message: json['message'] as String? ?? '',
+      data:
+          json['data'] != null
+              ? DriverTripDetailData.fromJson(json['data'] as Map<String, dynamic>)
+              : null,
+    );
+  }
+}
+
+class DriverTripDetailData {
+  final DriverTripDetail? trip;
+  final DriverTripAnalytics? analytics;
+
+  DriverTripDetailData({
+    required this.trip,
+    required this.analytics,
+  });
+
+  factory DriverTripDetailData.fromJson(Map<String, dynamic> json) {
+    return DriverTripDetailData(
+      trip:
+          json['trip'] != null
+              ? DriverTripDetail.fromJson(json['trip'] as Map<String, dynamic>)
+              : null,
+      analytics:
+          json['analytics'] != null
+              ? DriverTripAnalytics.fromJson(json['analytics'] as Map<String, dynamic>)
+              : null,
+    );
+  }
+}
+
+class DriverTripDetail {
+  final Location? startLocation;
+  final Location? endLocation;
+  final scheduled_models.VehicleData? vehicleId;
+  final String driverId;
+  final String operatorId;
+  final String? routeName;
+  final String? scheduledTripId;
+  final String startTime;
+  final String status;
+  final bool speedAlarmEnabled;
+  final int speedLimit;
+  final String tripId;
+  final List<dynamic> stops;
+  final List<dynamic> speedViolations;
+  final List<dynamic> routeDeviations;
+  final List<dynamic> passengers;
+  final List<scheduled_models.RoutePoint> routePoints;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  DriverTripDetail({
+    required this.startLocation,
+    required this.endLocation,
+    required this.vehicleId,
+    required this.driverId,
+    required this.operatorId,
+    required this.routeName,
+    required this.scheduledTripId,
+    required this.startTime,
+    required this.status,
+    required this.speedAlarmEnabled,
+    required this.speedLimit,
+    required this.tripId,
+    required this.stops,
+    required this.speedViolations,
+    required this.routeDeviations,
+    required this.passengers,
+    required this.routePoints,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory DriverTripDetail.fromJson(Map<String, dynamic> json) {
+    return DriverTripDetail(
+      startLocation:
+          json['start_location'] != null
+              ? Location.fromJson(json['start_location'] as Map<String, dynamic>)
+              : null,
+      endLocation:
+          json['end_location'] != null
+              ? Location.fromJson(json['end_location'] as Map<String, dynamic>)
+              : null,
+      vehicleId:
+          json['vehicle_id'] != null
+              ? scheduled_models.VehicleData.fromJson(
+                  json['vehicle_id'] as Map<String, dynamic>,
+                )
+              : null,
+      driverId: json['driver_id'] as String? ?? '',
+      operatorId: json['operator_id'] as String? ?? '',
+      routeName: json['route_name'] as String?,
+      scheduledTripId: json['scheduled_trip_id'] as String?,
+      startTime: json['start_time'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      speedAlarmEnabled: json['speed_alarm_enabled'] as bool? ?? false,
+      speedLimit: (json['speed_limit'] as num?)?.toInt() ?? 0,
+      tripId: json['trip_id'] as String? ?? '',
+      stops: List<dynamic>.from((json['stops'] as List?) ?? []),
+      speedViolations:
+          List<dynamic>.from((json['speed_violations'] as List?) ?? []),
+      routeDeviations:
+          List<dynamic>.from((json['route_deviations'] as List?) ?? []),
+      passengers: List<dynamic>.from((json['passengers'] as List?) ?? []),
+      routePoints:
+          (json['route_points'] as List?)
+                  ?.map(
+                    (e) => scheduled_models.RoutePoint.fromJson(
+                      e as Map<String, dynamic>,
+                    ),
+                  )
+                  .toList() ??
+              <scheduled_models.RoutePoint>[],
+      createdAt:
+          json['createdAt'] != null
+              ? DateTime.tryParse(json['createdAt'] as String)
+              : null,
+      updatedAt:
+          json['updatedAt'] != null
+              ? DateTime.tryParse(json['updatedAt'] as String)
+              : null,
+    );
+  }
+}
+
+class DriverTripAnalytics {
+  final String tripId;
+  final String vehicleId;
+  final String driverId;
+  final String startTime;
+  final int speedViolationsCount;
+  final int routeDeviationsCount;
+  final int totalStops;
+  final int trackingPoints;
+
+  DriverTripAnalytics({
+    required this.tripId,
+    required this.vehicleId,
+    required this.driverId,
+    required this.startTime,
+    required this.speedViolationsCount,
+    required this.routeDeviationsCount,
+    required this.totalStops,
+    required this.trackingPoints,
+  });
+
+  factory DriverTripAnalytics.fromJson(Map<String, dynamic> json) {
+    return DriverTripAnalytics(
+      tripId: json['trip_id'] as String? ?? '',
+      vehicleId: json['vehicle_id'] as String? ?? '',
+      driverId: json['driver_id'] as String? ?? '',
+      startTime: json['start_time'] as String? ?? '',
+      speedViolationsCount: (json['speed_violations_count'] as num?)?.toInt() ?? 0,
+      routeDeviationsCount: (json['route_deviations_count'] as num?)?.toInt() ?? 0,
+      totalStops: (json['total_stops'] as num?)?.toInt() ?? 0,
+      trackingPoints: (json['tracking_points'] as num?)?.toInt() ?? 0,
     );
   }
 }

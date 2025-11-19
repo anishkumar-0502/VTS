@@ -42,6 +42,7 @@ class ScheduledTrip {
   final String? associatedTripId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final List<RoutePoint> routePoints;
 
   ScheduledTrip({
     required this.scheduledTripId,
@@ -59,6 +60,7 @@ class ScheduledTrip {
     this.associatedTripId,
     this.createdAt,
     this.updatedAt,
+    required this.routePoints,
   });
 
   factory ScheduledTrip.fromJson(Map<String, dynamic> json) {
@@ -100,6 +102,12 @@ class ScheduledTrip {
           json['updatedAt'] != null
               ? DateTime.tryParse(json['updatedAt'] as String)
               : null,
+      routePoints:
+          json['route_points'] != null
+              ? (json['route_points'] as List)
+                  .map((point) => RoutePoint.fromJson(point as Map<String, dynamic>))
+                  .toList()
+              : [],
     );
   }
 }
@@ -226,7 +234,7 @@ class RoutePoint {
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       order: (json['order'] as num?)?.toInt() ?? 0,
-      id: json['_id'] as String? ?? '',
+      id: json['stop_id'] as String? ?? '',
     );
   }
 }
@@ -316,6 +324,7 @@ class ActiveTrip {
   final String driverId;
   final String operatorId;
   final String? scheduledTripId;
+  final String routeName;
   final String startTime;
   final String status;
   final bool speedAlarmEnabled;
@@ -335,6 +344,7 @@ class ActiveTrip {
     required this.driverId,
     required this.operatorId,
     this.scheduledTripId,
+    required this.routeName,
     required this.startTime,
     required this.status,
     required this.speedAlarmEnabled,
@@ -356,6 +366,7 @@ class ActiveTrip {
       driverId: json['driver_id'] as String,
       operatorId: json['operator_id'] as String,
       scheduledTripId: json['scheduled_trip_id'] as String?,
+      routeName: json['route_name'] as String? ?? 'Active Route',
       startTime: json['start_time'] as String,
       status: json['status'] as String,
       speedAlarmEnabled: json['speed_alarm_enabled'] as bool,

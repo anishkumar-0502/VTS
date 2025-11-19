@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/scheduled_trip_model.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/controllers/scheduled_trips_controller.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/pages/trip_map_page.dart';
+import 'package:trackify_vts/services/open_route_service.dart';
 
 class ScheduledTripDetailsPage extends StatelessWidget {
   final ScheduledTrip trip;
@@ -53,8 +54,21 @@ class ScheduledTripDetailsPage extends StatelessWidget {
     );
   }
 
-  bool get _hasMapData =>
-      trip.startLocation != null && trip.endLocation != null;
+  bool get _hasMapData {
+    final stops = trip.vehicleId?.routePoints ?? [];
+    final hasStart =
+        (trip.startLocation != null &&
+            (trip.startLocation!.latitude != 0 ||
+                trip.startLocation!.longitude != 0)) ||
+        stops.isNotEmpty;
+    final hasEnd =
+        (trip.endLocation != null &&
+            (trip.endLocation!.latitude != 0 ||
+                trip.endLocation!.longitude != 0)) ||
+        stops.length >= 2 ||
+        (stops.isNotEmpty && hasStart);
+    return hasStart && hasEnd;
+  }
 
   Widget _buildHeader(BuildContext context) {
     return SizedBox(
@@ -100,8 +114,6 @@ class ScheduledTripDetailsPage extends StatelessWidget {
   }
 
   Widget _buildMapCard(BuildContext context) {
-    final markers = _buildMarkers();
-
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -118,65 +130,7 @@ class ScheduledTripDetailsPage extends StatelessWidget {
             height: 260,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  /// 🌍 Map Layer
-                  FlutterMap(
-                    options: MapOptions(
-                      initialCenter: LatLng(
-                        trip.startLocation!.latitude,
-                        trip.startLocation!.longitude,
-                      ),
-                      initialZoom: 12,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.trackify.driver',
-                      ),
-                      MarkerLayer(markers: markers),
-                    ],
-                  ),
-
-                  /// 🔍 Zoom-In Icon (bottom-right)
-                  Positioned(
-                    bottom: 12,
-                    right: 12,
-                    child: GestureDetector(
-                      onTap: () {
-                        Get.to(
-                          () => TripMapPage(trip: trip),
-                          transition: Transition.rightToLeft,
-                        );
-                      },
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            'assets/icons/zoom-in.png',
-                            width: 22,
-                            height: 22,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              child: _buildRouteMap(context),
             ),
           ),
         ],
@@ -184,21 +138,313 @@ class ScheduledTripDetailsPage extends StatelessWidget {
     );
   }
 
-  List<Marker> _buildMarkers() {
+  Widget _buildRouteMap(BuildContext context) {
+    final vehicle = trip.vehicleId;
+    final sortedStops = List<RoutePoint>.from(vehicle?.routePoints ?? [])
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final validStops = sortedStops.where((stop) {
+      return stop.latitude != 0 || stop.longitude != 0;
+    }).toList();
+
+    final startLocation = trip.startLocation;
+    final endLocation = trip.endLocation;
+    final standingLocation = vehicle?.standingLocation;
+
+    LatLng? startPoint;
+    String startInfo = '';
+
+    if (startLocation != null &&
+        (startLocation.latitude != 0 || startLocation.longitude != 0)) {
+      startPoint = LatLng(startLocation.latitude, startLocation.longitude);
+      startInfo = startLocation.address;
+    } else if (validStops.isNotEmpty) {
+      final firstStop = validStops.first;
+      startPoint = LatLng(firstStop.latitude, firstStop.longitude);
+      startInfo = firstStop.name;
+    } else if (standingLocation != null &&
+        (standingLocation.latitude != 0 || standingLocation.longitude != 0)) {
+      startPoint = LatLng(standingLocation.latitude, standingLocation.longitude);
+      startInfo = standingLocation.address;
+    }
+
+    LatLng? endPoint;
+    String endInfo = '';
+
+    if (endLocation != null &&
+        (endLocation.latitude != 0 || endLocation.longitude != 0)) {
+      endPoint = LatLng(endLocation.latitude, endLocation.longitude);
+      endInfo = endLocation.address;
+    } else if (validStops.isNotEmpty) {
+      final lastStop = validStops.last;
+      endPoint = LatLng(lastStop.latitude, lastStop.longitude);
+      endInfo = lastStop.name;
+    } else if (standingLocation != null &&
+        (standingLocation.latitude != 0 || standingLocation.longitude != 0)) {
+      endPoint = LatLng(standingLocation.latitude, standingLocation.longitude);
+      endInfo = standingLocation.address;
+    }
+
+    if (startPoint == null || endPoint == null) {
+      return const Center(child: Text('Route data unavailable'));
+    }
+
+    bool coordinatesEqual(LatLng first, LatLng second) {
+      return (first.latitude - second.latitude).abs() < 1e-6 &&
+          (first.longitude - second.longitude).abs() < 1e-6;
+    }
+
+    final middleStops = validStops.where((stop) {
+      final stopPoint = LatLng(stop.latitude, stop.longitude);
+      return !coordinatesEqual(stopPoint, startPoint!) &&
+          !coordinatesEqual(stopPoint, endPoint!);
+    }).toList();
+
+    final waypointChain = <LatLng>[
+      startPoint,
+      ...middleStops.map((stop) => LatLng(stop.latitude, stop.longitude)),
+      endPoint,
+    ];
+
+    final normalizedWaypoints = <LatLng>[];
+    for (final point in waypointChain) {
+      if (normalizedWaypoints.isEmpty ||
+          !coordinatesEqual(normalizedWaypoints.last, point)) {
+        normalizedWaypoints.add(point);
+      }
+    }
+
+    if (normalizedWaypoints.length < 2) {
+      return const Center(child: Text('Route data unavailable'));
+    }
+
+    final mapController = MapController();
+    final openRouteService = OpenRouteService(
+      "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjU1MDE2ODk0OTMwYjQ0YjViOGNjODMyOTYzYjI4NGZiIiwiaCI6Im11cm11cjY0In0=",
+    );
+
+    double currentZoom = 12;
+    List<LatLng> routePoints = List<LatLng>.from(normalizedWaypoints);
+    bool isFetchingRoute = false;
+    String? routeError;
+    bool hasRequestedRoute = false;
+
+    LatLng computeAverage(List<LatLng> points) {
+      final lat = points.fold<double>(0, (sum, value) => sum + value.latitude) /
+          points.length;
+      final lon = points.fold<double>(0, (sum, value) => sum + value.longitude) /
+          points.length;
+      return LatLng(lat, lon);
+    }
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        Future<void> loadRoute() async {
+          setState(() {
+            isFetchingRoute = true;
+            routeError = null;
+          });
+          try {
+            final fetchedRoute =
+                await openRouteService.getRouteThrough(normalizedWaypoints);
+            if (!context.mounted) {
+              return;
+            }
+            if (fetchedRoute.isEmpty) {
+              setState(() {
+                routeError = 'Route unavailable';
+                isFetchingRoute = false;
+                routePoints = List<LatLng>.from(normalizedWaypoints);
+              });
+              return;
+            }
+            final center = computeAverage(fetchedRoute);
+            mapController.move(center, currentZoom);
+            setState(() {
+              routePoints = fetchedRoute;
+              isFetchingRoute = false;
+            });
+          } catch (_) {
+            if (!context.mounted) {
+              return;
+            }
+            setState(() {
+              routeError = 'Unable to load route';
+              isFetchingRoute = false;
+              routePoints = List<LatLng>.from(normalizedWaypoints);
+            });
+          }
+        }
+
+        if (!hasRequestedRoute) {
+          hasRequestedRoute = true;
+          loadRoute();
+        }
+
+        void zoomIn() {
+          currentZoom = ((currentZoom + 1).clamp(2.0, 18.0)).toDouble();
+          mapController.move(mapController.camera.center, currentZoom);
+        }
+
+        void zoomOut() {
+          currentZoom = ((currentZoom - 1).clamp(2.0, 18.0)).toDouble();
+          mapController.move(mapController.camera.center, currentZoom);
+        }
+
+        return Stack(
+          children: [
+            FlutterMap(
+              mapController: mapController,
+              options: MapOptions(
+                initialCenter: normalizedWaypoints.first,
+                initialZoom: currentZoom,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.trackify.driver',
+                ),
+                if (routePoints.length > 1)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: routePoints,
+                        color: primaryColor,
+                        strokeWidth: 5,
+                      ),
+                    ],
+                  ),
+                MarkerLayer(
+                  markers: _buildMarkers(
+                    startPoint: startPoint!,
+                    startInfo: startInfo,
+                    endPoint: endPoint!,
+                    endInfo: endInfo,
+                    stops: validStops,
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: () {
+                  Get.to(
+                    () => TripMapPage(trip: trip),
+                    transition: Transition.rightToLeft,
+                  );
+                },
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.fullscreen, color: Colors.black87),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: Column(
+                children: [
+                  _ZoomButton(icon: Icons.add, onTap: zoomIn),
+                  const SizedBox(height: 10),
+                  _ZoomButton(icon: Icons.remove, onTap: zoomOut),
+                ],
+              ),
+            ),
+            if (isFetchingRoute)
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            if (routeError != null && !isFetchingRoute)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    routeError!,
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  List<Marker> _buildMarkers({
+    required LatLng startPoint,
+    required String startInfo,
+    required LatLng endPoint,
+    required String endInfo,
+    required List<RoutePoint> stops,
+  }) {
+    final startDescription = startInfo.isNotEmpty
+        ? startInfo
+        : '${startPoint.latitude.toStringAsFixed(4)}, ${startPoint.longitude.toStringAsFixed(4)}';
+    final endDescription = endInfo.isNotEmpty
+        ? endInfo
+        : '${endPoint.latitude.toStringAsFixed(4)}, ${endPoint.longitude.toStringAsFixed(4)}';
+
     final markers = <Marker>[
       Marker(
-        point: LatLng(
-          trip.startLocation!.latitude,
-          trip.startLocation!.longitude,
-        ),
+        point: startPoint,
         width: 40,
         height: 40,
         child: GestureDetector(
-          onTap:
-              () => _showMarkerInfo(
-                'Start Location',
-                trip.startLocation!.address,
-              ),
+          onTap: () => _showMarkerInfo('Start Location', startDescription),
           child: Column(
             children: [
               Container(
@@ -241,12 +487,11 @@ class ScheduledTripDetailsPage extends StatelessWidget {
         ),
       ),
       Marker(
-        point: LatLng(trip.endLocation!.latitude, trip.endLocation!.longitude),
+        point: endPoint,
         width: 40,
         height: 40,
         child: GestureDetector(
-          onTap:
-              () => _showMarkerInfo('End Location', trip.endLocation!.address),
+          onTap: () => _showMarkerInfo('End Location', endDescription),
           child: Column(
             children: [
               Container(
@@ -290,40 +535,52 @@ class ScheduledTripDetailsPage extends StatelessWidget {
       ),
     ];
 
-    if (trip.vehicleId?.routePoints != null) {
-      markers.addAll(
-        trip.vehicleId!.routePoints.map(
-          (stop) => Marker(
-            point: LatLng(stop.latitude, stop.longitude),
-            width: 40,
-            height: 40,
-            child: GestureDetector(
-              onTap:
-                  () => _showMarkerInfo(
-                    'Stop ${stop.order}: ${stop.name}',
-                    '${stop.latitude.toStringAsFixed(4)}, ${stop.longitude.toStringAsFixed(4)}',
+    final seen = <String>{
+      '${startPoint.latitude.toStringAsFixed(6)}_${startPoint.longitude.toStringAsFixed(6)}',
+      '${endPoint.latitude.toStringAsFixed(6)}_${endPoint.longitude.toStringAsFixed(6)}',
+    };
+
+    for (var index = 0; index < stops.length; index++) {
+      final stop = stops[index];
+      final key =
+          '${stop.latitude.toStringAsFixed(6)}_${stop.longitude.toStringAsFixed(6)}';
+      if (seen.contains(key)) {
+        continue;
+      }
+      seen.add(key);
+
+      final order = stop.order > 0 ? stop.order : index + 1;
+      final label = stop.name.isNotEmpty ? stop.name : 'Stop $order';
+      markers.add(
+        Marker(
+          point: LatLng(stop.latitude, stop.longitude),
+          width: 40,
+          height: 40,
+          child: GestureDetector(
+            onTap: () => _showMarkerInfo(
+              'Stop $order: $label',
+              '${stop.latitude.toStringAsFixed(4)}, ${stop.longitude.toStringAsFixed(4)}',
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 4,
                   ),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    '${stop.order}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  '$order',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -590,6 +847,40 @@ class ScheduledTripDetailsPage extends StatelessWidget {
   void _showMarkerInfo(String title, String description) {
     // This will be called when user taps on a marker
     // You can implement a toast or bottom sheet if needed
+  }
+}
+
+class _ZoomButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ZoomButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Icon(icon, color: Colors.black87),
+      ),
+    );
   }
 }
 

@@ -1,5 +1,5 @@
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:trackify_vts/driver_app/features/dashboard/data/url.dart';
@@ -81,5 +81,84 @@ class DashboardApicalls {
     }
   }
 
+  Future<Map<String, dynamic>> getDriverTrips(String token) async {
+    final url = Dashboardurl.driverTrips;
 
+    try {
+      final response = await http
+          .get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      )
+          .timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw TimeoutException(
+            408,
+            'Request timed out. Please try again.',
+          );
+        },
+      );
+
+      debugPrint('Driver trips Status Code: ${response.statusCode}');
+      debugPrint('Driver trips Body: ${response.body}');
+
+      return _handleResponse(response);
+    } on TimeoutException {
+      throw HttpException(408, 'Request timed out. Please try again.');
+    } on http.ClientException {
+      throw HttpException(
+        503,
+        'Unable to reach the server. \nPlease check your connection or try again later.',
+      );
+    } catch (e) {
+      debugPrint("Driver trips Error: $e");
+      throw HttpException(500, _getDefaultErrorMessage(500));
+    }
+  }
+
+  Future<Map<String, dynamic>> getTripDetail(
+    String token,
+    String tripId,
+  ) async {
+    final url = Dashboardurl.tripDetail(tripId);
+
+    try {
+      final response = await http
+          .get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      )
+          .timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw TimeoutException(
+            408,
+            'Request timed out. Please try again.',
+          );
+        },
+      );
+
+      debugPrint('Driver trip detail Status Code: ${response.statusCode}');
+      debugPrint('Driver trip detail Body: ${response.body}');
+
+      return _handleResponse(response);
+    } on TimeoutException {
+      throw HttpException(408, 'Request timed out. Please try again.');
+    } on http.ClientException {
+      throw HttpException(
+        503,
+        'Unable to reach the server. \nPlease check your connection or try again later.',
+      );
+    } catch (e) {
+      debugPrint("Driver trip detail Error: $e");
+      throw HttpException(500, _getDefaultErrorMessage(500));
+    }
+  }
 }

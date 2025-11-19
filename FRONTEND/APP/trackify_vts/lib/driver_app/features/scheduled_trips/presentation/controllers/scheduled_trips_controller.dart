@@ -8,7 +8,7 @@ import 'package:trackify_vts/utilities/widgets/status_banner.dart';
 
 class ScheduledTripsController extends GetxController {
   final ScheduledTripsRepository _repository = ScheduledTripsRepository();
-  final SessionController _sessionController = Get.find<SessionController>();
+  final SessionController _sessionController = Get.find<SessionController>(tag: 'driver');
 
   // Observable states
   var isLoading = false.obs;
@@ -94,7 +94,7 @@ class ScheduledTripsController extends GetxController {
     await fetchActiveTrip();
   }
 
-  Future<void> startTrip(String scheduledTripId) async {
+  Future<void> startTrip(String scheduledTripId, {VoidCallback? onSuccess}) async {
     final token = _sessionController.token.value;
     if (token.isEmpty) {
       showStatusBanner(
@@ -125,6 +125,7 @@ class ScheduledTripsController extends GetxController {
       currentActiveTripId.value =
           (response['data'] as Map<String, dynamic>?)?['trip_id']?.toString();
       await fetchScheduledTrips();
+      onSuccess?.call();
     } on HttpException catch (e) {
       showStatusBanner(e.message, Colors.red, Icons.error_outline);
     } catch (e) {
@@ -141,6 +142,7 @@ class ScheduledTripsController extends GetxController {
   Future<void> stopTrip({
     required String tripId,
     required Map<String, dynamic> payload,
+    VoidCallback? onSuccess,
   }) async {
     final token = _sessionController.token.value;
     if (token.isEmpty) {
@@ -172,6 +174,7 @@ class ScheduledTripsController extends GetxController {
       showStatusBanner(message, Colors.green, Icons.check_circle_outline);
       currentActiveTripId.value = null;
       await fetchScheduledTrips();
+      onSuccess?.call();
     } on HttpException catch (e) {
       showStatusBanner(e.message, Colors.red, Icons.error_outline);
     } catch (e) {

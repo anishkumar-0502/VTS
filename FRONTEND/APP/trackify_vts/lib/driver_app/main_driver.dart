@@ -10,7 +10,7 @@ import 'features/splashscreen/presentation/pages/splash_screen_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  Get.put(SessionController(), permanent: true);
+  Get.put(SessionController(), permanent: true, tag: 'driver');
   Get.put(DriverLoginPageController(), permanent: true);
   GoogleFonts.config.allowRuntimeFetching = false;
   runApp(const DriverApp());

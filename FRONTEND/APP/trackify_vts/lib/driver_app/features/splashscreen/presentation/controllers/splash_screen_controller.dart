@@ -5,7 +5,7 @@ import '../../../auth/presentation/pages/login_page.dart';
 import '../../../dashboard/presentation/pages/driver_home_page.dart';
 
 class DriverSplashScreenController extends GetxController {
-  final SessionController _sessionController = Get.find<SessionController>();
+  final SessionController _sessionController = Get.find<SessionController>(tag: 'driver');
 
   @override
   void onReady() {

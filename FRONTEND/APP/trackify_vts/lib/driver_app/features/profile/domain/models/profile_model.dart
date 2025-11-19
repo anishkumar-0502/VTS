@@ -71,7 +71,7 @@ class ProfileData {
 
   factory ProfileData.fromJson(Map<String, dynamic> json) {
     return ProfileData(
-      id: json['_id'] as String,
+      id: json['user_id'] as String,
       name: json['name'] as String,
       email: json['email'] as String,
       phoneNumber: json['phone_number'] as int,
@@ -81,15 +81,21 @@ class ProfileData {
       assignedVehicleId: json['assigned_vehicle_id'] as String?,
       licenseNumber: json['license_number'] as String,
       licenseExpiry: json['license_expiry'] as String,
-      parentId: json['parent_id'] as String?,
+      parentId: json['end_user_id'] as String?,
       fcmTokens:
           json['fcm_tokens'] != null
               ? List<String>.from(json['fcm_tokens'])
               : const [],
       userId: json['user_id'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-      lastLogin: DateTime.parse(json['last_login'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.now(),
+      lastLogin: json['last_login'] != null
+          ? DateTime.parse(json['last_login'] as String)
+          : DateTime.now(),
       roleName: json['role_name'] as String,
       operatorDetails:
           json['operator_details'] != null
@@ -218,19 +224,19 @@ class OperatorDetails {
 
   factory OperatorDetails.fromJson(Map<String, dynamic> json) {
     return OperatorDetails(
-      id: json['_id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      phone: json['phone'] as String,
+      id: json['_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
       companyName: json['company_name'] as String?,
-      registrationNumber: json['registration_number'] as String,
-      address: json['address'] as String,
-      city: json['city'] as String,
-      state: json['state'] as String,
-      postalCode: json['postal_code'] as String,
-      country: json['country'] as String,
-      status: json['status'] as bool,
-      subscriptionPlan: json['subscription_plan'] as String,
+      registrationNumber: json['registration_number'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+      city: json['city'] as String? ?? '',
+      state: json['state'] as String? ?? '',
+      postalCode: json['postal_code'] as String? ?? '',
+      country: json['country'] as String? ?? '',
+      status: json['status'] as bool? ?? false,
+      subscriptionPlan: json['subscription_plan'] as String? ?? '',
       totalVehicles:
           int.tryParse((json['total_vehicles']?.toString()) ?? '0') ?? 0,
       totalDrivers:
@@ -304,19 +310,23 @@ class DriverProfile {
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) {
     return DriverProfile(
-      id: json['_id'] as String,
-      userId: json['user_id'] as String,
-      operatorId: json['operator_id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      phoneNumber: json['phone_number'] as int,
+      id: json['_id'] as String? ?? '',
+      userId: json['user_id'] as String? ?? '',
+      operatorId: json['operator_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      phoneNumber: json['phone_number'] as int? ?? 0,
       assignedVehicleId: json['assigned_vehicle_id'] as String?,
-      licenseNumber: json['license_number'] as String,
-      licenseExpiry: json['license_expiry'] as String,
-      status: json['status'] as bool,
-      driverId: json['driver_id'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      licenseNumber: json['license_number'] as String? ?? '',
+      licenseExpiry: json['license_expiry'] as String? ?? '',
+      status: json['status'] as bool? ?? false,
+      driverId: json['driver_id'] as String? ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.now(),
     );
   }
 
@@ -386,28 +396,37 @@ class AssignedVehicle {
 
   factory AssignedVehicle.fromJson(Map<String, dynamic> json) {
     return AssignedVehicle(
-      id: json['_id'] as String,
-      vehicleNumber: json['vehicle_number'] as String,
-      operatorId: json['operator_id'] as String,
-      vehicleType: json['vehicle_type'] as String,
-      routeName: json['route_name'] as String,
-      assignedDriverId: json['assigned_driver_id'] as String,
-      capacity: (json['capacity'] as num).toInt(),
-      currentStatus: json['current_status'] as String,
-      status: json['status'] as bool,
-      speed: (json['speed'] as num).toInt(),
+      id: json['_id'] as String? ?? '',
+      vehicleNumber: json['vehicle_number'] as String? ?? '',
+      operatorId: json['operator_id'] as String? ?? '',
+      vehicleType: json['vehicle_type'] as String? ?? '',
+      routeName: json['route_name'] as String? ?? '',
+      assignedDriverId: json['assigned_driver_id'] as String? ?? '',
+      capacity: (json['capacity'] as num?)?.toInt() ?? 0,
+      currentStatus: json['current_status'] as String? ?? '',
+      status: json['status'] as bool? ?? false,
+      speed: (json['speed'] as num?)?.toInt() ?? 0,
       routePoints:
-          (json['route_points'] as List)
-              .map((e) => RoutePoint.fromJson(e))
-              .toList(),
-      standingLocation: StandingLocation.fromJson(json['standing_location']),
-      registrationNumber: json['registration_number'] as String,
-      chassisNumber: json['chassis_number'] as String,
-      color: json['color'] as String,
-      seatingCapacity: (json['seating_capacity'] as num).toInt(),
-      vehicleId: json['vehicle_id'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+          json['route_points'] != null
+              ? (json['route_points'] as List)
+                  .map((e) => RoutePoint.fromJson(e as Map<String, dynamic>))
+                  .toList()
+              : [],
+      standingLocation:
+          json['standing_location'] != null
+              ? StandingLocation.fromJson(json['standing_location'] as Map<String, dynamic>)
+              : StandingLocation(name: '', latitude: 0.0, longitude: 0.0),
+      registrationNumber: json['registration_number'] as String? ?? '',
+      chassisNumber: json['chassis_number'] as String? ?? '',
+      color: json['color'] as String? ?? '',
+      seatingCapacity: (json['seating_capacity'] as num?)?.toInt() ?? 0,
+      vehicleId: json['vehicle_id'] as String? ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.now(),
       assignedDeviceId: json['assigned_device_id'] as String?,
     );
   }

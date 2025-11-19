@@ -16,7 +16,7 @@ class DriverLoginPageController extends GetxController {
   final RxBool isLoading = false.obs;
 
   final AuthRepository _authRepository = AuthRepository();
-  final SessionController _sessionController = Get.find<SessionController>();
+  final SessionController _sessionController = Get.find<SessionController>(tag: 'driver');
 
   @override
   void onClose() {

@@ -209,6 +209,7 @@ class ScheduledTripsAPICalls {
     required Map<String, dynamic> body,
   }) async {
     final url = ScheduledTripsUrl.endTrip(tripId);
+    print("active trip id : $tripId ");
 
     try {
       final response = await http

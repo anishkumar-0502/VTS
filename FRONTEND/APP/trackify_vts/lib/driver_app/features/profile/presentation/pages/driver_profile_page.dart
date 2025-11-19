@@ -159,48 +159,48 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  GestureDetector(
-                                    onTap: () async {
-                                      try {
-                                        final picked = await ImagePicker()
-                                            .pickImage(
-                                              source: ImageSource.gallery,
-                                            );
-                                        if (picked != null) {
-                                          final bytes =
-                                              await picked.readAsBytes();
-                                          imageBase64 = base64Encode(bytes);
-                                          setState(
-                                            () => hasChanged = _hasAnyChange(),
-                                          );
-                                        }
-                                      } catch (e) {
-                                        showStatusBanner(
-                                          'Failed to pick image',
-                                          Colors.redAccent,
-                                          Icons.error_outline,
-                                        );
-                                      }
-                                    },
-                                    child: CircleAvatar(
-                                      radius: 40,
-                                      backgroundColor: Colors.grey[300],
-                                      backgroundImage:
-                                          imageBase64 != null
-                                              ? MemoryImage(
-                                                base64Decode(imageBase64!),
-                                              )
-                                              : null,
-                                      child:
-                                          imageBase64 == null
-                                              ? const Icon(
-                                                Icons.camera_alt,
-                                                color: Colors.black54,
-                                              )
-                                              : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
+                                  // GestureDetector(
+                                  //   onTap: () async {
+                                  //     try {
+                                  //       final picked = await ImagePicker()
+                                  //           .pickImage(
+                                  //             source: ImageSource.gallery,
+                                  //           );
+                                  //       if (picked != null) {
+                                  //         final bytes =
+                                  //             await picked.readAsBytes();
+                                  //         imageBase64 = base64Encode(bytes);
+                                  //         setState(
+                                  //           () => hasChanged = _hasAnyChange(),
+                                  //         );
+                                  //       }
+                                  //     } catch (e) {
+                                  //       showStatusBanner(
+                                  //         'Failed to pick image',
+                                  //         Colors.redAccent,
+                                  //         Icons.error_outline,
+                                  //       );
+                                  //     }
+                                  //   },
+                                  //   child: CircleAvatar(
+                                  //     radius: 40,
+                                  //     backgroundColor: Colors.grey[300],
+                                  //     backgroundImage:
+                                  //         imageBase64 != null
+                                  //             ? MemoryImage(
+                                  //               base64Decode(imageBase64!),
+                                  //             )
+                                  //             : null,
+                                  //     child:
+                                  //         imageBase64 == null
+                                  //             ? const Icon(
+                                  //               Icons.camera_alt,
+                                  //               color: Colors.black54,
+                                  //             )
+                                  //             : null,
+                                  //   ),
+                                  // ),
+                                  // const SizedBox(height: 12),
                                   TextField(
                                     controller: nameController,
                                     onChanged:
@@ -346,17 +346,17 @@ class DriverProfilePage extends GetView<DriverProfileController> {
       ),
       child: Column(
         children: [
-          _buildInfoRow('Role', data.roleName),
+          // _buildInfoRow('Role', data.roleName),
+          const SizedBox(height: 12),
+          _buildInfoRow('License Number', data.licenseNumber),
+          const SizedBox(height: 12),
+          _buildInfoRow('Phone', data.phoneNumber.toString()),
           const SizedBox(height: 12),
           _buildInfoRow(
             'Status',
             data.status ? 'Active' : 'Inactive',
             valueColor: data.status ? Colors.green : Colors.red,
           ),
-          const SizedBox(height: 12),
-          _buildInfoRow('License Number', data.licenseNumber),
-          const SizedBox(height: 12),
-          _buildInfoRow('Phone', data.phoneNumber.toString()),
         ],
       ),
     );
@@ -512,7 +512,7 @@ class DriverProfilePage extends GetView<DriverProfileController> {
       {'icon': Icons.lock, 'title': 'Change Password'},
       {'icon': Icons.business, 'title': 'Associated Operators'},
       {'icon': Icons.directions_bus, 'title': 'Assigned Vehicle'},
-      {'icon': Icons.badge, 'title': 'Driver Profile'},
+      // {'icon': Icons.badge, 'title': 'Driver Profile'},
     ];
 
     return Padding(
@@ -549,7 +549,9 @@ class DriverProfilePage extends GetView<DriverProfileController> {
               onTap: () {
                 switch (index) {
                   case 0:
-                    Get.to(() => PersonalDetailsPage(data: data));
+                    Get.to(() => PersonalDetailsPage(data: data),transition: Transition.rightToLeft,   // Slide animation
+                      duration: const Duration(milliseconds: 350),  // Smooth speed
+                      curve: Curves.easeInOut, );
                     break;
                   case 1:
                     _showChangePasswordDialog(context);
@@ -558,12 +560,19 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                     Get.to(
                       () => AssociatedOperatorsPage(
                         operators: data.associatedOperators,
+
                       ),
+                      transition: Transition.leftToRight,   // Slide animation
+                      duration: const Duration(milliseconds: 350),  // Smooth speed
+                      curve: Curves.easeInOut,
                     );
                     break;
                   case 3:
                     Get.to(
                       () => AssignedVehiclePage(vehicle: data.assignedVehicle),
+                      transition: Transition.rightToLeft,   // Slide animation
+                      duration: const Duration(milliseconds: 350),  // Smooth speed
+                      curve: Curves.easeInOut,
                     );
                     break;
                   case 4:
