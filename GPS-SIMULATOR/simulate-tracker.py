@@ -176,7 +176,8 @@ def extract_point(payload: Optional[Dict[str, Any]]) -> Optional[Tuple[float, fl
 
 def build_trip_route(
     trip: Dict[str, Any],
-    default_speed_kmh: float
+    default_speed_kmh: float,
+    google_maps_service: Optional['GoogleMapsService'] = None
 ) -> Tuple[List[float], List[float], List[float], List[Tuple[float, float]], float, str, str]:
     points: List[Tuple[float, float]] = []
     start_point = extract_point(trip.get("start_location"))
@@ -193,23 +194,76 @@ def build_trip_route(
         points.append(end_point)
     if len(points) < 2:
         raise ValueError("Scheduled trip has insufficient route points")
+
     speed_kmh = default_speed_kmh if default_speed_kmh and default_speed_kmh > 0 else 30.0
     speed_ms = speed_kmh / 3.6
-    distances: List[float] = []
-    speeds: List[float] = []
-    durations: List[float] = []
-    total_distance = 0.0
-    for i in range(1, len(points)):
-        lat1, lng1 = points[i - 1]
-        lat2, lng2 = points[i]
-        segment_distance = haversine_distance(lat1, lng1, lat2, lng2)
-        if segment_distance <= 0:
-            segment_distance = 1.0
-        distances.append(segment_distance)
-        total_distance += segment_distance
-        speeds.append(speed_ms)
-        segment_duration = segment_distance / speed_ms if speed_ms > 0 else 1.0
-        durations.append(segment_duration)
+
+    # If Google Maps service is available, use actual road routing
+    if google_maps_service:
+        all_coordinates: List[Tuple[float, float]] = []
+        distances: List[float] = []
+        speeds: List[float] = []
+        durations: List[float] = []
+        total_distance = 0.0
+
+        for i in range(1, len(points)):
+            lat1, lng1 = points[i - 1]
+            lat2, lng2 = points[i]
+
+            try:
+                # Get actual road route from Google Maps
+                from_location = {"geometry": {"coordinates": [lng1, lat1]}}
+                to_location = {"geometry": {"coordinates": [lng2, lat2]}}
+                segment_distance, segment_duration, segment_speeds, segment_distances, segment_durations, segment_coords = google_maps_service.get_directions(from_location, to_location)
+
+                # Add coordinates (skip the first point if it's already in all_coordinates)
+                if not all_coordinates:
+                    all_coordinates.extend(segment_coords)
+                else:
+                    all_coordinates.extend(segment_coords[1:])  # Skip first point to avoid duplication
+
+                # Use actual road distances and durations
+                distances.extend(segment_distances)
+                speeds.extend([speed_ms] * len(segment_distances))  # Use constant speed for now
+                durations.extend([d / speed_ms for d in segment_distances])  # Calculate duration based on distance and speed
+                total_distance += segment_distance
+
+            except Exception as e:
+                print(f"Warning: Failed to get road route for segment {i}, falling back to straight line: {e}")
+                # Fallback to straight line if Google Maps fails
+                segment_distance = haversine_distance(lat1, lng1, lat2, lng2)
+                if segment_distance <= 0:
+                    segment_distance = 1.0
+                distances.append(segment_distance)
+                total_distance += segment_distance
+                speeds.append(speed_ms)
+                segment_duration = segment_distance / speed_ms if speed_ms > 0 else 1.0
+                durations.append(segment_duration)
+
+                # Add straight line coordinates
+                if not all_coordinates:
+                    all_coordinates.append((lat1, lng1))
+                all_coordinates.append((lat2, lng2))
+
+        points = all_coordinates  # Replace simple points with detailed route coordinates
+    else:
+        # Original logic when no Google Maps service
+        distances: List[float] = []
+        speeds: List[float] = []
+        durations: List[float] = []
+        total_distance = 0.0
+        for i in range(1, len(points)):
+            lat1, lng1 = points[i - 1]
+            lat2, lng2 = points[i]
+            segment_distance = haversine_distance(lat1, lng1, lat2, lng2)
+            if segment_distance <= 0:
+                segment_distance = 1.0
+            distances.append(segment_distance)
+            total_distance += segment_distance
+            speeds.append(speed_ms)
+            segment_duration = segment_distance / speed_ms if speed_ms > 0 else 1.0
+            durations.append(segment_duration)
+
     start_label = trip.get("start_location", {}).get("address") or trip.get("route_name") or "Route start"
     end_label = trip.get("end_location", {}).get("address") or trip.get("route_name") or "Route end"
     return speeds, distances, durations, points, total_distance, start_label, end_label
@@ -243,8 +297,80 @@ def fetch_trip_context(
     device_id: Optional[str],
     trip_period: Optional[str],
     day_name: Optional[str],
-    default_speed_kmh: float
+    default_speed_kmh: float,
+    google_maps_api_key: Optional[str] = None
 ) -> Tuple[List[float], List[float], List[float], List[Tuple[float, float]], float, str, str, str, Dict[str, Any]]:
+    # Handle hardcoded routes for specific devices
+    if device_id == "simulated-tracker-2":
+        # Hardcoded route for simulated-tracker-2
+        hardcoded_trip = {
+            "scheduled_trip_id": "SCHTRP-6c8569d8-7e79-4c93-b839-4a5d58d31009",
+            "vehicle_id": "VEH-39034b8a-c5ab-48c2-aa5a-79eabb0537d1",
+            "driver_id": "DRV-1a7f8a01-772b-49d2-b360-3e19ba89cdcb",
+            "operator_id": "OPR-224a2bd1-953a-4833-88c6-c15bf0f26982",
+            "route_name": "bengaluru - Coimbatore",
+            "scheduled_start_time": "03:30",
+            "trip_period": "afternoon",
+            "start_location": {
+                "latitude": 12.916494421168125,
+                "longitude": 77.60000329835279,
+                "address": "Outdid office BNG"
+            },
+            "end_location": {
+                "latitude": 11.000961645049285,
+                "longitude": 76.95891336034785,
+                "address": "Outdid office  Coimbatore"
+            },
+            "route_points": [
+                {
+                    "stop_id": "STP-b998b3e4-eb59-4e87-a266-91e38a29205f",
+                    "name": "Dharmapuri",
+                    "latitude": 12.264863532756566,
+                    "longitude": 78.06329403199442,
+                    "sequence": 1,
+                    "order": 1,
+                    "dwell_target_seconds": 120,
+                    "sla_arrival_buffer_seconds": 12,
+                    "geofence_radius_meters": 100
+                },
+                {
+                    "stop_id": "STP-76148b9b-ab87-4c2b-af0d-c8701687ebe5",
+                    "name": "Salem",
+                    "latitude": 11.641476279218743,
+                    "longitude": 78.10725652300468,
+                    "sequence": 2,
+                    "order": 2,
+                    "dwell_target_seconds": 120,
+                    "sla_arrival_buffer_seconds": 12,
+                    "geofence_radius_meters": 100
+                },
+                {
+                    "stop_id": "STP-109316ec-7bdc-4c77-b260-87f92561da55",
+                    "name": "Erode",
+                    "latitude": 11.296934440596322,
+                    "longitude": 77.56871600812902,
+                    "sequence": 3,
+                    "order": 3,
+                    "dwell_target_seconds": 123,
+                    "sla_arrival_buffer_seconds": 12,
+                    "geofence_radius_meters": 100
+                }
+            ]
+        }
+        speeds, distances, durations, points, total_distance, start_label, end_label = build_trip_route(hardcoded_trip, default_speed_kmh)
+        tracker_id = "simulated-tracker-2"
+        summary = {
+            "scheduled_trip_id": hardcoded_trip.get("scheduled_trip_id"),
+            "vehicle_id": hardcoded_trip.get("vehicle_id"),
+            "driver_id": hardcoded_trip.get("driver_id"),
+            "route_name": hardcoded_trip.get("route_name"),
+            "scheduled_start_time": hardcoded_trip.get("scheduled_start_time"),
+            "trip_period": hardcoded_trip.get("trip_period"),
+            "device_id": "simulated-tracker-2",
+            "imei": "865432109876543"
+        }
+        return speeds, distances, durations, points, total_distance, start_label, end_label, tracker_id, summary
+
     client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
     try:
         db = resolve_database(client, mongo_db)

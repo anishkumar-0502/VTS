@@ -114,24 +114,9 @@ router.post('/end-users/bulk-import', bulkOperationLimiter, upload.single('file'
 
 // ========== MANAGE DEVICES ========== COMPLETED
 router.get('/devices/list', OperatorController.getDevices);
-router.get(
-    '/devices/:deviceId/view',
-    entityIdParamRule('deviceId', ENTITY_PREFIXES.DEVICE, 'Device ID'),
-    validationErrorHandler,
-    OperatorController.getDeviceById
-);
-router.put(
-    '/devices/:deviceId/update',
-    entityIdParamRule('deviceId', ENTITY_PREFIXES.DEVICE, 'Device ID'),
-    validationErrorHandler,
-    OperatorController.updateDevice
-);
-router.put(
-    '/devices/:deviceId/deactivate',
-    entityIdParamRule('deviceId', ENTITY_PREFIXES.DEVICE, 'Device ID'),
-    validationErrorHandler,
-    OperatorController.deactivateDevice
-);
+router.get('/devices/:deviceId/view', OperatorController.getDeviceById);
+router.put('/devices/:deviceId/update', OperatorController.updateDevice);
+router.put('/devices/:deviceId/deactivate', OperatorController.deactivateDevice);
 
 // ========== MANAGE VEHICLES ==========  COMPLETED
 router.post(

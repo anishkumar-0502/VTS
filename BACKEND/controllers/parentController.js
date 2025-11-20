@@ -1,11 +1,13 @@
-const TrackingData = require('../models/TrackingData');
 const OnDemandTrip = require('../models/Trip');
+const Trip = require('../models/Trip');
 const NotificationService = require('../services/notificationService');
 const UserService = require('../services/userService');
 const { CustomError } = require('../middlewares/errorHandler');
 const logger = require('../utils/logger');
 const User = require('../models/User');
+const EndUser = require('../models/EndUser');
 const Vehicle = require('../models/Vehicle');
+const TrackingData = require('../models/TrackingData');
 const { sendNotification } = require('../services/firebaseService');
 
 class ParentController {
@@ -17,17 +19,29 @@ class ParentController {
         throw new CustomError('Child ID is required', 400);
       }
 
-      const child = await User.findOne({ user_id: childId });
-      if (!child) {
-        throw new CustomError('Child not found', 404);
-      }
+      const result = await EndUser.aggregate([
+        { $match: { end_user_id: childId } },
+        { $lookup: { from: 'vehicles', localField: 'assigned_vehicle_id', foreignField: 'vehicle_id', as: 'vehicle' } },
+        { $unwind: { path: '$vehicle', preserveNullAndEmptyArrays: false } },
+        { $match: { 'vehicle.current_trip_id': { $exists: true, $ne: null } } },
+        { $lookup: { from: 'trips', localField: 'vehicle.current_trip_id', foreignField: 'trip_id', as: 'trip' } },
+        { $unwind: { path: '$trip', preserveNullAndEmptyArrays: false } },
+        { $lookup: { from: 'users', localField: 'trip.driver_id', foreignField: 'user_id', as: 'driver' } },
+        { $unwind: { path: '$driver', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'trackingdatas', localField: 'vehicle.vehicle_id', foreignField: 'vehicle_id', as: 'tracking', pipeline: [{ $sort: { timestamp: -1 } }, { $limit: 1 }] } },
+        { $unwind: { path: '$tracking', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          trip_id: '$trip.trip_id',
+          vehicle: { vehicle_id: '$vehicle.vehicle_id', vehicle_number: '$vehicle.vehicle_number', current_status: '$vehicle.current_status', latitude: '$vehicle.latitude', longitude: '$vehicle.longitude', speed: '$vehicle.speed' },
+          driver: { name: '$driver.name', phone: '$driver.phone_number' },
+          selected_start: '$trip.selected_start_point',
+          selected_end: '$trip.selected_end_point',
+          current_location: '$tracking',
+          status: '$trip.status'
+        } }
+      ]);
 
-      const trip = await Trip.findOne({
-        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
-        passengers: { $elemMatch: { user_id: childId } }
-      }).populate('vehicle_id').populate('driver_id');
-
-      if (!trip) {
+      if (!result.length) {
         res.status(200).json({
           error: false,
           message: 'No active trip found',
@@ -36,26 +50,10 @@ class ParentController {
         return;
       }
 
-      const latestTracking = await TrackingData.findOne({
-        vehicle_id: trip.vehicle_id._id
-      }).sort({ timestamp: -1 });
-
       res.status(200).json({
         error: false,
         message: 'Current trip retrieved successfully',
-        data: {
-          trip_id: trip._id,
-          vehicle: trip.vehicle_id,
-          driver: {
-            name: trip.driver_id.name,
-            phone: trip.driver_id.phone_number
-          },
-          route_points: trip.vehicle_id.route_points,
-          selected_start: trip.selected_start_point,
-          selected_end: trip.selected_end_point,
-          current_location: latestTracking,
-          status: trip.status
-        }
+        data: result[0]
       });
     } catch (error) {
       next(error);
@@ -70,20 +68,31 @@ class ParentController {
         throw new CustomError('Trip ID and child ID are required', 400);
       }
 
-      const trip = await Trip.findById(tripId);
-      if (!trip) {
-        throw new CustomError('Trip not found', 404);
-      }
+      const result = await EndUser.aggregate([
+        { $match: { end_user_id: childId } },
+        { $lookup: { from: 'trips', let: { userId: '$user_id' }, pipeline: [
+          { $match: { $expr: { $and: [
+            { $eq: ['$trip_id', tripId] },
+            { $anyElementTrue: { $map: { input: '$passengers', as: 'p', in: { $eq: ['$$p.user_id', '$$userId'] } } } }
+          ]} } }
+        ], as: 'trip' } },
+        { $unwind: { path: '$trip', preserveNullAndEmptyArrays: false } },
+        { $addFields: { passenger: { $arrayElemAt: [
+          { $filter: { input: '$trip.passengers', as: 'p', cond: { $eq: ['$$p.user_id', '$user_id'] } } },
+          0
+        ] } } },
+        { $match: { passenger: { $exists: true, $ne: null } } },
+        { $project: { passenger: 1 } }
+      ]);
 
-      const passenger = trip.passengers.find(p => p.user_id.toString() === childId);
-      if (!passenger) {
+      if (!result.length) {
         throw new CustomError('Child not found in this trip', 404);
       }
 
       res.status(200).json({
         error: false,
         message: 'Passenger status retrieved successfully',
-        data: passenger
+        data: result[0].passenger
       });
     } catch (error) {
       next(error);
@@ -98,30 +107,37 @@ class ParentController {
         throw new CustomError('Trip ID and child ID are required', 400);
       }
 
-      const trip = await Trip.findById(tripId).populate('vehicle_id');
-      if (!trip) {
-        throw new CustomError('Trip not found', 404);
-      }
+      const result = await EndUser.aggregate([
+        { $match: { end_user_id: childId } },
+        { $lookup: { from: 'trips', localField: 'user_id', foreignField: 'trip_id', as: 'trip' } },
+        { $unwind: { path: '$trip', preserveNullAndEmptyArrays: false } },
+        { $match: { 'trip.trip_id': tripId } },
+        { $addFields: { passenger: { $arrayElemAt: [
+          { $filter: { input: '$trip.passengers', as: 'p', cond: { $eq: ['$$p.user_id', '$user_id'] } } },
+          0
+        ] } } },
+        { $match: { passenger: { $exists: true, $ne: null } } },
+        { $lookup: { from: 'trackingdatas', localField: 'trip.vehicle_id', foreignField: 'vehicle_id', as: 'tracking', pipeline: [{ $sort: { timestamp: -1 } }, { $limit: 1 }] } },
+        { $unwind: { path: '$tracking', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          passenger: 1,
+          tracking: 1,
+          nextStop: '$passenger.drop_stop',
+          currentLat: '$tracking.latitude',
+          currentLng: '$tracking.longitude',
+          speed: { $ifNull: ['$tracking.speed', 30] }
+        } }
+      ]);
 
-      const passenger = trip.passengers.find(p => p.user_id.toString() === childId);
-      if (!passenger) {
+      if (!result.length) {
         throw new CustomError('Child not found in this trip', 404);
       }
 
-      if (passenger.picked_up && !passenger.dropped) {
-        const nextStop = passenger.drop_stop;
-        const latestTracking = await TrackingData.findOne({
-          vehicle_id: trip.vehicle_id._id
-        }).sort({ timestamp: -1 });
+      const { passenger, tracking, nextStop, currentLat, currentLng, speed } = result[0];
 
-        const distance = latestTracking ? calculateDistance(
-          latestTracking.latitude,
-          latestTracking.longitude,
-          nextStop.latitude,
-          nextStop.longitude
-        ) : 0;
-
-        const eta = distance > 0 ? Math.round(distance / (latestTracking?.speed || 30) * 60) : 0;
+      if (passenger.picked_up && !passenger.dropped && nextStop) {
+        const distance = currentLat && currentLng ? calculateDistance(currentLat, currentLng, nextStop.latitude, nextStop.longitude) : 0;
+        const eta = distance > 0 ? Math.round(distance / speed * 60) : 0;
 
         res.status(200).json({
           error: false,
@@ -130,7 +146,7 @@ class ParentController {
             stop: nextStop,
             distance_km: distance,
             eta_minutes: eta,
-            current_location: latestTracking
+            current_location: tracking || null
           }
         });
       } else {
@@ -153,7 +169,7 @@ class ParentController {
         throw new CustomError('Trip ID and child ID are required', 400);
       }
 
-      const trip = await Trip.findById(tripId);
+      const trip = await Trip.findOne({ trip_id: tripId });
       if (!trip) {
         throw new CustomError('Trip not found', 404);
       }
@@ -205,7 +221,7 @@ class ParentController {
         throw new CustomError('Trip ID and child ID are required', 400);
       }
 
-      const trip = await Trip.findById(tripId);
+      const trip = await Trip.findOne({ trip_id: tripId });
       if (!trip) {
         throw new CustomError('Trip not found', 404);
       }
@@ -257,17 +273,29 @@ class ParentController {
         throw new CustomError('Child ID is required', 400);
       }
 
-      const child = await User.findOne({ user_id: childId });
-      if (!child) {
-        throw new CustomError('Child not found', 404);
-      }
+      const result = await EndUser.aggregate([
+        { $match: { end_user_id: childId } },
+        { $lookup: { from: 'users', localField: 'user_id', foreignField: 'user_id', as: 'childUser' } },
+        { $unwind: { path: '$childUser', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'trips', let: { userId: '$user_id' }, pipeline: [
+          { $match: { $expr: { $and: [
+            { $in: ['$status', ['active', 'en_route', 'at_stop', 'delayed']] },
+            { $anyElementTrue: { $map: { input: '$passengers', as: 'p', in: { $eq: ['$$p.user_id', '$$userId'] } } } }
+          ]} } }
+        ], as: 'trip' } },
+        { $unwind: { path: '$trip', preserveNullAndEmptyArrays: false } },
+        { $lookup: { from: 'vehicles', localField: 'trip.vehicle_id', foreignField: 'vehicle_id', as: 'vehicle' } },
+        { $unwind: { path: '$vehicle', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'trackingdatas', localField: 'trip.vehicle_id', foreignField: 'vehicle_id', as: 'tracking', pipeline: [{ $sort: { timestamp: -1 } }, { $limit: 1 }] } },
+        { $unwind: { path: '$tracking', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          child: { name: { $ifNull: ['$childUser.name', 'Unknown'] }, phone_number: '$childUser.phone_number' },
+          vehicle: { vehicle_number: '$vehicle.vehicle_number', current_status: '$vehicle.current_status', speed: { $ifNull: ['$tracking.speed', 0] } },
+          location: '$tracking'
+        } }
+      ]);
 
-      const activeTrip = await Trip.findOne({
-        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
-        passengers: { $elemMatch: { user_id: childId } }
-      }).populate('vehicle_id');
-
-      if (!activeTrip) {
+      if (!result.length) {
         res.status(200).json({
           error: false,
           message: 'No active trip',
@@ -276,25 +304,10 @@ class ParentController {
         return;
       }
 
-      const latestTracking = await TrackingData.findOne({
-        vehicle_id: activeTrip.vehicle_id._id
-      }).sort({ timestamp: -1 });
-
       res.status(200).json({
         error: false,
         message: 'Child location retrieved successfully',
-        data: {
-          child: {
-            name: child.name,
-            phone_number: child.phone_number
-          },
-          vehicle: {
-            vehicle_number: activeTrip.vehicle_id.vehicle_number,
-            current_status: activeTrip.vehicle_id.current_status,
-            speed: latestTracking?.speed || 0
-          },
-          location: latestTracking
-        }
+        data: result[0]
       });
     } catch (error) {
       next(error);
@@ -313,7 +326,7 @@ class ParentController {
 
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       const trackingData = await TrackingData.find({
-        vehicle_id: vehicle._id,
+        vehicle_id: vehicle.vehicle_id,
         timestamp: { $gte: startDate }
       }).sort({ timestamp: -1 });
 
@@ -334,7 +347,7 @@ class ParentController {
       const trip = await Trip.findOne({
         driver_id: childId,
         status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
-      }).populate('vehicle_id');
+      });
 
       if (!trip) {
         res.status(200).json({
@@ -463,7 +476,7 @@ class ParentController {
         throw new CustomError('Trip ID and child ID are required', 400);
       }
 
-      const trip = await Trip.findById(tripId).populate('driver_id');
+      const trip = await Trip.findOne({ trip_id: tripId });
       if (!trip) {
         throw new CustomError('Trip not found', 404);
       }
@@ -500,7 +513,7 @@ class ParentController {
         throw new CustomError('Trip ID and child ID are required', 400);
       }
 
-      const trip = await Trip.findById(tripId).populate('driver_id');
+      const trip = await Trip.findOne({ trip_id: tripId });
       if (!trip) {
         throw new CustomError('Trip not found', 404);
       }
@@ -570,7 +583,7 @@ class ParentController {
         updatePayload.sos_contact = sos_contact;
       }
 
-      const updatedParent = await UserService.updateUser(req.user.id, updatePayload);
+      const updatedParent = await UserService.updateUser(req.user.user_id, updatePayload);
 
       res.status(200).json({
         error: false,
@@ -715,7 +728,7 @@ class ParentController {
         throw new CustomError('Trip ID, child ID, and location are required', 400);
       }
 
-      const trip = await Trip.findById(tripId);
+      const trip = await Trip.findOne({ trip_id: tripId });
       if (!trip) {
         throw new CustomError('Trip not found', 404);
       }

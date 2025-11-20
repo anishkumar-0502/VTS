@@ -68,4 +68,7 @@ router.post('/audit-logs/clear', clearAuditLogs);
 
 router.get('/stats/system', SuperadminController.getSystemStats);
 
+// ========== DATA CLEANUP ==========
+router.post('/cleanup/data', SuperadminController.cleanupData);
+
 module.exports = router;

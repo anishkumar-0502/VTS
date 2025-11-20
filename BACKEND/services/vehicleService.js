@@ -135,19 +135,7 @@ class VehicleService {
     }
   }
 
-  static async addRoutePoint(vehicleId, routePoint) {
-    try {
-      const vehicle = await Vehicle.findByIdAndUpdate(
-        vehicleId,
-        { $push: { route_points: routePoint } },
-        { new: true }
-      );
-      return vehicle;
-    } catch (error) {
-      logger.loggerError(`Error adding route point: ${error.message}`);
-      throw error;
-    }
-  }
+
 
   static async deleteVehicle(vehicleId) {
     try {

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Device = require('../../models/Device');
 const Vehicle = require('../../models/Vehicle');
 const TrackingData = require('../../models/TrackingData');
+const ScheduledTrip = require('../../models/ScheduledTrip');
 const logger = require('../../utils/logger');
 const { generateEntityId } = require('../../utils/uuidUtils');
 
@@ -170,6 +171,8 @@ class TelemetryHandler {
       const hdop = TelemetryHandler.toNumber(payload.hdop) ?? 0;
       const assignedVehicleId = device.assigned_vehicle_id || null;
       let vehicleNumber = payload.vehicle_number || payload.vehicleNumber || trackerId;
+      let routeData = null;
+
       if (assignedVehicleId) {
         const vehicleDoc = await Vehicle.findOne({ vehicle_id: assignedVehicleId })
           .select('vehicle_number vehicle_id')
@@ -178,6 +181,26 @@ class TelemetryHandler {
           vehicleNumber = vehicleDoc.vehicle_number;
         } else {
           vehicleNumber = assignedVehicleId;
+        }
+
+        // Fetch active scheduled trip for route data
+        const scheduledTrip = await ScheduledTrip.findOne({
+          vehicle_id: assignedVehicleId,
+          is_active: true,
+          status: { $in: ['pending', 'in-progress'] }
+        })
+        .select('route_name start_location end_location route_points scheduled_start_time trip_period')
+        .lean();
+
+        if (scheduledTrip) {
+          routeData = {
+            route_name: scheduledTrip.route_name,
+            start_location: scheduledTrip.start_location,
+            end_location: scheduledTrip.end_location,
+            route_points: scheduledTrip.route_points,
+            scheduled_start_time: scheduledTrip.scheduled_start_time,
+            trip_period: scheduledTrip.trip_period
+          };
         }
       }
       const trackingRecord = await TrackingData.create({
@@ -231,7 +254,7 @@ class TelemetryHandler {
         lng: longitude,
         speed
       });
-      return {
+      const response = {
         message: `Location updated for tracker ${trackerId}`,
         coordinates: {
           latitude,
@@ -239,6 +262,13 @@ class TelemetryHandler {
         },
         tracking_id: trackingRecord.tracking_data_id
       };
+
+      // Include route data if available
+      if (routeData) {
+        response.route = routeData;
+      }
+
+      return response;
     } catch (error) {
       logger.loggerError(`Location update error: ${error.message}`);
       throw error;

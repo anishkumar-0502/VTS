@@ -29,7 +29,6 @@ class SuperadminController {
         activeDevices,
         alertsByType,
         operatorStats,
-        routeStats,
         maintenanceSummaryResult,
         upcomingMaintenance,
         liveVehicleDocs,
@@ -82,29 +81,6 @@ class SuperadminController {
           },
           { $sort: { activeVehicles: -1, totalVehicles: -1 } },
           { $limit: 6 }
-        ]),
-        Vehicle.aggregate([
-          {
-            $match: { route_name: { $nin: [null, ''] } }
-          },
-          {
-            $group: {
-              _id: '$route_name',
-              vehicleCount: { $sum: 1 },
-              activeVehicles: { $sum: { $cond: [{ $eq: ['$current_status', 'active'] }, 1, 0] } },
-              issueVehicles: { $sum: { $cond: [{ $in: ['$current_status', ['maintenance', 'offline']] }, 1, 0] } },
-              avgSpeed: { $avg: { $ifNull: ['$speed', 0] } },
-              stopCount: {
-                $max: {
-                  $cond: [
-                    { $isArray: '$route_points' },
-                    { $size: '$route_points' },
-                    0
-                  ]
-                }
-              }
-            }
-          }
         ]),
         Vehicle.aggregate([
           {
@@ -309,19 +285,19 @@ class SuperadminController {
       };
 
       const routeSummary = {
-        totalRoutes: routeStats.length,
-        activeRoutes: routeStats.filter((route) => (route.activeVehicles || 0) > 0).length,
-        routesWithIssues: routeStats.filter((route) => (route.issueVehicles || 0) > 0).length,
-        averageRouteSpeed: routeStats.length
+        totalRoutes: operatorStats.length,
+        activeRoutes: operatorStats.filter((route) => (route.activeVehicles || 0) > 0).length,
+        routesWithIssues: operatorStats.filter((route) => (route.issueVehicles || 0) > 0).length,
+        averageRouteSpeed: operatorStats.length
           ? Number(
               (
-                routeStats.reduce((sum, route) => sum + (route.avgSpeed || 0), 0) / routeStats.length
+                operatorStats.reduce((sum, route) => sum + (route.avgSpeed || 0), 0) / operatorStats.length
               ).toFixed(2)
             )
           : 0
       };
 
-      const slowRoutes = routeStats
+      const slowRoutes = operatorStats
         .slice()
         .sort((a, b) => (a.avgSpeed || 0) - (b.avgSpeed || 0))
         .slice(0, 5)
@@ -765,164 +741,70 @@ class SuperadminController {
   static async getAllUsers(req, res, next) {
     try {
       const { role_id, operator_id, status } = req.query;
-      const query = {};
-      if (role_id) query.role_id = parseInt(role_id);
-      if (operator_id) query.operator_id = operator_id;
-      if (status !== undefined) query.status = status === 'true';
+      const matchStage = {};
+      if (role_id) matchStage.role_id = parseInt(role_id);
+      if (operator_id) matchStage.operator_id = operator_id;
+      if (status !== undefined) matchStage.status = status === 'true';
 
-      const users = await User.find(query).lean();
-
-      if (!users.length) {
-        return res.status(200).json({
-          error: false,
-          message: 'Users retrieved successfully',
-          data: []
-        });
-      }
-
-      const operatorIds = users
-        .map((user) => user.operator_id)
-        .filter((id, index, array) => id && array.indexOf(id) === index);
-
-      const assignedVehicleIds = users
-        .map((user) => user.assigned_vehicle_id)
-        .filter((id, index, array) => id && array.indexOf(id) === index);
-
-      const driverUserIds = users
-        .filter((user) => user.role_id === 3)
-        .map((user) => user.user_id);
-
-      const endUserUserIds = users
-        .filter((user) => user.role_id === 4)
-        .map((user) => user.user_id);
-
-      const operatorRecords = operatorIds.length
-        ? await Operator.find({ operator_id: { $in: operatorIds } })
-          .select('operator_id name company_name email phone status city state country')
-          .lean()
-        : [];
-
-      const vehicleRecords = assignedVehicleIds.length
-        ? await Vehicle.find({ vehicle_id: { $in: assignedVehicleIds } })
-          .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids operator_id')
-          .lean()
-        : [];
-
-      const vehicleDriverIds = vehicleRecords
-        .map((vehicle) => vehicle.assigned_driver_id)
-        .filter((id, index, array) => id && array.indexOf(id) === index);
-
-      const vehicleEndUserIds = vehicleRecords
-        .flatMap((vehicle) => Array.isArray(vehicle.end_user_ids) ? vehicle.end_user_ids : [])
-        .filter((id, index, array) => id && array.indexOf(id) === index);
-
-      const vehicleEndUserProfiles = vehicleEndUserIds.length
-        ? await EndUser.find({ end_user_id: { $in: vehicleEndUserIds } }).lean()
-        : [];
-
-      const allDriverUserIdSet = new Set([...driverUserIds, ...vehicleDriverIds]);
-      const allEndUserUserIdSet = new Set([
-        ...endUserUserIds,
-        ...vehicleEndUserProfiles.map((profile) => profile.user_id).filter(Boolean)
-      ]);
-
-      const driverUsers = allDriverUserIdSet.size
-        ? await User.find({ user_id: { $in: Array.from(allDriverUserIdSet) } })
-          .select('user_id name email phone_number assigned_vehicle_id status operator_id')
-          .lean()
-        : [];
-
-      const driverProfiles = allDriverUserIdSet.size
-        ? await Driver.find({ user_id: { $in: Array.from(allDriverUserIdSet) } })
-          .select('driver_id user_id assigned_vehicle_id license_number license_expiry status')
-          .lean()
-        : [];
-
-      const endUserProfiles = allEndUserUserIdSet.size
-        ? await EndUser.find({ user_id: { $in: Array.from(allEndUserUserIdSet) } }).lean()
-        : [];
-
-      const endUserUsers = allEndUserUserIdSet.size
-        ? await User.find({ user_id: { $in: Array.from(allEndUserUserIdSet) } })
-          .select('user_id name email phone_number assigned_vehicle_id status operator_id')
-          .lean()
-        : [];
-
-      const operatorMap = new Map(operatorRecords.map((operator) => [operator.operator_id, operator]));
-      const vehicleMap = new Map(vehicleRecords.map((vehicle) => [vehicle.vehicle_id, vehicle]));
-      const driverUserMap = new Map(driverUsers.map((user) => [user.user_id, user]));
-      const driverProfileMap = new Map(driverProfiles.map((profile) => [profile.user_id, profile]));
-      const endUserProfileByUserId = new Map(endUserProfiles.map((profile) => [profile.user_id, profile]));
-      const endUserProfileByEndUserId = new Map(
-        [...vehicleEndUserProfiles, ...endUserProfiles].map((profile) => [profile.end_user_id, profile])
-      );
-      const endUserUserMap = new Map(endUserUsers.map((user) => [user.user_id, user]));
-
-      const formattedVehicleCache = new Map();
-
-      const formatVehicle = (vehicleId) => {
-        if (!vehicleId) {
-          return null;
-        }
-        if (formattedVehicleCache.has(vehicleId)) {
-          return formattedVehicleCache.get(vehicleId);
-        }
-        const vehicle = vehicleMap.get(vehicleId);
-        if (!vehicle) {
-          formattedVehicleCache.set(vehicleId, null);
-          return null;
-        }
-        const driverDetails = vehicle.assigned_driver_id ? driverUserMap.get(vehicle.assigned_driver_id) || null : null;
-        const driverProfile = driverDetails ? driverProfileMap.get(driverDetails.user_id) || null : null;
-        const formattedEndUsers = Array.isArray(vehicle.end_user_ids)
-          ? vehicle.end_user_ids
-            .map((endUserId) => {
-              const profile = endUserProfileByEndUserId.get(endUserId);
-              if (!profile) {
-                return null;
-              }
-              const userRecord = profile.user_id ? endUserUserMap.get(profile.user_id) || null : null;
-              return {
-                end_user_id: profile.end_user_id,
-                user_id: profile.user_id,
-                name: userRecord ? userRecord.name : null,
-                email: userRecord ? userRecord.email : null,
-                phone_number: userRecord ? userRecord.phone_number : null,
-                status: profile.status,
-                pickup_location: profile.pickup_location,
-                dropoff_location: profile.dropoff_location
-              };
-            })
-            .filter(Boolean)
-          : [];
-
-        const formattedVehicle = {
-          ...vehicle,
-          driver: driverDetails
-            ? {
-              ...driverDetails,
-              driver_profile: driverProfile || null
+      const data = await User.aggregate([
+        { $match: matchStage },
+        { $lookup: { from: 'operators', localField: 'operator_id', foreignField: 'operator_id', as: 'operator' } },
+        { $unwind: { path: '$operator', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'drivers', localField: 'user_id', foreignField: 'user_id', as: 'driver_profile' } },
+        { $unwind: { path: '$driver_profile', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'endusers', localField: 'user_id', foreignField: 'user_id', as: 'end_user_profile' } },
+        { $unwind: { path: '$end_user_profile', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'vehicles', localField: 'assigned_vehicle_id', foreignField: 'vehicle_id', as: 'assigned_vehicle' } },
+        { $unwind: { path: '$assigned_vehicle', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'users', localField: 'assigned_vehicle.assigned_driver_id', foreignField: 'user_id', as: 'vehicle_driver' } },
+        { $unwind: { path: '$vehicle_driver', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'drivers', localField: 'vehicle_driver.user_id', foreignField: 'user_id', as: 'vehicle_driver_profile' } },
+        { $unwind: { path: '$vehicle_driver_profile', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          user_id: 1,
+          email: 1,
+          name: 1,
+          phone_number: 1,
+          operator_id: 1,
+          role_id: 1,
+          assigned_vehicle_id: 1,
+          status: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          operator: { $ifNull: ['$operator', null] },
+          driver_profile: { $cond: [{ $eq: ['$role_id', 3] }, { $ifNull: ['$driver_profile', null] }, null] },
+          end_user_profile: { $cond: [{ $eq: ['$role_id', 4] }, { $ifNull: ['$end_user_profile', null] }, null] },
+          end_user_reference: { $cond: [{ $eq: ['$role_id', 4] }, '$end_user_profile.end_user_id', null] },
+          assigned_vehicle: { $cond: [
+            { $eq: ['$assigned_vehicle_id', null] },
+            null,
+            {
+              vehicle_id: '$assigned_vehicle.vehicle_id',
+              vehicle_number: '$assigned_vehicle.vehicle_number',
+              vehicle_type: '$assigned_vehicle.vehicle_type',
+              capacity: '$assigned_vehicle.capacity',
+              current_status: '$assigned_vehicle.current_status',
+              assigned_driver_id: '$assigned_vehicle.assigned_driver_id',
+              end_user_ids: '$assigned_vehicle.end_user_ids',
+              operator_id: '$assigned_vehicle.operator_id',
+              driver: { $cond: [
+                { $eq: ['$assigned_vehicle.assigned_driver_id', null] },
+                null,
+                {
+                  user_id: '$vehicle_driver.user_id',
+                  name: '$vehicle_driver.name',
+                  email: '$vehicle_driver.email',
+                  phone_number: '$vehicle_driver.phone_number',
+                  assigned_vehicle_id: '$vehicle_driver.assigned_vehicle_id',
+                  status: '$vehicle_driver.status',
+                  operator_id: '$vehicle_driver.operator_id',
+                  driver_profile: { $ifNull: ['$vehicle_driver_profile', null] }
+                }
+              ] }
             }
-            : null,
-          end_users: formattedEndUsers
-        };
-
-        formattedVehicleCache.set(vehicleId, formattedVehicle);
-        return formattedVehicle;
-      };
-
-      const data = users.map((user) => {
-        const driverProfile = user.role_id === 3 ? driverProfileMap.get(user.user_id) || null : null;
-        const endUserProfile = user.role_id === 4 ? endUserProfileByUserId.get(user.user_id) || null : null;
-        return {
-          ...user,
-          operator: user.operator_id ? operatorMap.get(user.operator_id) || null : null,
-          driver_profile: driverProfile,
-          end_user_profile: endUserProfile,
-          end_user_reference: endUserProfile?.end_user_id || null,
-          assigned_vehicle: formatVehicle(user.assigned_vehicle_id)
-        };
-      });
+          ] }
+        } }
+      ]);
 
       res.status(200).json({
         error: false,
@@ -951,7 +833,7 @@ class SuperadminController {
 
       if (user.assigned_vehicle_id) {
         assignedVehicle = await Vehicle.findOne({ vehicle_id: user.assigned_vehicle_id })
-          .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids operator_id')
+          .select('vehicle_id vehicle_number vehicle_type capacity current_status assigned_driver_id end_user_ids operator_id')
           .lean();
 
         if (assignedVehicle?.assigned_driver_id) {
@@ -1108,11 +990,34 @@ class SuperadminController {
 
   static async getAllDevices(req, res, next) {
     try {
-      const devices = await Device.find();
+      const devicesWithVehicles = await Device.aggregate([
+        { $lookup: { from: 'vehicles', localField: 'assigned_vehicle_id', foreignField: 'vehicle_id', as: 'vehicle_details' } },
+        { $unwind: { path: '$vehicle_details', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          device_id: 1,
+          imei: 1,
+          device_type: 1,
+          status: 1,
+          assigned_operator_id: 1,
+          assigned_vehicle_id: 1,
+          battery_level: 1,
+          firmware_version: 1,
+          sim_number: 1,
+          last_signal: 1,
+          last_location: 1,
+          last_speed: 1,
+          last_course: 1,
+          module_model: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          vehicle_details: { $cond: [{ $eq: ['$assigned_vehicle_id', null] }, null, '$vehicle_details'] }
+        } }
+      ]);
+
       res.status(200).json({
         error: false,
         message: 'Devices retrieved successfully',
-        data: devices
+        data: devicesWithVehicles
       });
     } catch (error) {
       next(error);
@@ -1121,15 +1026,39 @@ class SuperadminController {
 
   static async getDeviceById(req, res, next) {
     try {
-      const device = await Device.findOne({ device_id: req.params.deviceId });
-      if (!device) {
+      const result = await Device.aggregate([
+        { $match: { device_id: req.params.deviceId } },
+        { $lookup: { from: 'vehicles', localField: 'assigned_vehicle_id', foreignField: 'vehicle_id', as: 'vehicle_details' } },
+        { $unwind: { path: '$vehicle_details', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          device_id: 1,
+          imei: 1,
+          device_type: 1,
+          status: 1,
+          assigned_operator_id: 1,
+          assigned_vehicle_id: 1,
+          battery_level: 1,
+          firmware_version: 1,
+          sim_number: 1,
+          last_signal: 1,
+          last_location: 1,
+          last_speed: 1,
+          last_course: 1,
+          module_model: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          vehicle_details: { $cond: [{ $eq: ['$assigned_vehicle_id', null] }, null, '$vehicle_details'] }
+        } }
+      ]);
+
+      if (!result.length) {
         throw new CustomError('Device not found', 404);
       }
 
       res.status(200).json({
         error: false,
         message: 'Device retrieved successfully',
-        data: device
+        data: result[0]
       });
     } catch (error) {
       next(error);
@@ -1511,6 +1440,42 @@ class SuperadminController {
           totalVehicles,
           activeDevices,
           activeVehicles
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async cleanupData(req, res, next) {
+    try {
+      const { daysOld = 30 } = req.body;
+      const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
+
+      // Delete old tracking data
+      const trackingDeleted = await TrackingData.deleteMany({
+        timestamp: { $lt: cutoffDate }
+      });
+
+      // Delete old trip histories (keep last 90 days)
+      const tripCutoffDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const TripHistory = require('../models/TripHistory');
+      const tripHistoryDeleted = await TripHistory.deleteMany({
+        completed_date: { $lt: tripCutoffDate }
+      });
+
+      // Delete old notifications (keep last 30 days)
+      const notificationDeleted = await Notification.deleteMany({
+        created_at: { $lt: cutoffDate }
+      });
+
+      res.status(200).json({
+        error: false,
+        message: 'Data cleanup completed successfully',
+        data: {
+          trackingDataDeleted: trackingDeleted.deletedCount,
+          tripHistoryDeleted: tripHistoryDeleted.deletedCount,
+          notificationsDeleted: notificationDeleted.deletedCount
         }
       });
     } catch (error) {

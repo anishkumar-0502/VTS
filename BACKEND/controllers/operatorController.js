@@ -358,7 +358,7 @@ class OperatorController {
 
       const vehicles = vehicleIds.length
         ? await Vehicle.find({ vehicle_id: { $in: vehicleIds } })
-          .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids')
+          .select('vehicle_id vehicle_number vehicle_type capacity current_status assigned_driver_id end_user_ids')
           .lean()
         : [];
 
@@ -463,7 +463,7 @@ class OperatorController {
       const vehicleRecords = vehicleIdSet.size
         ? await Vehicle.find({ vehicle_id: { $in: Array.from(vehicleIdSet) } })
             .select(
-              'vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids'
+              'vehicle_id vehicle_number vehicle_type capacity current_status assigned_driver_id end_user_ids'
             )
             .lean()
         : [];
@@ -587,31 +587,30 @@ class OperatorController {
   static async getDrivers(req, res, next) {
     try {
       const operator_id = req.user.operator_id || req.user.user_id;
-      const drivers = await User.find({ operator_id, role_id: 3, status: true }).lean();
-      const driverProfiles = await Driver.find({ operator_id }).lean();
-
-      const profileMap = new Map();
-      driverProfiles.forEach((profile) => {
-        profileMap.set(profile.user_id, profile);
-      });
-
-      const assignedVehicleIds = drivers
-        .map((driver) => driver.assigned_vehicle_id)
-        .filter((id, index, array) => id && array.indexOf(id) === index);
-
-      const vehicleRecords = assignedVehicleIds.length
-        ? await Vehicle.find({ vehicle_id: { $in: assignedVehicleIds } })
-          .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids')
-          .lean()
-        : [];
-
-      const vehicleMap = new Map(vehicleRecords.map((vehicle) => [vehicle.vehicle_id, vehicle]));
-
-      const data = drivers.map((driver) => ({
-        ...driver,
-        driver_profile: profileMap.get(driver.user_id) || null,
-        assigned_vehicle: driver.assigned_vehicle_id ? vehicleMap.get(driver.assigned_vehicle_id) || null : null
-      }));
+      
+      const data = await User.aggregate([
+        { $match: { operator_id, role_id: 3, status: true } },
+        { $lookup: { from: 'drivers', localField: 'user_id', foreignField: 'user_id', as: 'driver_profile' } },
+        { $unwind: { path: '$driver_profile', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'vehicles', localField: 'assigned_vehicle_id', foreignField: 'vehicle_id', as: 'assigned_vehicle' } },
+        { $unwind: { path: '$assigned_vehicle', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          user_id: 1,
+          email: 1,
+          name: 1,
+          phone_number: 1,
+          operator_id: 1,
+          role_id: 1,
+          assigned_vehicle_id: 1,
+          status: 1,
+          driver_profile: { $ifNull: ['$driver_profile', null] },
+          assigned_vehicle: { $cond: [
+            { $eq: ['$assigned_vehicle_id', null] },
+            null,
+            { vehicle_id: '$assigned_vehicle.vehicle_id', vehicle_number: '$assigned_vehicle.vehicle_number', vehicle_type: '$assigned_vehicle.vehicle_type', capacity: '$assigned_vehicle.capacity', current_status: '$assigned_vehicle.current_status', assigned_driver_id: '$assigned_vehicle.assigned_driver_id', end_user_ids: '$assigned_vehicle.end_user_ids' }
+          ] }
+        } }
+      ]);
 
       res.status(200).json({
         error: false,
@@ -642,7 +641,7 @@ class OperatorController {
 
       if (driver.assigned_vehicle_id) {
         assignedVehicle = await Vehicle.findOne({ vehicle_id: driver.assigned_vehicle_id, operator_id })
-          .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids')
+          .select('vehicle_id vehicle_number vehicle_type capacity current_status assigned_driver_id end_user_ids')
           .lean();
       }
 
@@ -886,71 +885,56 @@ class OperatorController {
   static async getEndUsers(req, res, next) {
     try {
       const operator_id = req.user.operator_id || req.user.user_id;
-      const [userRecords, endUserProfiles] = await Promise.all([
-        User.find({ operator_id, role_id: 4, status: true }).lean(),
-        EndUser.find({ operator_id, status: true }).lean()
+      
+      const data = await User.aggregate([
+        { $match: { operator_id, role_id: 4, status: true } },
+        { $lookup: { from: 'endusers', localField: 'user_id', foreignField: 'user_id', as: 'end_user_profile' } },
+        { $unwind: { path: '$end_user_profile', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'vehicles', localField: 'assigned_vehicle_id', foreignField: 'vehicle_id', as: 'assigned_vehicle' } },
+        { $unwind: { path: '$assigned_vehicle', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'users', localField: 'assigned_vehicle.assigned_driver_id', foreignField: 'user_id', as: 'driver_user' } },
+        { $unwind: { path: '$driver_user', preserveNullAndEmptyArrays: true } },
+        { $lookup: { from: 'drivers', localField: 'driver_user.user_id', foreignField: 'user_id', as: 'driver_profile' } },
+        { $unwind: { path: '$driver_profile', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          user_id: 1,
+          email: 1,
+          name: 1,
+          phone_number: 1,
+          operator_id: 1,
+          role_id: 1,
+          assigned_vehicle_id: 1,
+          status: 1,
+          end_user_profile: { $ifNull: ['$end_user_profile', null] },
+          end_user_reference: '$end_user_profile.end_user_id',
+          assigned_vehicle: { $cond: [
+            { $eq: ['$assigned_vehicle_id', null] },
+            null,
+            {
+              vehicle_id: '$assigned_vehicle.vehicle_id',
+              vehicle_number: '$assigned_vehicle.vehicle_number',
+              vehicle_type: '$assigned_vehicle.vehicle_type',
+              capacity: '$assigned_vehicle.capacity',
+              current_status: '$assigned_vehicle.current_status',
+              assigned_driver_id: '$assigned_vehicle.assigned_driver_id',
+              end_user_ids: '$assigned_vehicle.end_user_ids',
+              driver: { $cond: [
+                { $eq: ['$assigned_vehicle.assigned_driver_id', null] },
+                null,
+                {
+                  user_id: '$driver_user.user_id',
+                  name: '$driver_user.name',
+                  email: '$driver_user.email',
+                  phone_number: '$driver_user.phone_number',
+                  assigned_vehicle_id: '$driver_user.assigned_vehicle_id',
+                  status: '$driver_user.status',
+                  driver_profile: { $ifNull: ['$driver_profile', null] }
+                }
+              ] }
+            }
+          ] }
+        } }
       ]);
-
-      const profileMap = new Map();
-      endUserProfiles.forEach((profile) => {
-        profileMap.set(profile.user_id, profile);
-      });
-
-      const assignedVehicleIds = userRecords
-        .map((record) => record.assigned_vehicle_id)
-        .filter((id, index, array) => id && array.indexOf(id) === index);
-
-      const vehicleRecords = assignedVehicleIds.length
-        ? await Vehicle.find({ vehicle_id: { $in: assignedVehicleIds } })
-          .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids')
-          .lean()
-        : [];
-
-      const vehicleMap = new Map(vehicleRecords.map((vehicle) => [vehicle.vehicle_id, vehicle]));
-
-      const driverIds = vehicleRecords
-        .map((vehicle) => vehicle.assigned_driver_id)
-        .filter((id, index, array) => id && array.indexOf(id) === index);
-
-      const driverUsers = driverIds.length
-        ? await User.find({ user_id: { $in: driverIds }, role_id: 3 })
-          .select('user_id name email phone_number assigned_vehicle_id status')
-          .lean()
-        : [];
-
-      const driverProfiles = driverIds.length
-        ? await Driver.find({ user_id: { $in: driverIds }, operator_id })
-          .select('driver_id user_id assigned_vehicle_id license_number license_expiry status')
-          .lean()
-        : [];
-
-      const driverUserMap = new Map(driverUsers.map((user) => [user.user_id, user]));
-      const driverProfileMap = new Map(driverProfiles.map((profile) => [profile.user_id, profile]));
-
-      const data = userRecords.map((record) => {
-        const profile = profileMap.get(record.user_id) || null;
-        const assignedVehicle = record.assigned_vehicle_id
-          ? vehicleMap.get(record.assigned_vehicle_id) || null
-          : null;
-
-        if (assignedVehicle?.assigned_driver_id) {
-          const driverUser = driverUserMap.get(assignedVehicle.assigned_driver_id) || null;
-          if (driverUser) {
-            const driverProfile = driverProfileMap.get(assignedVehicle.assigned_driver_id) || null;
-            assignedVehicle.driver = {
-              ...driverUser,
-              driver_profile: driverProfile
-            };
-          }
-        }
-
-        return {
-          ...record,
-          end_user_profile: profile ? profile.toObject ? profile.toObject() : profile : null,
-          end_user_reference: profile?.end_user_id || null,
-          assigned_vehicle: assignedVehicle
-        };
-      });
 
       res.status(200).json({
         error: false,
@@ -1226,7 +1210,7 @@ class OperatorController {
 
       if (vehicleIds.length) {
         const vehicles = await Vehicle.find({ vehicle_id: { $in: vehicleIds } })
-          .select('vehicle_id vehicle_number vehicle_type route_name assigned_driver_id assigned_device_id')
+          .select('vehicle_id vehicle_number vehicle_type assigned_driver_id assigned_device_id')
           .lean();
 
         vehicles.forEach((vehicle) => {
@@ -1293,7 +1277,7 @@ class OperatorController {
 
       if (device.assigned_vehicle_id) {
         assignedVehicle = await Vehicle.findOne({ vehicle_id: device.assigned_vehicle_id })
-          .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id end_user_ids')
+          .select('vehicle_id vehicle_number vehicle_type capacity current_status assigned_driver_id end_user_ids')
           .lean();
 
         if (assignedVehicle?.assigned_driver_id) {
@@ -1414,7 +1398,6 @@ class OperatorController {
       const {
         vehicle_number,
         vehicle_type,
-        route_name,
         capacity,
         driver_id,
         registration_number,
@@ -1470,7 +1453,6 @@ class OperatorController {
         vehicle_number,
         operator_id,
         vehicle_type: vehicle_type || 'bus',
-        route_name,
         capacity: capacity || 0,
         assigned_driver_id: assignedDriverUser ? assignedDriverUser.user_id : null,
         assigned_device_id: null,
@@ -1478,7 +1460,6 @@ class OperatorController {
         chassis_number,
         color,
         seating_capacity,
-        route_points: [],
         standing_location: standing_location || {},
         current_status: 'offline',
         status: true
@@ -1683,7 +1664,6 @@ class OperatorController {
       const {
         vehicle_number,
         vehicle_type,
-        route_name,
         capacity,
         driver_id,
         registration_number,
@@ -1750,10 +1730,6 @@ class OperatorController {
 
       if (typeof vehicle_type !== 'undefined') {
         vehicle.vehicle_type = vehicle_type;
-      }
-
-      if (typeof route_name !== 'undefined') {
-        vehicle.route_name = route_name;
       }
 
       if (typeof capacity !== 'undefined') {

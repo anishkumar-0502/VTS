@@ -102,6 +102,11 @@ class UserService {
         roleDetailsData = await Driver.findOne({ user_id: user.user_id })
           .select('-__v')
           .lean();
+      } else if (user.role_id === 4) {
+        // For parents, include full profile with vehicle and operator details
+        roleDetailsKey = 'user_details';
+        const profile = await this.getUserProfile(user.user_id);
+        roleDetailsData = profile;
       } else {
         roleDetailsKey = 'user_details';
         roleDetailsData = {
@@ -158,41 +163,114 @@ class UserService {
 
       if (userRecord.role_id === 2) {
         const { primaryOperator, operators } = await this.buildOperatorAssociations(userRecord);
-        profile.operator_details = primaryOperator;
-        profile.associated_operators = operators;
+        // Clean up operator data
+        if (primaryOperator) {
+          const { _id, __v, createdAt, updatedAt, ...cleanPrimary } = primaryOperator;
+          profile.operator_details = cleanPrimary;
+        }
+        profile.associated_operators = operators.map(op => {
+          const { _id, __v, createdAt, updatedAt, ...cleanOp } = op;
+          return cleanOp;
+        });
       } else if (userRecord.operator_id) {
-        const operatorDoc = await Operator.findOne({ operator_id: userRecord.operator_id }).select('-__v').lean();
+        const operatorDoc = await Operator.findOne({ operator_id: userRecord.operator_id })
+          .select('operator_id name email phone registration_number address city state postal_code country status subscription_plan')
+          .lean();
         if (operatorDoc) {
-          profile.operator_details = operatorDoc;
-          profile.associated_operators = [operatorDoc];
+          const { _id, __v, createdAt, updatedAt, ...cleanOperator } = operatorDoc;
+          profile.operator_details = cleanOperator;
+          profile.associated_operators = [cleanOperator];
         }
       }
 
       if (userRecord.role_id === 3) {
-        const driverProfile = await Driver.findOne({ user_id: userRecord.user_id }).select('-__v').lean();
+        const driverProfile = await Driver.findOne({ user_id: userRecord.user_id })
+          .select('driver_id user_id assigned_vehicle_id license_number license_expiry status')
+          .lean();
         const vehicleIdentifier = driverProfile?.assigned_vehicle_id || userRecord.assigned_vehicle_id;
         let assignedVehicle = null;
 
         if (vehicleIdentifier) {
-          assignedVehicle = await Vehicle.findOne({ vehicle_id: vehicleIdentifier }).select('-__v').lean();
+          assignedVehicle = await Vehicle.findOne({ vehicle_id: vehicleIdentifier })
+            .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id route_points standing_location registration_number color seating_capacity')
+            .lean();
+          if (assignedVehicle) {
+            const { _id, __v, createdAt, updatedAt, ...cleanVehicle } = assignedVehicle;
+            assignedVehicle = cleanVehicle;
+          }
         }
 
-        profile.driver_profile = driverProfile;
+        if (driverProfile) {
+          const { _id, __v, createdAt, updatedAt, ...cleanDriver } = driverProfile;
+          profile.driver_profile = cleanDriver;
+        }
         profile.assigned_vehicle = assignedVehicle;
       }
 
       if (userRecord.role_id === 4) {
         const endUserProfile = await EndUser.findOne({ user_id: userRecord.user_id }).lean();
-        profile.end_user_profile = endUserProfile || null;
 
+        if (endUserProfile) {
+          // For parents, use EndUser data as the main profile with essential fields only
+          profile.end_user_id = endUserProfile.end_user_id;
+          profile.operator_id = endUserProfile.operator_id;
+          profile.assigned_vehicle_id = endUserProfile.assigned_vehicle_id;
+          profile.sos_contact = endUserProfile.sos_contact;
+          profile.pickup_location = endUserProfile.pickup_location;
+          profile.dropoff_location = endUserProfile.dropoff_location;
+          profile.status = endUserProfile.status;
+
+          // Include essential vehicle details for parents
+          if (endUserProfile.assigned_vehicle_id) {
+            const vehicle = await Vehicle.findOne({ vehicle_id: endUserProfile.assigned_vehicle_id })
+              .select('vehicle_id vehicle_number vehicle_type route_name capacity current_status assigned_driver_id route_points standing_location registration_number color seating_capacity')
+              .lean();
+            if (vehicle) {
+              // Clean up vehicle data
+              const { _id, __v, createdAt, updatedAt, ...cleanVehicle } = vehicle;
+              profile.vehicle_details = cleanVehicle;
+            } else {
+              profile.vehicle_details = null;
+            }
+          }
+
+          // Include essential operator details for parents
+          if (endUserProfile.operator_id) {
+            const operator = await Operator.findOne({ operator_id: endUserProfile.operator_id })
+              .select('operator_id name email phone registration_number address city state postal_code country status subscription_plan')
+              .lean();
+            if (operator) {
+              // Clean up operator data
+              const { _id, __v, createdAt, updatedAt, ...cleanOperator } = operator;
+              profile.operator_details = cleanOperator;
+            } else {
+              profile.operator_details = null;
+            }
+          }
+        }
+
+        // Clean up end_user_profile
+        if (endUserProfile) {
+          const { _id, __v, createdAt, updatedAt, ...cleanEndUser } = endUserProfile;
+          profile.end_user_profile = cleanEndUser;
+        } else {
+          profile.end_user_profile = null;
+        }
+
+        // Clean up associated_users
         const associatedProfiles = await User.find({ end_user_id: userRecord.end_user_id })
           .select('user_id name email phone_number assigned_vehicle_id status')
           .lean();
 
-        profile.associated_users = associatedProfiles;
+        profile.associated_users = associatedProfiles.map(user => {
+          const { _id, __v, createdAt, updatedAt, ...cleanUser } = user;
+          return cleanUser;
+        });
       }
 
-      return profile;
+      // Clean up the main profile to remove MongoDB internal fields
+      const { _id, __v, createdAt, updatedAt, last_login, ...cleanProfile } = profile;
+      return cleanProfile;
     } catch (error) {
       logger.loggerError(`Error building user profile: ${error.message}`);
       throw error;
