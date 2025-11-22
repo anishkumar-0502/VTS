@@ -3,7 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:get/get.dart';
 import '../../../scheduled_trips/domain/models/scheduled_trip_model.dart'
-    as scheduled_models;
+as scheduled_models;
 import '../../domain/models/dashboard_model.dart' as dashboard_models;
 import '../../../scheduled_trips/presentation/pages/scheduled_trips_page.dart';
 import '../controllers/driver_dashboard_controller.dart';
@@ -39,29 +39,29 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
       builder: (context, constraints) {
         final double width = constraints.maxWidth;
         final double horizontalPadding =
-            width >= 1100
-                ? 64
-                : width >= 900
-                ? 48
-                : width >= 600
-                ? 28
-                : 16;
+        width >= 1100
+            ? 64
+            : width >= 900
+            ? 48
+            : width >= 600
+            ? 28
+            : 16;
         final double available = width - horizontalPadding * 2;
         final int metricColumns =
-            available >= 900
-                ? 3
-                : available >= 560
-                ? 2
-                : 1;
+        available >= 900
+            ? 3
+            : available >= 560
+            ? 2
+            : 1;
         final double metricSpacing = 12;
         final double metricWidth =
-            metricColumns == 1
-                ? available
-                : (available - metricSpacing * (metricColumns - 1)).clamp(
-                      0,
-                      double.infinity,
-                    ) /
-                    metricColumns;
+        metricColumns == 1
+            ? available
+            : (available - metricSpacing * (metricColumns - 1)).clamp(
+          0,
+          double.infinity,
+        ) /
+            metricColumns;
 
         return ListView(
           padding: EdgeInsets.symmetric(
@@ -119,7 +119,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                 width: double.infinity,
                                 child: FilledButton(
                                   onPressed:
-                                      controller.fetchTodaysScheduledTrips,
+                                  controller.fetchTodaysScheduledTrips,
                                   style: FilledButton.styleFrom(
                                     backgroundColor: Colors.red.shade600,
                                   ),
@@ -148,9 +148,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                   color: Colors.white,
                                   border: Border.all(
                                     color:
-                                        Colors
-                                            .amber
-                                            .shade400, // 🟡 outline color
+                                    Colors
+                                        .amber
+                                        .shade400, // 🟡 outline color
                                     width: 1.5,
                                   ),
                                   borderRadius: BorderRadius.circular(
@@ -174,8 +174,8 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                         height: 30,
                                         width: 30,
                                         color:
-                                            Colors
-                                                .white, // optional → keeps white tint like the icon
+                                        Colors
+                                            .white, // optional → keeps white tint like the icon
                                       ),
                                     ),
                                     const SizedBox(height: 12),
@@ -222,9 +222,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                       final activeTrip = controller.activeTrip.value;
                       final selectedTrip =
                           controller.selectedTrip.value ??
-                          (controller.scheduledTrips.isNotEmpty
-                              ? controller.scheduledTrips.first
-                              : null);
+                              (controller.scheduledTrips.isNotEmpty
+                                  ? controller.scheduledTrips.first
+                                  : null);
 
                       if (activeTrip != null) {
                         return _buildActiveTripCard(
@@ -264,10 +264,10 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                 GestureDetector(
                                   onTap: () {
                                     Get.to(
-                                      () => ScheduledTripsPage(),
+                                          () => ScheduledTripsPage(),
                                       transition:
-                                          Transition
-                                              .leftToRight, // 🔹 smooth left → right slide
+                                      Transition
+                                          .leftToRight, // 🔹 smooth left → right slide
                                       duration: const Duration(
                                         milliseconds: 400,
                                       ), // optional smooth speed
@@ -296,7 +296,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                           .selectedTrip
                                           .value
                                           ?.scheduledTripId ==
-                                      trip.scheduledTripId;
+                                          trip.scheduledTripId;
 
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 12),
@@ -307,17 +307,17 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
                                           color:
-                                              isSelected
-                                                  ? primaryColor
-                                                  : Colors.white,
+                                          isSelected
+                                              ? primaryColor
+                                              : Colors.white,
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
                                           border: Border.all(
                                             color:
-                                                isSelected
-                                                    ? primaryColor
-                                                    : Colors.grey.shade200,
+                                            isSelected
+                                                ? primaryColor
+                                                : Colors.grey.shade200,
                                             width: 2,
                                           ),
                                           boxShadow: [
@@ -333,26 +333,26 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                         ),
                                         child: Column(
                                           crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                           mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                          MainAxisAlignment.center,
                                           children: [
                                             Text(
                                               trip.routeName.isNotEmpty
                                                   ? trip.routeName
                                                   : (trip
-                                                          .vehicleId
-                                                          ?.routeName ??
-                                                      'Route'),
+                                                  .vehicleId
+                                                  ?.routeName ??
+                                                  'Route'),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 14,
                                                 color:
-                                                    isSelected
-                                                        ? Colors.white
-                                                        : Colors.black,
+                                                isSelected
+                                                    ? Colors.white
+                                                    : Colors.black,
                                               ),
                                             ),
                                             const SizedBox(height: 4),
@@ -361,9 +361,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color:
-                                                    isSelected
-                                                        ? Colors.white70
-                                                        : Colors.grey.shade600,
+                                                isSelected
+                                                    ? Colors.white70
+                                                    : Colors.grey.shade600,
                                               ),
                                             ),
                                             const SizedBox(height: 4),
@@ -373,9 +373,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
                                                 color:
-                                                    isSelected
-                                                        ? Colors.white
-                                                        : primaryColor,
+                                                isSelected
+                                                    ? Colors.white
+                                                    : primaryColor,
                                               ),
                                             ),
                                           ],
@@ -457,7 +457,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
 
                       final hasTripContext =
                           controller.scheduledTrips.isNotEmpty ||
-                          controller.activeTrip.value != null;
+                              controller.activeTrip.value != null;
 
                       if (controller.tripHistory.isEmpty) {
                         if (!hasTripContext) {
@@ -498,7 +498,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                   onPressed: () {
                                     controller.fetchTripHistory();
                                     Get.to(
-                                      () => const DriverTripHistoryPage(),
+                                          () => const DriverTripHistoryPage(),
                                       transition: Transition.rightToLeft,
                                       duration: const Duration(
                                         milliseconds: 400,
@@ -716,29 +716,26 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   Widget _buildActiveTripCard(
-    BuildContext context,
-    scheduled_models.ActiveTrip trip,
-    Color primaryColor,
-  ) {
+      BuildContext context,
+      scheduled_models.ActiveTrip trip,
+      Color primaryColor,
+      ) {
     final routeName =
-        trip.routeName.isNotEmpty
-            ? trip.routeName
-            : 'Active route';
+    trip.routeName.isNotEmpty
+        ? trip.routeName
+        : 'Active route';
     final startLabel = _formatHistoryTimestamp(trip.startTime);
     final stopsCount = trip.routePoints.length;
     final stopLabel = stopsCount == 1 ? '1 stop' : '$stopsCount stops';
     final speedLimitLabel =
-        trip.speedLimit > 0
-            ? '${trip.speedLimit} km/h limit'
-            : 'No speed limit';
+    trip.speedLimit > 0
+        ? '${trip.speedLimit} km/h limit'
+        : 'No speed limit';
     final startAddress =
-        trip.startLocation.address.isNotEmpty
-            ? trip.startLocation.address
-            : '${trip.startLocation.latitude.toStringAsFixed(4)}, ${trip.startLocation.longitude.toStringAsFixed(4)}';
-    final vehicleNumber =
-        trip.vehicleId.vehicleNumber.isNotEmpty
-            ? trip.vehicleId.vehicleNumber
-            : 'Vehicle pending';
+    trip.startLocation.address.isNotEmpty
+        ? trip.startLocation.address
+        : '${trip.startLocation.latitude.toStringAsFixed(4)}, ${trip.startLocation.longitude.toStringAsFixed(4)}';
+    final vehicleNumber = trip.vehicleId?.vehicleNumber ?? 'Vehicle pending';
     final statusLabel = trip.status.toUpperCase();
     final activeRoutePoints = trip.routePoints;
     final coordinates = _extractCoordinates(
@@ -941,26 +938,26 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 child: SizedBox(
                   height: 220,
                   child:
-                      hasCoordinates
-                          ? _ActiveTripMap(
-                            points: coordinates,
-                            stops: stops,
-                            primaryColor: primaryColor,
-                            showLiveTrackingButton: true,
-                            tripId: trip.tripId,
-                          )
-                          : Container(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Route coordinates unavailable',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
+                  hasCoordinates
+                      ? _ActiveTripMap(
+                    points: coordinates,
+                    stops: stops,
+                    primaryColor: primaryColor,
+                    showLiveTrackingButton: true,
+                    tripId: trip.tripId,
+                  )
+                      : Container(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Route coordinates unavailable',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1027,18 +1024,18 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   Widget _buildScheduledTripCard(
-    BuildContext context,
-    scheduled_models.ScheduledTrip trip,
-    Color primaryColor,
-  ) {
+      BuildContext context,
+      scheduled_models.ScheduledTrip trip,
+      Color primaryColor,
+      ) {
     final routeName =
-        trip.routeName.isNotEmpty
-            ? trip.routeName
-            : (trip.vehicleId?.routeName ?? 'Scheduled route');
+    trip.routeName.isNotEmpty
+        ? trip.routeName
+        : (trip.vehicleId?.routeName ?? 'Scheduled route');
     final statusLabel = trip.status.toUpperCase();
     final formattedStart = _formatHistoryTimestamp(trip.scheduledStartTime);
     final startLabel =
-        formattedStart.isNotEmpty ? formattedStart : trip.scheduledStartTime;
+    formattedStart.isNotEmpty ? formattedStart : trip.scheduledStartTime;
     final stopsCount = trip.routePoints.length;
     final stopLabel = stopsCount == 1 ? '1 stop' : '$stopsCount stops';
     final startAddress = trip.startLocation?.address ?? '';
@@ -1072,7 +1069,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     return GestureDetector(
       onTap: () {
         Get.to(
-          () => TripDetailsPage(trip: trip),
+              () => TripDetailsPage(trip: trip),
           transition: Transition.rightToLeft,
         );
       },
@@ -1338,10 +1335,10 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   Future<void> _handleActiveTripTap(
-    BuildContext context,
-    scheduled_models.ActiveTrip trip,
-    Color primaryColor,
-  ) async {
+      BuildContext context,
+      scheduled_models.ActiveTrip trip,
+      Color primaryColor,
+      ) async {
     if (!(Get.isDialogOpen ?? false)) {
       Get.dialog(
         const Center(child: CircularProgressIndicator()),
@@ -1391,9 +1388,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
 
     } else {
       final message =
-          controller.tripDetailError.value.isNotEmpty
-              ? controller.tripDetailError.value
-              : 'Unable to fetch trip details';
+      controller.tripDetailError.value.isNotEmpty
+          ? controller.tripDetailError.value
+          : 'Unable to fetch trip details';
       showStatusBanner(
         message,
         Colors.redAccent,
@@ -1403,10 +1400,10 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   List<_GeoCoordinate> _extractCoordinates(
-    List<scheduled_models.RoutePoint> routePoints,
-    scheduled_models.LocationData startLocation,
-    scheduled_models.LocationData? standingLocation,
-  ) {
+      List<scheduled_models.RoutePoint> routePoints,
+      scheduled_models.LocationData startLocation,
+      scheduled_models.LocationData? standingLocation,
+      ) {
     final coordinates = <_GeoCoordinate>[];
 
     for (final point in routePoints) {
@@ -1449,8 +1446,8 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   static List<_GeoCoordinate> _extractStops(
-    List<scheduled_models.RoutePoint> routePoints,
-  ) {
+      List<scheduled_models.RoutePoint> routePoints,
+      ) {
     final stops = <_GeoCoordinate>[];
     for (var index = 0; index < routePoints.length; index++) {
       final point = routePoints[index];
@@ -1460,8 +1457,8 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
       final order = point.order > 0 ? point.order : index + 1;
       final label = point.name.isNotEmpty ? point.name : 'Stop $order';
       final isDuplicate = stops.any(
-        (existing) =>
-            existing.latitude == point.latitude &&
+            (existing) =>
+        existing.latitude == point.latitude &&
             existing.longitude == point.longitude,
       );
       if (!isDuplicate) {
@@ -1480,14 +1477,14 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   static Widget _buildTripHistoryTile(
-    BuildContext context,
-    dashboard_models.DriverTripHistory trip,
-    Color primaryColor,
-  ) {
+      BuildContext context,
+      dashboard_models.DriverTripHistory trip,
+      Color primaryColor,
+      ) {
     final routeName =
-        trip.routeName?.isNotEmpty == true
-            ? trip.routeName!
-            : trip.vehicleId?.routeName ?? 'Trip';
+    trip.routeName?.isNotEmpty == true
+        ? trip.routeName!
+        : trip.vehicleId?.routeName ?? 'Trip';
     final startLocation = _formatTripEndpoint(trip, isStart: true);
     final endLocation = _formatTripEndpoint(trip, isStart: false);
     final startLabel = _formatHistoryTimestamp(
@@ -1497,10 +1494,10 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     );
     final statusColor = _statusColor(trip.status, primaryColor);
     final locations =
-        [
-          startLocation,
-          endLocation,
-        ].where((value) => value.isNotEmpty).toList();
+    [
+      startLocation,
+      endLocation,
+    ].where((value) => value.isNotEmpty).toList();
     final locationLabel = locations.isEmpty ? '' : locations.join(' → ');
     final timeLabel = startLabel.isNotEmpty ? startLabel : 'Time unavailable';
 
@@ -1710,9 +1707,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   static String _formatTripEndpoint(
-    dashboard_models.DriverTripHistory trip, {
-    required bool isStart,
-  }) {
+      dashboard_models.DriverTripHistory trip, {
+        required bool isStart,
+      }) {
     final location = isStart ? trip.startLocation : trip.endLocation;
     if (location != null && location.address.trim().isNotEmpty) {
       return location.address.trim();
@@ -1733,10 +1730,10 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   static String _resolveRoutePointName(
-    dashboard_models.DriverTripHistory trip, {
-    required dashboard_models.Location? location,
-    required bool isStart,
-  }) {
+      dashboard_models.DriverTripHistory trip, {
+        required dashboard_models.Location? location,
+        required bool isStart,
+      }) {
     final points = _collectTripRoutePoints(trip);
     if (points.isEmpty) {
       return '';
@@ -1754,8 +1751,8 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   static List<scheduled_models.RoutePoint> _collectTripRoutePoints(
-    dashboard_models.DriverTripHistory trip,
-  ) {
+      dashboard_models.DriverTripHistory trip,
+      ) {
     final combined = <scheduled_models.RoutePoint>[];
     combined.addAll(trip.routePoints);
     if (combined.isEmpty) {
@@ -1778,9 +1775,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
   }
 
   static scheduled_models.RoutePoint? _matchRoutePoint(
-    List<scheduled_models.RoutePoint> points,
-    dashboard_models.Location location,
-  ) {
+      List<scheduled_models.RoutePoint> points,
+      dashboard_models.Location location,
+      ) {
     for (final point in points) {
       if ((point.latitude - location.latitude).abs() < 0.0005 &&
           (point.longitude - location.longitude).abs() < 0.0005) {
@@ -1924,9 +1921,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
               onPressed:
                   () => Get.to(
                     () => DriverProfilePage(),
-                    transition: Transition.rightToLeft,
-                    duration: const Duration(milliseconds: 400),
-                  ),
+                transition: Transition.rightToLeft,
+                duration: const Duration(milliseconds: 400),
+              ),
               icon: Icon(
                 Icons.arrow_forward_ios,
                 color: primaryColor,
@@ -1959,28 +1956,28 @@ class _TripHistoryDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final routeName =
-        trip.routeName?.isNotEmpty == true
-            ? trip.routeName!
-            : trip.vehicleId?.routeName ?? 'Trip';
+    trip.routeName?.isNotEmpty == true
+        ? trip.routeName!
+        : trip.vehicleId?.routeName ?? 'Trip';
     final statusColor =
-        DriverDashboardPage._statusColor(trip.status, primaryColor);
+    DriverDashboardPage._statusColor(trip.status, primaryColor);
     final startTimeLabel = DriverDashboardPage._formatHistoryTimestamp(
       trip.startTime.isNotEmpty
           ? trip.startTime
           : trip.createdAt?.toIso8601String() ?? '',
     );
     final updatedLabel =
-        trip.updatedAt != null
-            ? DriverDashboardPage._formatHistoryTimestamp(
-                trip.updatedAt!.toIso8601String(),
-              )
-            : '';
+    trip.updatedAt != null
+        ? DriverDashboardPage._formatHistoryTimestamp(
+      trip.updatedAt!.toIso8601String(),
+    )
+        : '';
     final createdLabel =
-        trip.createdAt != null
-            ? DriverDashboardPage._formatHistoryTimestamp(
-                trip.createdAt!.toIso8601String(),
-              )
-            : '';
+    trip.createdAt != null
+        ? DriverDashboardPage._formatHistoryTimestamp(
+      trip.createdAt!.toIso8601String(),
+    )
+        : '';
     final startLocation = DriverDashboardPage._formatLocation(trip.startLocation);
     final endLocation = DriverDashboardPage._formatLocation(trip.endLocation);
     final vehicleNumber = trip.vehicleId?.vehicleNumber ?? 'Not assigned';
@@ -1990,14 +1987,14 @@ class _TripHistoryDetailsPage extends StatelessWidget {
     final violationsCount = trip.speedViolations.length;
     final deviationsCount = trip.routeDeviations.length;
     final speedLimitLabel =
-        trip.speedLimit > 0 ? '${trip.speedLimit} km/h' : 'Not set';
+    trip.speedLimit > 0 ? '${trip.speedLimit} km/h' : 'Not set';
     final speedAlarmLabel = trip.speedAlarmEnabled ? 'Enabled' : 'Disabled';
     final waypoints = trip.routePoints;
     final previewPoints =
-        waypoints
-            .where((point) => point.latitude != 0 || point.longitude != 0)
-            .map((point) => _GeoCoordinate(point.latitude, point.longitude))
-            .toList();
+    waypoints
+        .where((point) => point.latitude != 0 || point.longitude != 0)
+        .map((point) => _GeoCoordinate(point.latitude, point.longitude))
+        .toList();
     if (previewPoints.length < 2) {
       if (trip.startLocation != null) {
         previewPoints.add(
@@ -2091,14 +2088,14 @@ class _TripHistoryDetailsPage extends StatelessWidget {
                     icon: isStopped
                         ? const Icon(Icons.check_circle_rounded)
                         : (isStopping
-                            ? const SizedBox(
+                        ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                       ),
                     )
-                            : const Icon(Icons.stop_rounded)),
+                        : const Icon(Icons.stop_rounded)),
                     label: Text(isStopped
                         ? 'Trip has been ended successfully'
                         : (isStopping ? 'Stopping...' : 'Stop trip')),
@@ -2114,14 +2111,14 @@ class _TripHistoryDetailsPage extends StatelessWidget {
             const SizedBox(height: 24),
             _buildInfoRow(Icons.directions_bus, 'Vehicle number', vehicleNumber),
             if (scheduleId.isNotEmpty)
-              // _buildInfoRow(
-              //   Icons.assignment,
-              //   'Scheduled trip ID',
-              //   scheduleId,
-              // ),
+            // _buildInfoRow(
+            //   Icons.assignment,
+            //   'Scheduled trip ID',
+            //   scheduleId,
+            // ),
             // _buildInfoRow(Icons.person, 'Driver ID', trip.driverId),
             // _buildInfoRow(Icons.badge, 'Operator ID', trip.operatorId),
-            _buildInfoRow(Icons.place, 'Start location', startLocation),
+              _buildInfoRow(Icons.place, 'Start location', startLocation),
             _buildInfoRow(Icons.flag, 'End location', endLocation),
             if (updatedLabel.isNotEmpty)
               _buildInfoRow(Icons.update, 'Last updated', updatedLabel),
@@ -2247,60 +2244,60 @@ class _TripHistoryDetailsPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children:
-                      waypoints
-                          .map(
-                            (point) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 26,
-                                    height: 26,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          primaryColor.withValues(alpha: 0.12),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      point.order.toString(),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: primaryColor,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          point.name,
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                  waypoints
+                      .map(
+                        (point) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color:
+                              primaryColor.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              point.order.toString(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: primaryColor,
                               ),
                             ),
-                          )
-                          .toList(),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  point.name,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                      .toList(),
                 ),
               ),
             ],
@@ -2424,11 +2421,11 @@ class _TripHistoryDetailsPage extends StatelessWidget {
   }
 
   Widget _buildInsightCard(
-    Color statusColor,
-    String title,
-    String value,
-    String subtitle,
-  ) {
+      Color statusColor,
+      String title,
+      String value,
+      String subtitle,
+      ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: BoxDecoration(
@@ -2603,10 +2600,10 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
   LatLng _averageLatLng(List<LatLng> points) {
     final lat =
         points.fold<double>(0, (sum, value) => sum + value.latitude) /
-        points.length;
+            points.length;
     final lon =
         points.fold<double>(0, (sum, value) => sum + value.longitude) /
-        points.length;
+            points.length;
     return LatLng(lat, lon);
   }
 
@@ -2614,8 +2611,8 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
     return points
         .map(
           (p) =>
-              '${p.latitude.toStringAsFixed(6)},${p.longitude.toStringAsFixed(6)}',
-        )
+      '${p.latitude.toStringAsFixed(6)},${p.longitude.toStringAsFixed(6)}',
+    )
         .join('|');
   }
 
@@ -2643,21 +2640,21 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
       MaterialPageRoute(
         builder:
             (context) => Scaffold(
-              appBar: AppBar(
-                backgroundColor: Colors.white,
-                iconTheme: const IconThemeData(color: Colors.black),
-                title: const Text(
-                  'Full Screen Map',
-                  style: TextStyle(color: Colors.black),
-                ),
-              ),
-              body: _FullScreenMap(
-                routePoints: routePoints,
-                points: widget.points,
-                stops: widget.stops,
-                primaryColor: widget.primaryColor,
-              ),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            iconTheme: const IconThemeData(color: Colors.black),
+            title: const Text(
+              'Full Screen Map',
+              style: TextStyle(color: Colors.black),
             ),
+          ),
+          body: _FullScreenMap(
+            routePoints: routePoints,
+            points: widget.points,
+            stops: widget.stops,
+            primaryColor: widget.primaryColor,
+          ),
+        ),
       ),
     );
   }
@@ -2717,15 +2714,15 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
           .where((s) => s.label?.isNotEmpty == true)
           .map(
             (stop) => Marker(
-              width: 120,
-              height: 80,
-              point: LatLng(stop.latitude, stop.longitude),
-              child: _StopMarker(
-                label: stop.label ?? '',
-                color: widget.primaryColor,
-              ),
-            ),
+          width: 120,
+          height: 80,
+          point: LatLng(stop.latitude, stop.longitude),
+          child: _StopMarker(
+            label: stop.label ?? '',
+            color: widget.primaryColor,
           ),
+        ),
+      ),
     ];
 
     return Stack(
@@ -2862,15 +2859,15 @@ class _FullScreenMapState extends State<_FullScreenMap> {
       return const Center(child: Text("No route data"));
 
     final latLngPoints =
-        widget.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+    widget.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
     final startPoint = latLngPoints.first;
     final endPoint = latLngPoints.last;
     final avgLat =
         latLngPoints.fold(0.0, (sum, p) => sum + p.latitude) /
-        latLngPoints.length;
+            latLngPoints.length;
     final avgLng =
         latLngPoints.fold(0.0, (sum, p) => sum + p.longitude) /
-        latLngPoints.length;
+            latLngPoints.length;
 
     final markers = <Marker>[
       Marker(
@@ -2893,20 +2890,20 @@ class _FullScreenMapState extends State<_FullScreenMap> {
     ];
 
     final stopMarkers =
-        widget.stops
-            .where((stop) => stop.label?.isNotEmpty == true)
-            .map(
-              (stop) => Marker(
-                point: LatLng(stop.latitude, stop.longitude),
-                width: 120,
-                height: 80,
-                child: _StopMarker(
-                  label: stop.label ?? '',
-                  color: widget.primaryColor,
-                ),
-              ),
-            )
-            .toList();
+    widget.stops
+        .where((stop) => stop.label?.isNotEmpty == true)
+        .map(
+          (stop) => Marker(
+        point: LatLng(stop.latitude, stop.longitude),
+        width: 120,
+        height: 80,
+        child: _StopMarker(
+          label: stop.label ?? '',
+          color: widget.primaryColor,
+        ),
+      ),
+    )
+        .toList();
 
     markers.addAll(stopMarkers);
 

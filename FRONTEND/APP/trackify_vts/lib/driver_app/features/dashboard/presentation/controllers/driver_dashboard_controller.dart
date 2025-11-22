@@ -6,7 +6,7 @@ import '../../domain/models/dashboard_model.dart' as dashboard_models;
 import 'package:trackify_vts/driver_app/Sessionhandler/session_controller.dart';
 import '../../../scheduled_trips/domain/repositories/scheduled_trips_repository.dart';
 import '../../../scheduled_trips/domain/models/scheduled_trip_model.dart'
-    as scheduled_models;
+as scheduled_models;
 import 'package:trackify_vts/utilities/widgets/status_banner.dart';
 
 class DriverDashboardController extends GetxController {
@@ -20,22 +20,22 @@ class DriverDashboardController extends GetxController {
   // Trip related variables
   final DashboardRepositories _repository = DashboardRepositories();
   final ScheduledTripsRepository _scheduledRepository =
-      ScheduledTripsRepository();
+  ScheduledTripsRepository();
   final SessionController _sessionController = Get.find<SessionController>(tag: 'driver');
   final RxList<scheduled_models.ScheduledTrip> scheduledTrips =
-      RxList<scheduled_models.ScheduledTrip>();
+  RxList<scheduled_models.ScheduledTrip>();
   final Rxn<scheduled_models.ScheduledTrip> selectedTrip =
-      Rxn<scheduled_models.ScheduledTrip>();
+  Rxn<scheduled_models.ScheduledTrip>();
   final RxBool isLoadingTrips = false.obs;
   final RxString tripsError = ''.obs;
   final Rxn<scheduled_models.ActiveTrip> activeTrip =
-      Rxn<scheduled_models.ActiveTrip>();
+  Rxn<scheduled_models.ActiveTrip>();
   final RxList<dashboard_models.DriverTripHistory> tripHistory =
-      RxList<dashboard_models.DriverTripHistory>();
+  RxList<dashboard_models.DriverTripHistory>();
   final RxBool isLoadingTripHistory = false.obs;
   final RxString tripHistoryError = ''.obs;
   final Rxn<dashboard_models.DriverTripDetailData> activeTripDetail =
-      Rxn<dashboard_models.DriverTripDetailData>();
+  Rxn<dashboard_models.DriverTripDetailData>();
   final RxBool isLoadingTripDetail = false.obs;
   final RxBool isStartingTrip = false.obs;
   final RxBool isStoppingTrip = false.obs;
@@ -153,8 +153,8 @@ class DriverDashboardController extends GetxController {
   }
 
   Future<dashboard_models.DriverTripDetailData?> fetchTripDetail(
-    String tripId,
-  ) async {
+      String tripId,
+      ) async {
     try {
       isLoadingTripDetail.value = true;
       tripDetailError.value = '';

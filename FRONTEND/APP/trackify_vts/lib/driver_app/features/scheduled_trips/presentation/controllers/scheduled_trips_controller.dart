@@ -40,18 +40,38 @@ class ScheduledTripsController extends GetxController {
         return;
       }
 
-      // Fetch all trips
-      final allTripsResponse = await _repository.getAllScheduledTrips(token);
-      if (!allTripsResponse.error && allTripsResponse.data != null) {
-        allTrips.value = allTripsResponse.data!;
-      } else {
-        errorMessage.value = allTripsResponse.message;
-      }
-
-      // Fetch today's trips
+      // Fetch today's trips first (contains full vehicle data with vehicle_number)
       final todayResponse = await _repository.getTodayScheduledTrips(token);
       if (!todayResponse.error && todayResponse.data != null) {
         todayTrips.value = todayResponse.data!;
+        // Use today's trips as the base for all-trips since it has complete vehicle info
+        allTrips.value = todayResponse.data!;
+      }
+
+      // Fetch all trips and merge with today's trips to include future trips
+      final allTripsResponse = await _repository.getAllScheduledTrips(token);
+      if (!allTripsResponse.error && allTripsResponse.data != null) {
+        // Get all trip IDs from today's trips to identify which trips are today's
+        final todayTripIds = Set<String>.from(
+          todayResponse.data?.map((t) => t.scheduledTripId) ?? []
+        );
+
+        // Add trips from all-trips that aren't in today's trips
+        final upcomingTrips = allTripsResponse.data!
+            .where((trip) => !todayTripIds.contains(trip.scheduledTripId))
+            .toList();
+
+        // Combine: today's trips (with full vehicle data) + upcoming trips (without full data)
+        allTrips.value = [...(todayResponse.data ?? []), ...upcomingTrips];
+      } else {
+        // If all-trips fails, just use today's trips
+        if (allTripsResponse.message.isNotEmpty) {
+          errorMessage.value = allTripsResponse.message;
+        }
+      }
+
+      if (allTrips.isNotEmpty || todayTrips.isNotEmpty) {
+        errorMessage.value = '';
       }
 
       isLoading.value = false;
@@ -60,6 +80,7 @@ class ScheduledTripsController extends GetxController {
       isLoading.value = false;
       Get.snackbar('Error', e.message);
     } catch (e) {
+      debugPrint('Unexpected error in fetchScheduledTrips: $e');
       errorMessage.value = 'An unexpected error occurred';
       isLoading.value = false;
       showStatusBanner(
@@ -125,6 +146,8 @@ class ScheduledTripsController extends GetxController {
       currentActiveTripId.value =
           (response['data'] as Map<String, dynamic>?)?['trip_id']?.toString();
       await fetchScheduledTrips();
+      await fetchActiveTrip();
+      refreshTrips();
       onSuccess?.call();
     } on HttpException catch (e) {
       showStatusBanner(e.message, Colors.red, Icons.error_outline);
@@ -174,6 +197,8 @@ class ScheduledTripsController extends GetxController {
       showStatusBanner(message, Colors.green, Icons.check_circle_outline);
       currentActiveTripId.value = null;
       await fetchScheduledTrips();
+      await fetchActiveTrip();
+      refreshTrips();
       onSuccess?.call();
     } on HttpException catch (e) {
       showStatusBanner(e.message, Colors.red, Icons.error_outline);

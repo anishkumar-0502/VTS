@@ -23,9 +23,9 @@ class DashboardRepositories {
   }
 
   Future<DriverTripDetailResponse> getTripDetail(
-    String token,
-    String tripId,
-  ) async {
+      String token,
+      String tripId,
+      ) async {
     try {
       final responseJson = await _api.getTripDetail(token, tripId);
       return DriverTripDetailResponse.fromJson(responseJson);

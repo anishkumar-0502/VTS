@@ -40,7 +40,9 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
       onWillPop: () async {
         // Refresh dashboard when going back
         try {
-          final dashboardController = Get.find<DriverDashboardController>(tag: 'driver_dashboard');
+          final dashboardController = Get.find<DriverDashboardController>(
+            tag: 'driver_dashboard',
+          );
           dashboardController.fetchTodaysScheduledTrips();
           dashboardController.fetchActiveTrip();
           dashboardController.fetchTripHistory();
@@ -50,387 +52,415 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
         return true;
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFF4F6FC),
-      appBar: AppBar(
-        elevation: 0,
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        title: Column(
-          children: const [
-            Text(
-              'Scheduled Trips',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Manage your daily routes at a glance',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+        backgroundColor: const Color(0xFFF4F6FC),
+        appBar: AppBar(
+          elevation: 0,
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          title: Column(
+            children: const [
+              Text(
+                'Scheduled Trips',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Manage your daily routes at a glance',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Obx(
+                () =>
+                    controller.isLoading.value
+                        ? const SizedBox(
+                          width: 50,
+                          child: Center(
+                            child: SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        )
+                        : Tooltip(
+                          message: 'Refresh trips',
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: primaryColor.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.refresh),
+                              color: primaryColor,
+                              onPressed: controller.refreshTrips,
+                            ),
+                          ),
+                        ),
+              ),
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Obx(
-              () =>
-                  controller.isLoading.value
-                      ? const SizedBox(
-                        width: 50,
-                        child: Center(
-                          child: SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      )
-                      : Tooltip(
-                        message: 'Refresh trips',
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: primaryColor.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.refresh),
-                            color: primaryColor,
-                            onPressed: controller.refreshTrips,
-                          ),
-                        ),
-                      ),
-            ),
-          ),
-        ],
-      ),
-      body: Obx(() {
-        if (controller.isLoading.value && controller.allTrips.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        body: Obx(() {
+          if (controller.isLoading.value && controller.allTrips.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        if (controller.errorMessage.value.isNotEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    controller.errorMessage.value,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Something went wrong while loading your trips. Please try again.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+          if (controller.errorMessage.value.isNotEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.08),
+                        shape: BoxShape.circle,
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+                      child: const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.red,
                       ),
                     ),
-                    onPressed: controller.refreshTrips,
-                    icon: const Icon(Icons.refresh,color: Colors.white,),
-                    label: const Text('Retry',style: TextStyle(color: Colors.white),),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Column(
-          children: [
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [primaryColor, primaryColor.withOpacity(0.75)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                    const SizedBox(height: 24),
+                    Text(
+                      controller.errorMessage.value,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Something went wrong while loading your trips. Please try again.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                      onPressed: controller.refreshTrips,
+                      icon: const Icon(Icons.refresh, color: Colors.white),
+                      label: const Text(
+                        'Retry',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryColor.withOpacity(0.25),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.directions_bus, color: primaryColor),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Your Daily Trip Scheduler',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+            );
+          }
+
+          return Column(
+            children: [
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primaryColor, primaryColor.withOpacity(0.75)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primaryColor.withOpacity(0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Colors.white,
+                          child: Icon(
+                            Icons.directions_bus,
+                            color: primaryColor,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Preview and manage upcoming trips with dynamic routing and detailed insights.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.85),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Active Trip Section
-            Obx(() {
-              if (controller.activeTrip.value != null) {
-                // 🕓 Convert UTC to IST (Indian Standard Time)
-                final utcTime = DateTime.parse(
-                  controller.activeTrip.value!.startTime,
-                );
-                final istTime = utcTime.add(
-                  const Duration(hours: 5, minutes: 30),
-                );
-
-                String _formatDate(DateTime time) {
-                  final day = time.day.toString().padLeft(2, '0');
-                  final month = time.month.toString().padLeft(2, '0');
-                  final year = time.year.toString().substring(2); // gives '25' instead of '2025'
-                  return '$day/$month/$year';
-                }
-
-
-                String _formatTimeWithAmPm(DateTime time) {
-                  final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
-                  final minute = time.minute.toString().padLeft(2, '0');
-                  final period = time.hour >= 12 ? 'PM' : 'AM';
-                  return '$hour:$minute $period';
-                }
-
-
-
-                return GestureDetector(
-                  onTap: () => _showActiveTripModal(context, controller.activeTrip.value!, primaryColor),
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF81C784), // 🌿 Mild green tone
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF81C784).withOpacity(0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Your Daily Trip Scheduler',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left column - text content
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: const [
-                                Icon(
-                                  Icons.play_circle_fill,
-                                  color: Colors.white,
-                                  size: 24,
+                    const SizedBox(height: 12),
+                    Text(
+                      'Preview and manage upcoming trips with dynamic routing and detailed insights.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withOpacity(0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Active Trip Section
+              Obx(() {
+                if (controller.activeTrip.value != null) {
+                  final utcTime = DateTime.tryParse(
+                    controller.activeTrip.value!.startTime,
+                  );
+                  final istTime =
+                      utcTime != null
+                          ? utcTime.add(const Duration(hours: 5, minutes: 30))
+                          : DateTime.now();
+
+                  String _formatDate(DateTime time) {
+                    final day = time.day.toString().padLeft(2, '0');
+                    final month = time.month.toString().padLeft(2, '0');
+                    final year = time.year.toString().substring(2);
+                    return '$day/$month/$year';
+                  }
+
+                  String _formatTimeWithAmPm(DateTime time) {
+                    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+                    final minute = time.minute.toString().padLeft(2, '0');
+                    final period = time.hour >= 12 ? 'PM' : 'AM';
+                    return '$hour:$minute $period';
+                  }
+
+                  return GestureDetector(
+                    onTap:
+                        () => _showActiveTripModal(
+                          context,
+                          controller.activeTrip.value!,
+                          primaryColor,
+                        ),
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF81C784),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF81C784).withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: const [
+                                    Icon(
+                                      Icons.play_circle_fill,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Active Trip',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(height: 8),
                                 Text(
-                                  'Active Trip',
-                                  style: TextStyle(
+                                  controller.activeTrip.value!.routeName,
+                                  style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
                                 ),
+                                if (utcTime != null)
+                                  Text(
+                                    'Started on ${_formatDate(istTime)} at ${_formatTimeWithAmPm(istTime)}',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: 14,
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    'Status: ${controller.activeTrip.value!.status}',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: 14,
+                                    ),
+                                  ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              controller.activeTrip.value!.routeName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              'Started on ${_formatDate(istTime)} at ${_formatTimeWithAmPm(istTime)}',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                          Image.asset(
+                            'assets/icons/bus.png',
+                            height: 60,
+                            width: 60,
+                            fit: BoxFit.contain,
+                            color: Colors.white,
+                          ),
+                        ],
                       ),
-
-                      // Right side image (bus icon)
-                      Image.asset(
-                        'assets/icons/bus.png',
-                        height: 60, // 📏 adjust size as needed
-                        width: 60,
-                        fit: BoxFit.contain,
-                        color: Colors.white,
-                      ),
-                    ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+              // Tab selector
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE0E7FF)),
                   ),
-                ),
-                );
-              }
-              return const SizedBox.shrink();
-            }),
-            // Tab selector
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE0E7FF)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildTabButton(
-                          label: 'All Trips',
-                          isSelected: controller.selectedTabIndex.value == 0,
-                          onPressed: () => controller.setSelectedTab(0),
-                          primaryColor: primaryColor,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildTabButton(
+                            label: 'All Trips',
+                            isSelected: controller.selectedTabIndex.value == 0,
+                            onPressed: () => controller.setSelectedTab(0),
+                            primaryColor: primaryColor,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildTabButton(
-                          label: "Today's Trips",
-                          isSelected: controller.selectedTabIndex.value == 1,
-                          onPressed: () => controller.setSelectedTab(1),
-                          primaryColor: primaryColor,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildTabButton(
+                            label: "Today's Trips",
+                            isSelected: controller.selectedTabIndex.value == 1,
+                            onPressed: () => controller.setSelectedTab(1),
+                            primaryColor: primaryColor,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            // Trips list
-            Expanded(
-              child:
-                  controller.currentTrips.isEmpty
-                      ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    size: 48,
-                                    color: Colors.grey[400],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No trips found',
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.w600),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Refresh to make sure you are seeing the latest updates.',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: Colors.grey[600],
+              const SizedBox(height: 16),
+              // Trips list
+              Expanded(
+                child:
+                    controller.currentTrips.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
                                     ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today,
+                                      size: 48,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No trips found',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Refresh to make sure you are seeing the latest updates.',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(color: Colors.grey[600]),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                        )
+                        : RefreshIndicator(
+                          onRefresh: controller.refreshTrips,
+                          child:
+                              controller.isLoading.value
+                                  ? ListView.builder(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      0,
+                                      16,
+                                      24,
+                                    ),
+                                    itemCount: 4,
+                                    itemBuilder: (context, index) {
+                                      return _buildTripCardShimmer();
+                                    },
+                                  )
+                                  : ListView.builder(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      0,
+                                      16,
+                                      24,
+                                    ),
+                                    itemCount: controller.currentTrips.length,
+                                    itemBuilder: (context, index) {
+                                      final trip =
+                                          controller.currentTrips[index];
+                                      return _buildTripCard(trip, primaryColor);
+                                    },
+                                  ),
                         ),
-                      )
-                      : RefreshIndicator(
-                        onRefresh: controller.refreshTrips,
-                        child: controller.isLoading.value
-                            ? ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                              itemCount: 4,
-                              itemBuilder: (context, index) {
-                                return _buildTripCardShimmer();
-                              },
-                            )
-                            : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                              itemCount: controller.currentTrips.length,
-                              itemBuilder: (context, index) {
-                                final trip = controller.currentTrips[index];
-                                return _buildTripCard(trip, primaryColor);
-                              },
-                            ),
-                      ),
-            ),
-          ],
-        );
-      }),),
+              ),
+            ],
+          );
+        }),
+      ),
     );
   }
 
@@ -726,7 +756,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      '${trip.vehicleId?.routePoints.length ?? 0} stops',
+                                      '${trip.routePoints.length} stops',
                                       style: TextStyle(
                                         fontSize: 13,
                                         color: Colors.grey[700],
@@ -737,61 +767,6 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                               ],
                             ),
 
-                            const Spacer(),
-
-                            // 🔹 Right section — vehicle info box
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: primaryColor.withOpacity(0.1),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Image.asset(
-                                    'assets/icons/bus.png',
-                                    width: 20,
-                                    height: 20,
-                                    color: primaryColor,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        trip.vehicleId?.vehicleNumber ?? 'N/A',
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      if (trip.vehicleId?.vehicleType != null)
-                                        Text(
-                                          trip.vehicleId!.vehicleType,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey[500],
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -1010,7 +985,9 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                                   'assets/icons/map.png',
                                   height: 24, // adjust size as needed
                                   width: 24,
-                                  color: Colors.white, // optional: keeps the white tint
+                                  color:
+                                      Colors
+                                          .white, // optional: keeps the white tint
                                 ),
                                 onPressed: () => setState(() => showMap = true),
                               ),
@@ -1040,8 +1017,32 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                                         context: context,
                                         trip: trip,
                                         primaryColor: primaryColor,
-                                        onStartSuccess: () => Navigator.of(context).pop(),
-                                        onStopSuccess: () => Navigator.of(context).pop(),
+                                        onStartSuccess: () {
+                                          Navigator.of(context).pop();
+                                          controller.refreshTrips().then((_) {
+                                            Future.delayed(
+                                              const Duration(milliseconds: 500),
+                                              () {
+                                                if (controller.activeTrip.value !=
+                                                    null) {
+                                                  _showActiveTripModal(
+                                                    context,
+                                                    controller.activeTrip.value!,
+                                                    primaryColor,
+                                                  );
+                                                }
+                                              },
+                                            );
+                                          });
+                                        },
+                                        onStopSuccess: () {
+                                          Navigator.of(context).pop();
+                                          controller.refreshTrips().then((_) {
+                                            setState(() {
+                                              selectedTrip = null;
+                                            });
+                                          });
+                                        },
                                       ),
                                       const SizedBox(height: 16),
                                       _buildInfoSection('Trip Schedule', [
@@ -1304,7 +1305,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     return markers;
   }
 
-// --- The updated map builder function ---
+  // --- The updated map builder function ---
   Widget _buildMapView(ScheduledTrip trip, Color primaryColor) {
     final mapController = MapController();
     double currentZoom = 12.0;
@@ -1319,11 +1320,13 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
       return const Center(child: Text('Route data unavailable'));
     }
 
-    final orderedStops = List<RoutePoint>.from(trip.vehicleId?.routePoints ?? [])
-      ..sort((a, b) => a.order.compareTo(b.order));
-    final filteredStops = orderedStops.where((stop) {
-      return stop.latitude != 0 || stop.longitude != 0;
-    }).toList();
+    final orderedStops = List<RoutePoint>.from(
+      trip.vehicleId?.routePoints ?? [],
+    )..sort((a, b) => a.order.compareTo(b.order));
+    final filteredStops =
+        orderedStops.where((stop) {
+          return stop.latitude != 0 || stop.longitude != 0;
+        }).toList();
 
     final waypointChain = <LatLng>[
       LatLng(startLocation.latitude, startLocation.longitude),
@@ -1350,9 +1353,11 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     bool hasRequestedRoute = false;
 
     LatLng computeAverage(List<LatLng> points) {
-      final lat = points.fold<double>(0, (sum, value) => sum + value.latitude) /
+      final lat =
+          points.fold<double>(0, (sum, value) => sum + value.latitude) /
           points.length;
-      final lon = points.fold<double>(0, (sum, value) => sum + value.longitude) /
+      final lon =
+          points.fold<double>(0, (sum, value) => sum + value.longitude) /
           points.length;
       return LatLng(lat, lon);
     }
@@ -1365,8 +1370,9 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
             routeError = null;
           });
           try {
-            final fetchedRoute =
-                await openRouteService.getRouteThrough(normalizedWaypoints);
+            final fetchedRoute = await openRouteService.getRouteThrough(
+              normalizedWaypoints,
+            );
             if (!context.mounted) {
               return;
             }
@@ -1616,7 +1622,10 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
         onPressed:
             isDisabled || isLoading
                 ? null
-                : () => controller.startTrip(trip.scheduledTripId, onSuccess: onStartSuccess),
+                : () => controller.startTrip(
+                  trip.scheduledTripId,
+                  onSuccess: onStartSuccess,
+                ),
         icon:
             isLoading
                 ? SizedBox(
@@ -2056,7 +2065,11 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     );
   }
 
-  void _showActiveTripModal(BuildContext context, ActiveTrip activeTrip, Color primaryColor) {
+  void _showActiveTripModal(
+    BuildContext context,
+    ActiveTrip activeTrip,
+    Color primaryColor,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -2105,10 +2118,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                     const SizedBox(height: 10),
                     Text(
                       activeTrip.routeName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
                     ),
                   ],
                 ),
@@ -2134,19 +2144,30 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                               child: ElevatedButton.icon(
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  Get.to(() => LiveTrackingMapPage(
-                                    assignedVehicleId: activeTrip.vehicleId.vehicleId,
-                                    routePoints: activeTrip.routePoints,
-                                    stops: activeTrip.stops,
-                                    primaryColor: primaryColor,
-                                    tripId: activeTrip.tripId,
-                                  ));
+                                  Get.to(
+                                    () => LiveTrackingMapPage(
+                                      assignedVehicleId:
+                                          activeTrip.vehicleId.vehicleId,
+                                      routePoints: activeTrip.routePoints,
+                                      stops: activeTrip.stops,
+                                      primaryColor: primaryColor,
+                                      tripId: activeTrip.tripId,
+                                    ),
+                                  );
                                 },
-                                icon: const Icon(Icons.location_on, color: Colors.black),
-                                label: const Text('Live Tracking', style: TextStyle(color: Colors.black)),
+                                icon: const Icon(
+                                  Icons.location_on,
+                                  color: Colors.black,
+                                ),
+                                label: const Text(
+                                  'Live Tracking',
+                                  style: TextStyle(color: Colors.black),
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: primaryColor,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -2157,14 +2178,29 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: () {
-                                  _showStopTripConfirmation(context, activeTrip, primaryColor);
+                                  _showStopTripConfirmation(
+                                    context,
+                                    activeTrip,
+                                    primaryColor,
+                                  );
                                 },
                                 icon: const Icon(Icons.stop, color: Colors.red),
-                                label: const Text('Stop Trip', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                                label: const Text(
+                                  'Stop Trip',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Colors.red, width: 2),
+                                  side: const BorderSide(
+                                    color: Colors.red,
+                                    width: 2,
+                                  ),
                                   backgroundColor: Colors.red.withOpacity(0.05),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -2186,7 +2222,23 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
   }
 
   Widget _buildActiveTripInfo(ActiveTrip activeTrip, Color primaryColor) {
-    final utcTime = DateTime.parse(activeTrip.startTime);
+    final utcTime = DateTime.tryParse(activeTrip.startTime);
+    if (utcTime == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Trip Details',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          _buildInfoRow('Vehicle', activeTrip.vehicleId.vehicleNumber),
+          _buildInfoRow('Status', activeTrip.status),
+          _buildInfoRow('Passengers', '${activeTrip.passengers.length}'),
+          _buildInfoRow('Speed Limit', '${activeTrip.speedLimit} km/h'),
+        ],
+      );
+    }
     final istTime = utcTime.add(const Duration(hours: 5, minutes: 30));
 
     String _formatDate(DateTime time) {
@@ -2208,15 +2260,15 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
       children: [
         const Text(
           'Trip Details',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         _buildInfoRow('Vehicle', activeTrip.vehicleId.vehicleNumber),
         _buildInfoRow('Status', activeTrip.status),
-        _buildInfoRow('Started', '${_formatDate(istTime)} at ${_formatTimeWithAmPm(istTime)}'),
+        _buildInfoRow(
+          'Started',
+          '${_formatDate(istTime)} at ${_formatTimeWithAmPm(istTime)}',
+        ),
         _buildInfoRow('Passengers', '${activeTrip.passengers.length}'),
         _buildInfoRow('Speed Limit', '${activeTrip.speedLimit} km/h'),
       ],
@@ -2239,21 +2291,23 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
           ),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
         ],
       ),
     );
   }
 
-  void _showStopTripConfirmation(BuildContext context, ActiveTrip activeTrip, Color primaryColor) {
+  void _showStopTripConfirmation(
+    BuildContext context,
+    ActiveTrip activeTrip,
+    Color primaryColor,
+  ) {
     PanaraConfirmDialog.show(
       context,
       title: 'Stop Trip',
-      message: 'Are you sure you want to stop this trip? This action cannot be undone.',
+      message:
+          'Are you sure you want to stop this trip? This action cannot be undone.',
       confirmButtonText: 'Stop Trip',
       cancelButtonText: 'Cancel',
       onTapConfirm: () {
@@ -2277,7 +2331,11 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
             } catch (e) {
               // Ignore if nav fails
             }
-            showStatusBanner('Trip stopped successfully', Colors.green, Icons.check_circle);
+            showStatusBanner(
+              'Trip stopped successfully',
+              Colors.green,
+              Icons.check_circle,
+            );
             controller.fetchActiveTrip();
           },
         );
@@ -2480,7 +2538,7 @@ extension on _ScheduledTripsPageState {
           ),
         ],
       ),
-      );
+    );
   }
 
   Color _getStatusColor(String status) {

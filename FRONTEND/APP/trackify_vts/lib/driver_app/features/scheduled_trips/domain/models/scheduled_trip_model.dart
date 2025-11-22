@@ -35,6 +35,7 @@ class ScheduledTrip {
   final LocationData? startLocation;
   final LocationData? endLocation;
   final VehicleData? vehicleId;
+  final String vehicleIdString;
   final String driverId;
   final String operatorId;
   final RepeatDays? repeatDays;
@@ -53,6 +54,7 @@ class ScheduledTrip {
     this.startLocation,
     this.endLocation,
     this.vehicleId,
+    required this.vehicleIdString,
     required this.driverId,
     required this.operatorId,
     this.repeatDays,
@@ -71,25 +73,26 @@ class ScheduledTrip {
       tripPeriod: json['trip_period'] as String? ?? '',
       status: json['status'] as String? ?? '',
       startLocation:
-          json['start_location'] != null
+          json['start_location'] != null && json['start_location'] is Map
               ? LocationData.fromJson(
                 json['start_location'] as Map<String, dynamic>,
               )
               : null,
       endLocation:
-          json['end_location'] != null
+          json['end_location'] != null && json['end_location'] is Map
               ? LocationData.fromJson(
                 json['end_location'] as Map<String, dynamic>,
               )
               : null,
       vehicleId:
-          json['vehicle_id'] != null
+          json['vehicle_id'] != null && json['vehicle_id'] is Map
               ? VehicleData.fromJson(json['vehicle_id'] as Map<String, dynamic>)
               : null,
+      vehicleIdString: json['vehicle_id'] is String ? json['vehicle_id'] as String : '',
       driverId: json['driver_id'] as String? ?? '',
       operatorId: json['operator_id'] as String? ?? '',
       repeatDays:
-          json['repeat_days'] != null
+          json['repeat_days'] != null && json['repeat_days'] is Map
               ? RepeatDays.fromJson(json['repeat_days'] as Map<String, dynamic>)
               : null,
       isActive: json['is_active'] as bool? ?? false,
@@ -103,7 +106,7 @@ class ScheduledTrip {
               ? DateTime.tryParse(json['updatedAt'] as String)
               : null,
       routePoints:
-          json['route_points'] != null
+          json['route_points'] != null && json['route_points'] is List
               ? (json['route_points'] as List)
                   .map((point) => RoutePoint.fromJson(point as Map<String, dynamic>))
                   .toList()
@@ -174,7 +177,7 @@ class VehicleData {
   factory VehicleData.fromJson(Map<String, dynamic> json) {
     return VehicleData(
       id: json['_id'] as String? ?? '',
-      vehicleNumber: json['vehicle_number'] as String? ?? '',
+      vehicleNumber: json["vehicle_number"],
       vehicleType: json['vehicle_type'] as String? ?? '',
       routeName: json['route_name'] as String? ?? '',
       capacity: (json['capacity'] as num?)?.toInt() ?? 0,
@@ -311,9 +314,9 @@ class ActiveTripResponse {
   factory ActiveTripResponse.fromJson(Map<String, dynamic> json) {
     final rawData = json['data'];
     return ActiveTripResponse(
-      error: json['error'] as bool,
-      message: json['message'] as String,
-      data: rawData != null ? ActiveTrip.fromJson(rawData) : null,
+      error: json['error'] as bool? ?? true,
+      message: json['message'] as String? ?? '',
+      data: rawData != null ? ActiveTrip.fromJson(rawData as Map<String, dynamic>) : null,
     );
   }
 }
@@ -361,28 +364,28 @@ class ActiveTrip {
 
   factory ActiveTrip.fromJson(Map<String, dynamic> json) {
     return ActiveTrip(
-      startLocation: LocationData.fromJson(json['start_location']),
-      vehicleId: VehicleData.fromJson(json['vehicle_id']),
-      driverId: json['driver_id'] as String,
-      operatorId: json['operator_id'] as String,
+      startLocation: LocationData.fromJson(json['start_location'] as Map<String, dynamic>? ?? {}),
+      vehicleId: VehicleData.fromJson(json['vehicle_id'] as Map<String, dynamic>? ?? {}),
+      driverId: json['driver_id'] as String? ?? '',
+      operatorId: json['operator_id'] as String? ?? '',
       scheduledTripId: json['scheduled_trip_id'] as String?,
       routeName: json['route_name'] as String? ?? 'Active Route',
-      startTime: json['start_time'] as String,
-      status: json['status'] as String,
-      speedAlarmEnabled: json['speed_alarm_enabled'] as bool,
-      speedLimit: (json['speed_limit'] as num).toInt(),
-      tripId: json['trip_id'] as String,
+      startTime: json['start_time'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      speedAlarmEnabled: json['speed_alarm_enabled'] as bool? ?? false,
+      speedLimit: (json['speed_limit'] as num?)?.toInt() ?? 0,
+      tripId: json['trip_id'] as String? ?? '',
       stops: json['stops'] as List? ?? [],
       speedViolations: json['speed_violations'] as List? ?? [],
       routeDeviations: json['route_deviations'] as List? ?? [],
       passengers: json['passengers'] as List? ?? [],
       routePoints:
           (json['route_points'] as List?)
-              ?.map((e) => RoutePoint.fromJson(e))
+              ?.map((e) => RoutePoint.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now() : DateTime.now(),
+      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) ?? DateTime.now() : DateTime.now(),
     );
   }
 }

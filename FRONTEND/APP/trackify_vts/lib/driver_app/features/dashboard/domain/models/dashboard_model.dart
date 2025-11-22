@@ -1,5 +1,5 @@
 import '../../../scheduled_trips/domain/models/scheduled_trip_model.dart'
-    as scheduled_models;
+as scheduled_models;
 
 class Location {
   final double latitude;
@@ -80,14 +80,14 @@ class VehicleData {
       status: json['status'] as bool?,
       speed: (json['speed'] as num?)?.toInt(),
       routePoints:
-          ((json['route_points'] as List?) ?? [])
-              .cast<Map<String, dynamic>>()
-              .map((p) => RoutePoint.fromJson(p))
-              .toList(),
+      ((json['route_points'] as List?) ?? [])
+          .cast<Map<String, dynamic>>()
+          .map((p) => RoutePoint.fromJson(p))
+          .toList(),
       standingLocation:
-          json['standing_location'] != null
-              ? Location.fromJson(json['standing_location'])
-              : null,
+      json['standing_location'] != null
+          ? Location.fromJson(json['standing_location'])
+          : null,
       registrationNumber: json['registration_number'] as String?,
       chassisNumber: json['chassis_number'] as String?,
       color: json['color'] as String?,
@@ -244,8 +244,7 @@ class DriverTripHistoryResponse {
     if (json['data'] is List) {
       trips =
           (json['data'] as List)
-              .cast<Map<String, dynamic>>()
-              .map((t) => DriverTripHistory.fromJson(t))
+              .map((t) => DriverTripHistory.fromJson(t as Map<String, dynamic>))
               .toList();
     }
     return DriverTripHistoryResponse(
@@ -302,19 +301,19 @@ class DriverTripHistory {
   factory DriverTripHistory.fromJson(Map<String, dynamic> json) {
     return DriverTripHistory(
       startLocation:
-          json['start_location'] != null
-              ? Location.fromJson(json['start_location'] as Map<String, dynamic>)
-              : null,
+      json['start_location'] != null && json['start_location'] is Map
+          ? Location.fromJson(json['start_location'] as Map<String, dynamic>)
+          : null,
       endLocation:
-          json['end_location'] != null
-              ? Location.fromJson(json['end_location'] as Map<String, dynamic>)
-              : null,
+      json['end_location'] != null && json['end_location'] is Map
+          ? Location.fromJson(json['end_location'] as Map<String, dynamic>)
+          : null,
       vehicleId:
-          json['vehicle_id'] != null
-              ? scheduled_models.VehicleData.fromJson(
-                  json['vehicle_id'] as Map<String, dynamic>,
-                )
-              : null,
+      json['vehicle_id'] != null && json['vehicle_id'] is Map
+          ? scheduled_models.VehicleData.fromJson(
+        json['vehicle_id'] as Map<String, dynamic>,
+      )
+          : null,
       driverId: json['driver_id'] as String? ?? '',
       operatorId: json['operator_id'] as String? ?? '',
       routeName: json['route_name'] as String?,
@@ -326,27 +325,27 @@ class DriverTripHistory {
       tripId: json['trip_id'] as String? ?? '',
       stops: List<dynamic>.from((json['stops'] as List?) ?? []),
       speedViolations:
-          List<dynamic>.from((json['speed_violations'] as List?) ?? []),
+      List<dynamic>.from((json['speed_violations'] as List?) ?? []),
       routeDeviations:
-          List<dynamic>.from((json['route_deviations'] as List?) ?? []),
+      List<dynamic>.from((json['route_deviations'] as List?) ?? []),
       passengers: List<dynamic>.from((json['passengers'] as List?) ?? []),
       routePoints:
-          (json['route_points'] as List?)
-                  ?.map(
-                    (e) => scheduled_models.RoutePoint.fromJson(
-                      e as Map<String, dynamic>,
-                    ),
-                  )
-                  .toList() ??
-              <scheduled_models.RoutePoint>[],
+      (json['route_points'] as List?)
+          ?.map(
+            (e) => scheduled_models.RoutePoint.fromJson(
+          e as Map<String, dynamic>,
+        ),
+      )
+          .toList() ??
+          <scheduled_models.RoutePoint>[],
       createdAt:
-          json['createdAt'] != null
-              ? DateTime.tryParse(json['createdAt'] as String)
-              : null,
+      json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
+          : null,
       updatedAt:
-          json['updatedAt'] != null
-              ? DateTime.tryParse(json['updatedAt'] as String)
-              : null,
+      json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'] as String)
+          : null,
     );
   }
 }
@@ -367,9 +366,9 @@ class DriverTripDetailResponse {
       error: json['error'] as bool? ?? true,
       message: json['message'] as String? ?? '',
       data:
-          json['data'] != null
-              ? DriverTripDetailData.fromJson(json['data'] as Map<String, dynamic>)
-              : null,
+      json['data'] != null
+          ? DriverTripDetailData.fromJson(json['data'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -386,13 +385,13 @@ class DriverTripDetailData {
   factory DriverTripDetailData.fromJson(Map<String, dynamic> json) {
     return DriverTripDetailData(
       trip:
-          json['trip'] != null
-              ? DriverTripDetail.fromJson(json['trip'] as Map<String, dynamic>)
-              : null,
+      json['trip'] != null
+          ? DriverTripDetail.fromJson(json['trip'] as Map<String, dynamic>)
+          : null,
       analytics:
-          json['analytics'] != null
-              ? DriverTripAnalytics.fromJson(json['analytics'] as Map<String, dynamic>)
-              : null,
+      json['analytics'] != null
+          ? DriverTripAnalytics.fromJson(json['analytics'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -443,19 +442,19 @@ class DriverTripDetail {
   factory DriverTripDetail.fromJson(Map<String, dynamic> json) {
     return DriverTripDetail(
       startLocation:
-          json['start_location'] != null
-              ? Location.fromJson(json['start_location'] as Map<String, dynamic>)
-              : null,
+      json['start_location'] != null
+          ? Location.fromJson(json['start_location'] as Map<String, dynamic>)
+          : null,
       endLocation:
-          json['end_location'] != null
-              ? Location.fromJson(json['end_location'] as Map<String, dynamic>)
-              : null,
+      json['end_location'] != null
+          ? Location.fromJson(json['end_location'] as Map<String, dynamic>)
+          : null,
       vehicleId:
-          json['vehicle_id'] != null
-              ? scheduled_models.VehicleData.fromJson(
-                  json['vehicle_id'] as Map<String, dynamic>,
-                )
-              : null,
+      json['vehicle_id'] != null
+          ? scheduled_models.VehicleData.fromJson(
+        json['vehicle_id'] as Map<String, dynamic>,
+      )
+          : null,
       driverId: json['driver_id'] as String? ?? '',
       operatorId: json['operator_id'] as String? ?? '',
       routeName: json['route_name'] as String?,
@@ -467,27 +466,27 @@ class DriverTripDetail {
       tripId: json['trip_id'] as String? ?? '',
       stops: List<dynamic>.from((json['stops'] as List?) ?? []),
       speedViolations:
-          List<dynamic>.from((json['speed_violations'] as List?) ?? []),
+      List<dynamic>.from((json['speed_violations'] as List?) ?? []),
       routeDeviations:
-          List<dynamic>.from((json['route_deviations'] as List?) ?? []),
+      List<dynamic>.from((json['route_deviations'] as List?) ?? []),
       passengers: List<dynamic>.from((json['passengers'] as List?) ?? []),
       routePoints:
-          (json['route_points'] as List?)
-                  ?.map(
-                    (e) => scheduled_models.RoutePoint.fromJson(
-                      e as Map<String, dynamic>,
-                    ),
-                  )
-                  .toList() ??
-              <scheduled_models.RoutePoint>[],
+      (json['route_points'] as List?)
+          ?.map(
+            (e) => scheduled_models.RoutePoint.fromJson(
+          e as Map<String, dynamic>,
+        ),
+      )
+          .toList() ??
+          <scheduled_models.RoutePoint>[],
       createdAt:
-          json['createdAt'] != null
-              ? DateTime.tryParse(json['createdAt'] as String)
-              : null,
+      json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
+          : null,
       updatedAt:
-          json['updatedAt'] != null
-              ? DateTime.tryParse(json['updatedAt'] as String)
-              : null,
+      json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'] as String)
+          : null,
     );
   }
 }
