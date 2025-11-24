@@ -604,66 +604,33 @@ class SuperadminController {
 
   static async getOperators(req, res, next) {
     try {
-      const operators = await Operator.find({ status: true }).lean();
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page, isPaginated } = req.pagination;
+
+      const total = await Operator.countDocuments({ status: true });
+      
+      let query = Operator.find({ status: true }).sort({ createdAt: -1 });
+      
+      if (isPaginated) {
+        query = query.skip(skip).limit(limit);
+      }
+
+      const operators = await query.lean();
+
       if (operators.length === 0) {
+        const response = PaginationHelper.formatPaginatedResponse([], total, page, limit);
         return res.status(200).json({
           error: false,
           message: 'Operators retrieved successfully',
-          data: []
+          ...response
         });
       }
 
-      const operatorIds = operators.map((operator) => operator.operator_id);
-      const roles = await Role.find({ role_name: { $in: ['operator', 'driver'] } }).lean();
-      const roleMap = roles.reduce((acc, role) => {
-        acc[role.role_name] = role.role_id;
-        return acc;
-      }, {});
-      const roleFilter = Object.values(roleMap).filter(Boolean);
-      const users = roleFilter.length
-        ? await User.find({ operator_id: { $in: operatorIds }, role_id: { $in: roleFilter } }).lean()
-        : [];
-      const driverProfiles = await Driver.find({ operator_id: { $in: operatorIds } }).lean();
-
-      const operatorUserMap = new Map();
-      const driverUserMap = new Map();
-      users.forEach((user) => {
-        if (roleMap.operator && user.role_id === roleMap.operator) {
-          const list = operatorUserMap.get(user.operator_id) || [];
-          list.push(user);
-          operatorUserMap.set(user.operator_id, list);
-        }
-        if (roleMap.driver && user.role_id === roleMap.driver) {
-          const list = driverUserMap.get(user.operator_id) || [];
-          list.push(user);
-          driverUserMap.set(user.operator_id, list);
-        }
-      });
-
-      const driverProfileMap = new Map();
-      driverProfiles.forEach((profile) => {
-        driverProfileMap.set(profile.user_id, profile);
-      });
-
-      const data = operators.map((operator) => {
-        const operatorUsers = operatorUserMap.get(operator.operator_id) || [];
-        const driverUsers = driverUserMap.get(operator.operator_id) || [];
-        const drivers = driverUsers.map((driver) => ({
-          ...driver,
-          driver_profile: driverProfileMap.get(driver.user_id) || null
-        }));
-        return {
-          ...operator,
-          operator_users: operatorUsers,
-          drivers,
-          total_drivers: drivers.length
-        };
-      });
-
+      const response = PaginationHelper.formatPaginatedResponse(operators, total, page, limit);
       res.status(200).json({
         error: false,
         message: 'Operators retrieved successfully',
-        data
+        ...response
       });
     } catch (error) {
       next(error);
@@ -1283,11 +1250,24 @@ class SuperadminController {
 
   static async getAllRoles(req, res, next) {
     try {
-      const roles = await Role.find();
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page, isPaginated } = req.pagination;
+
+      const total = await Role.countDocuments();
+      
+      let query = Role.find().sort({ role_id: 1 });
+      
+      if (isPaginated) {
+        query = query.skip(skip).limit(limit);
+      }
+
+      const roles = await query.lean();
+
+      const response = PaginationHelper.formatPaginatedResponse(roles, total, page, limit);
       res.status(200).json({
         error: false,
         message: 'Roles retrieved successfully',
-        data: roles
+        ...response
       });
     } catch (error) {
       next(error);

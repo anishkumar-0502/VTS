@@ -2475,30 +2475,43 @@ class OperatorController {
   // ========== STATISTICS ==========
   static async getOperatorStats(req, res, next) {
     try {
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page } = req.pagination;
       const operator_id = req.user.operator_id || req.user.user_id;
 
-      const totalVehicles = await Vehicle.countDocuments({ operator_id, status: true });
-      const activeVehicles = await Vehicle.countDocuments({
+      const driverCount = await User.countDocuments({ operator_id, role_id: 3, status: true });
+      const endUserCount = await User.countDocuments({ operator_id, role_id: 4, status: true });
+      const vehicleCount = await Vehicle.countDocuments({ operator_id, status: true });
+      const deviceCount = await Device.countDocuments({ assigned_operator_id: operator_id, status: true });
+
+      const activeVehicles = await Vehicle.countDocuments({ operator_id, current_status: 'active' });
+      const totalTripsToday = await OnDemandTrip.countDocuments({
         operator_id,
-        current_status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] },
-        status: true
+        start_time: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
       });
-      const totalDevices = await Device.countDocuments({ assigned_operator_id: operator_id, status: true });
-      const activeDevices = await Device.countDocuments({ assigned_operator_id: operator_id, status: true, battery_level: { $gt: 0 } });
-      const totalDrivers = await User.countDocuments({ operator_id, role_id: 3, status: true });
-      const totalEndUsers = await EndUser.countDocuments({ operator_id, status: true });
+
+      const trips = await OnDemandTrip.find({ operator_id })
+        .sort({ start_time: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('trip_id driver_id vehicle_id status start_time end_time')
+        .lean();
+
+      const total = await OnDemandTrip.countDocuments({ operator_id });
+      const response = PaginationHelper.formatPaginatedResponse(trips, total, page, limit);
 
       res.status(200).json({
         error: false,
         message: 'Operator statistics retrieved successfully',
-        data: {
-          totalVehicles,
+        statistics: {
+          totalDrivers: driverCount,
+          totalEndUsers: endUserCount,
+          totalVehicles: vehicleCount,
+          totalDevices: deviceCount,
           activeVehicles,
-          totalDevices,
-          activeDevices,
-          totalDrivers,
-          totalEndUsers
-        }
+          totalTripsToday
+        },
+        ...response
       });
     } catch (error) {
       next(error);
@@ -2558,9 +2571,9 @@ class OperatorController {
 
   static async getScheduledTrips(req, res, next) {
     try {
-      const ScheduledTrip = require('../models/ScheduledTrip');
       const PaginationHelper = require('../utils/paginationHelper');
-      const { skip, limit, page } = req.pagination;
+      const { skip, limit, page, isPaginated } = req.pagination;
+      const ScheduledTrip = require('../models/ScheduledTrip');
       const { vehicle_id, driver_id } = req.query;
 
       const filter = { operator_id: req.user.operator_id };
@@ -2569,13 +2582,15 @@ class OperatorController {
 
       const total = await ScheduledTrip.countDocuments(filter);
 
-      const scheduledTrips = await ScheduledTrip.find(filter)
-        .skip(skip)
-        .limit(limit)
-        .sort({ scheduled_start_time: 1 });
+      let query = ScheduledTrip.find(filter).sort({ scheduled_start_time: 1 });
+      
+      if (isPaginated) {
+        query = query.skip(skip).limit(limit);
+      }
+
+      const scheduledTrips = await query.lean();
 
       const response = PaginationHelper.formatPaginatedResponse(scheduledTrips, total, page, limit);
-
       res.status(200).json({
         error: false,
         message: 'Scheduled trips retrieved successfully',

@@ -4,8 +4,24 @@ class PaginationHelper {
   static DEFAULT_LIMIT = 10;
   static MAX_LIMIT = 100;
 
+  static isPaginationRequested(query) {
+    return query.page !== undefined || query.limit !== undefined;
+  }
+
   static getPaginationParams(query) {
     try {
+      const isPaginated = this.isPaginationRequested(query);
+      
+      if (!isPaginated) {
+        return {
+          page: null,
+          limit: null,
+          skip: 0,
+          isPaginated: false,
+          sort: query.sort || '-createdAt'
+        };
+      }
+
       let page = parseInt(query.page) || 1;
       let limit = parseInt(query.limit) || this.DEFAULT_LIMIT;
 
@@ -19,6 +35,7 @@ class PaginationHelper {
         page,
         limit,
         skip,
+        isPaginated: true,
         sort: query.sort || '-createdAt'
       };
     } catch (error) {
@@ -27,6 +44,7 @@ class PaginationHelper {
         page: 1,
         limit: this.DEFAULT_LIMIT,
         skip: 0,
+        isPaginated: true,
         sort: '-createdAt'
       };
     }
@@ -34,6 +52,10 @@ class PaginationHelper {
 
   static formatPaginatedResponse(data, total, page, limit) {
     try {
+      if (page === null || limit === null) {
+        return { data };
+      }
+
       const totalPages = Math.ceil(total / limit);
       const hasNextPage = page < totalPages;
       const hasPrevPage = page > 1;
@@ -53,8 +75,15 @@ class PaginationHelper {
       };
     } catch (error) {
       logger.loggerError(`Error formatting paginated response: ${error.message}`);
-      return { data, pagination: {} };
+      return { data };
     }
+  }
+
+  static formatResponse(data, isPaginated = true, total = 0, page = null, limit = null) {
+    if (!isPaginated) {
+      return { data };
+    }
+    return this.formatPaginatedResponse(data, total, page, limit);
   }
 
   static getSortObject(sortString) {
@@ -110,6 +139,7 @@ class PaginationHelper {
       }
 
       req.pagination = this.getPaginationParams(req.query);
+      req.isPaginated = req.pagination.isPaginated;
       next();
     };
   }

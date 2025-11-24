@@ -316,6 +316,8 @@ class ParentController {
 
   static async getLocationHistory(req, res, next) {
     try {
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page, isPaginated } = req.pagination;
       const { childId, days = 1 } = req.query;
       const Vehicle = require('../models/Vehicle');
 
@@ -325,15 +327,25 @@ class ParentController {
       }
 
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      const trackingData = await TrackingData.find({
+      const filter = {
         vehicle_id: vehicle.vehicle_id,
         timestamp: { $gte: startDate }
-      }).sort({ timestamp: -1 });
+      };
 
+      const total = await TrackingData.countDocuments(filter);
+      let query = TrackingData.find(filter).sort({ timestamp: -1 });
+      
+      if (isPaginated) {
+        query = query.skip(skip).limit(limit);
+      }
+      
+      const trackingData = await query.lean();
+
+      const response = PaginationHelper.formatPaginatedResponse(trackingData, total, page, limit);
       res.status(200).json({
         error: false,
         message: 'Location history retrieved successfully',
-        data: trackingData
+        ...response
       });
     } catch (error) {
       next(error);
@@ -370,16 +382,28 @@ class ParentController {
 
   static async getNotifications(req, res, next) {
     try {
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page, isPaginated } = req.pagination;
       const { unreadOnly = false } = req.query;
 
-      const notifications = await NotificationService.getUserNotifications(req.user.id, {
-        read: unreadOnly ? false : undefined
-      });
+      const Notification = require('../models/Notification');
+      const filter = { user_id: req.user.id };
+      if (unreadOnly) filter.read = false;
 
+      const total = await Notification.countDocuments(filter);
+      let query = Notification.find(filter).sort({ createdAt: -1 });
+      
+      if (isPaginated) {
+        query = query.skip(skip).limit(limit);
+      }
+      
+      const notifications = await query.lean();
+
+      const response = PaginationHelper.formatPaginatedResponse(notifications, total, page, limit);
       res.status(200).json({
         error: false,
         message: 'Notifications retrieved successfully',
-        data: notifications
+        ...response
       });
     } catch (error) {
       next(error);
