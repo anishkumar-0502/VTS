@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../auth/presentation/pages/login_page.dart';
+import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
 import '../../../dashboard/presentation/pages/parent_home_page.dart';
 
 class ParentSplashScreenController extends GetxController {
@@ -31,7 +32,12 @@ class ParentSplashScreenController extends GetxController {
 
   void _goToHome() {
     if (!isClosed) {
-      Get.offAll(() => const ParentHomePage());
+      Get.offAll(
+        () => const ParentHomePage(),
+        binding: BindingsBuilder(() {
+          Get.put(ParentHomeController());
+        }),
+      );
     }
   }
 
