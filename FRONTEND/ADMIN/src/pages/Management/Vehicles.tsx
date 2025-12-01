@@ -14,6 +14,7 @@ import "leaflet/dist/leaflet.css";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import PageShimmer from "../../components/common/PageShimmer";
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
@@ -147,6 +148,24 @@ export default function Vehicles() {
 const [drivers, setDrivers] = useState<Driver[]>([]);
 const [endUsers, setEndUsers] = useState<EndUser[]>([]);
 const [devices, setDevices] = useState<Device[]>([]);
+// Pagination states
+const [page, setPage] = useState(1);
+const [hasMore, setHasMore] = useState(true);
+const [loadingMore, setLoadingMore] = useState(false);
+
+const [driverPage, setDriverPage] = useState(1);
+const [userPage, setUserPage] = useState(1);
+const [devicePage, setDevicePage] = useState(1);
+
+const [limit] = useState(10);
+
+// To check if more data exists
+const [hasMoreDrivers, setHasMoreDrivers] = useState(true);
+const [hasMoreUsers, setHasMoreUsers] = useState(true);
+const [hasMoreDevices, setHasMoreDevices] = useState(true);
+
+
+
 
   const [form, setForm] = useState({
     vehicle_number: "",
@@ -159,6 +178,38 @@ const [devices, setDevices] = useState<Device[]>([]);
     seating_capacity: 0,
       landmark: "",  
   });
+
+  const showSuccess = (message: string) => {
+  const dark = document.documentElement.classList.contains("dark");
+
+  Swal.fire({
+    icon: "success",
+    title: message,
+    background: dark ? "#1f2937" : "#ffffff",
+    color: dark ? "#e5e7eb" : "#111827",
+    confirmButtonColor: dark ? "#6366f1" : "#4f46e5",
+    timer: 1600,
+    showConfirmButton: false,
+    toast: true,
+    position: "top-end",
+  });
+};
+
+
+  // Toggle icons for activate/deactivate
+const DeactivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#ef4444" />
+    <circle cx="18" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
+
+const ActivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#10b981" />
+    <circle cx="6" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
 
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
   const [standingLocation, setStandingLocation] = useState<StandingLocation | null>(null);
@@ -177,60 +228,128 @@ const [devices, setDevices] = useState<Device[]>([]);
   };
   
 
-  const fetchVehicles = async () => {
-    try {
-      setLoading(true);
-      const res = await authFetch(`${API_BASE_URL}/operator/vehicles/list`);
-      const data = await res.json();
-      if (!data.error) setVehicles(data.data || []);
-      else Swal.fire("Error", data.message || "Failed to fetch vehicles", "error");
-    } catch {
-      Swal.fire("Error", "Unable to fetch vehicles", "error");
-    } finally {
-      setLoading(false);
+const fetchVehicles = async (reset = false) => {
+  try {
+    if (reset) {
+      setPage(1);
+      setVehicles([]); 
+      setHasMore(true);
     }
-  };
 
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
+    const pageToFetch = reset ? 1 : page;
+
+    const res = await authFetch(`${API_BASE_URL}/operator/vehicles/list?page=${pageToFetch}&limit=${limit}`);
+    const result = await res.json();
+
+    if (result.error) throw new Error(result.message);
+
+    const newData = result.data || [];
+
+setVehicles(prev => {
+  const merged = [...prev, ...newData];
+  return Array.from(new Map(merged.map(v => [v.vehicle_id, v])).values());
+});
+    setPage(pageToFetch + 1);
+
+    setHasMore(newData.length === limit);
+  } catch (err: any) {
+    Swal.fire("Error", err.message || "Failed to fetch vehicles", "error");
+  } finally {
+    setLoading(false);
+    setLoadingMore(false);
+  }
+};
 
 
-  useEffect(() => {
-  fetchDrivers();
-  fetchEndUsers();
-  fetchDevices();
+
+useEffect(() => {
+  fetchVehicles(true);
+  fetchDrivers(true);
+  fetchEndUsers(true);
+  fetchDevices(true);
 }, []);
 
-const fetchDrivers = async () => {
+const fetchDrivers = async (reset = false) => {
   try {
-    const response = await authFetch(`${API_BASE_URL}/operator/drivers/list`);
+    if (reset) {
+      setDriverPage(1);
+      setDrivers([]); // clear old data
+      setHasMoreDrivers(true);
+    }
+
+    const pageToFetch = reset ? 1 : driverPage;
+
+    const response = await authFetch(`${API_BASE_URL}/operator/drivers/list?page=${pageToFetch}&limit=${limit}`);
     const result = await response.json();
-    if (!result.error) setDrivers(result.data || []);
+
+    if (!result.error) {
+      const data = result.data || [];
+
+      setDrivers((prev) => [...prev, ...data]);
+      setDriverPage(pageToFetch + 1);
+
+      setHasMoreDrivers(data.length === limit);
+    }
   } catch (error) {
     console.error("Error fetching drivers:", error);
   }
 };
 
-const fetchEndUsers = async () => {
+
+
+const fetchEndUsers = async (reset = false) => {
   try {
-    const response = await authFetch(`${API_BASE_URL}/operator/end-users/list`);
+    if (reset) {
+      setUserPage(1);
+      setEndUsers([]);
+      setHasMoreUsers(true);
+    }
+
+    const pageToFetch = reset ? 1 : userPage;
+
+    const response = await authFetch(`${API_BASE_URL}/operator/end-users/list?page=${pageToFetch}&limit=${limit}`);
     const result = await response.json();
-    if (!result.error) setEndUsers(result.data || []);
+
+    if (!result.error) {
+      const data = result.data || [];
+
+      setEndUsers((prev) => [...prev, ...data]);
+      setUserPage(pageToFetch + 1);
+      setHasMoreUsers(data.length === limit);
+    }
   } catch (error) {
     console.error("Error fetching end users:", error);
   }
 };
 
-const fetchDevices = async () => {
+
+
+const fetchDevices = async (reset = false) => {
   try {
-    const response = await authFetch(`${API_BASE_URL}/operator/devices/list`);
+    if (reset) {
+      setDevicePage(1);
+      setDevices([]);
+      setHasMoreDevices(true);
+    }
+
+    const pageToFetch = reset ? 1 : devicePage;
+
+    const response = await authFetch(`${API_BASE_URL}/operator/devices/list?page=${pageToFetch}&limit=${limit}`);
     const result = await response.json();
-    if (!result.error) setDevices(result.data || []);
+
+    if (!result.error) {
+      const data = result.data || [];
+
+      setDevices((prev) => [...prev, ...data]);
+      setDevicePage(pageToFetch + 1);
+      setHasMoreDevices(data.length === limit);
+    }
   } catch (error) {
     console.error("Error fetching devices:", error);
   }
 };
+
+
 
 
   // ---------- Map Handlers ----------
@@ -272,11 +391,13 @@ const fetchDevices = async () => {
     e.preventDefault();
 
     if (!form.vehicle_number.trim()) {
-      Swal.fire("Warning", "Vehicle number is required", "warning");
+      // Swal.fire("Warning", "Vehicle number is required", "warning");
+      showSuccess("Vehicle number is required");
       return;
     }
     if (!standingLocation) {
-      Swal.fire("Warning", "Please set standing location", "warning");
+      // Swal.fire("Warning", "Please set standing location", "warning");
+      showSuccess("Please set standing location");
       return;
     }
 
@@ -303,7 +424,8 @@ const fetchDevices = async () => {
       const data = await res.json();
 
       if (!data.error) {
-        Swal.fire("Success", data.message || "Vehicle saved successfully", "success");
+        // Swal.fire("Success", data.message || "Vehicle saved successfully", "success");
+        showSuccess("Vehicle saved successfully");
         resetForm();
         setShowForm(false);
         fetchVehicles();
@@ -334,24 +456,49 @@ setForm({
 };
 
 const handleEdit = (v: Vehicle) => {
-  setEditingVehicle(v);
- setForm({
-  vehicle_number: v.vehicle_number ?? "",
-  vehicle_type: v.vehicle_type ?? "bus",
-  route_name: v.route_name ?? "",
-  capacity: v.capacity ?? 0,
-  registration_number: v.registration_number ?? "",
-  chassis_number: v.chassis_number ?? "",
-  color: v.color ?? "",
-  seating_capacity: v.seating_capacity ?? 0,
-  landmark: v.landmark ?? "",
-});
+  const darkMode = document.documentElement.classList.contains("dark");
 
+  setEditingVehicle(v);
+
+  // Pre-fill form with vehicle details
+  setForm({
+    vehicle_number: v.vehicle_number ?? "",
+    vehicle_type: v.vehicle_type ?? "bus",
+    route_name: v.route_name ?? "",
+    capacity: v.capacity ?? 0,
+    registration_number: v.registration_number ?? "",
+    chassis_number: v.chassis_number ?? "",
+    color: v.color ?? "",
+    seating_capacity: v.seating_capacity ?? 0,
+    landmark: v.landmark ?? "",
+  });
+
+  // Pre-fill route points and standing location
   setRoutePoints(v.route_points ?? []);
   setStandingLocation(v.standing_location ?? null);
+
   setShowForm(true);
+
+  // Scroll to top smoothly
   window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // Theme-aware styling
+  const formContainer = document.getElementById("vehicle-form-container");
+  if (formContainer) {
+    formContainer.style.backgroundColor = darkMode ? "#1f2937" : "#ffffff";
+    formContainer.style.color = darkMode ? "#e5e7eb" : "#111827";
+
+    // Apply theme-aware color and styling to all inputs, selects, textareas
+    const inputs = formContainer.querySelectorAll("input, select, textarea");
+    inputs.forEach((input) => {
+      (input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).style.backgroundColor = darkMode ? "#374151" : "#f9fafb";
+      (input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).style.color = darkMode ? "#e5e7eb" : "#111827"; // <-- your requested text color
+      (input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).style.border = darkMode ? "1px solid #4b5563" : "1px solid #d1d5db";
+    });
+  }
 };
+
+
 
   const handleToggleStatus = async (v: Vehicle) => {
     try {
@@ -360,8 +507,9 @@ const handleEdit = (v: Vehicle) => {
       });
       const data = await res.json();
       if (!data.error) {
-        Swal.fire("Success", data.message || "Status updated", "success");
-        fetchVehicles();
+        // Swal.fire("Success", data.message || "Status updated", "success");
+        showSuccess("Status updated");
+        fetchVehicles(true);
       } else {
         Swal.fire("Error", data.message || "Failed to update", "error");
       }
@@ -378,6 +526,7 @@ const handleView = async (v: Vehicle) => {
 
     if (!data.error && data.data) {
       const d = data.data;
+      const darkMode = document.documentElement.classList.contains("dark");
 
       // 🔹 Route points
       const routeList =
@@ -388,11 +537,11 @@ const handleView = async (v: Vehicle) => {
                   <tr>
                     <td>${i + 1}</td>
                     <td>${p.name}</td>
-                    <td class="text-gray-500 text-xs">(${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)})</td>
+                    <td style="color:${darkMode ? '#9ca3af' : '#6b7280'}; font-size:12px;">(${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)})</td>
                   </tr>`
               )
               .join("")
-          : `<tr><td colspan="3" class="text-gray-500 text-sm text-center">No route points available</td></tr>`;
+          : `<tr><td colspan="3" style="text-align:center; color:${darkMode ? '#9ca3af' : '#6b7280'}; font-size:12px;">No route points available</td></tr>`;
 
       // 🔹 End users
       const endUsers =
@@ -403,15 +552,15 @@ const handleView = async (v: Vehicle) => {
                   <tr>
                     <td>${i + 1}</td>
                     <td>${u.name || `Passenger ${i + 1}`}</td>
-                    <td class="text-gray-500 text-xs">${u.pickup_location?.name || "—"} → ${u.dropoff_location?.name || "—"}</td>
+                    <td style="color:${darkMode ? '#9ca3af' : '#6b7280'}; font-size:12px;">${u.pickup_location?.name || "—"} → ${u.dropoff_location?.name || "—"}</td>
                   </tr>`
               )
               .join("")
-          : `<tr><td colspan="3" class="text-gray-500 text-sm text-center">No passengers assigned</td></tr>`;
+          : `<tr><td colspan="3" style="text-align:center; color:${darkMode ? '#9ca3af' : '#6b7280'}; font-size:12px;">No passengers assigned</td></tr>`;
 
       // 🔹 Standing location
       const stand = d.standing_location
-        ? `${d.standing_location.name}<br/><span class='text-gray-500 text-xs'>(Lat: ${d.standing_location.latitude.toFixed(
+        ? `${d.standing_location.name}<br/><span style="color:${darkMode ? '#9ca3af' : '#6b7280'}; font-size:12px;">(Lat: ${d.standing_location.latitude.toFixed(
             4
           )}, Lng: ${d.standing_location.longitude.toFixed(4)})</span>`
         : "—";
@@ -429,39 +578,53 @@ const handleView = async (v: Vehicle) => {
               : "—"
           }</div>
         </div>`
-        : "<div class='text-gray-500 text-sm'>No driver assigned</div>";
+        : `<div style="color:${darkMode ? '#9ca3af' : '#6b7280'}; font-size:12px;">No driver assigned</div>`;
 
       // 🔹 Status badge
       const statusBadge = d.status
         ? `<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:600;">Active</span>`
         : `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:600;">Inactive</span>`;
 
-      // 🔹 SweetAlert popup (smaller layout)
+      // 🔹 SweetAlert popup with dark/light theme
       Swal.fire({
-        title: `<strong class="text-base text-gray-800">Vehicle Details</strong>`,
-        width: 520, // ⬅️ Reduced width
-        background: "#fff",
+        showCloseButton: true,
+        showConfirmButton: false,
+        width: 520,
+        background: darkMode ? "#1f2937" : "#ffffff",
+        color: darkMode ? "#e5e7eb" : "#111827",
         html: `
-          <div style="text-align:left; font-size:13px; line-height:1.5; color:#333;">
+          <div style="text-align:left; font-size:13px; line-height:1.5; color:${darkMode ? '#e5e7eb' : '#111827'};">
+
+            <!-- Header -->
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+              <div style="
+                width:45px; height:45px; border-radius:50%;
+                background:#4f46e533; display:flex; align-items:center; justify-content:center;
+                font-size:18px; font-weight:700; color:#4f46e5;">
+                ${d.vehicle_number.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style="font-size:16px; font-weight:700; color:${darkMode ? '#e5e7eb' : '#111827'};">${d.vehicle_number}</div>
+                <div style="font-size:12px; color:${darkMode ? '#9ca3af' : '#6b7280'};">Vehicle Details</div>
+              </div>
+            </div>
 
             <!-- Vehicle info -->
-            <div class="grid grid-cols-2 gap-x-4 gap-y-2 mb-2">
-              <div><b>Vehicle No:</b> ${d.vehicle_number}</div>
-              <div><b>Status:</b> ${statusBadge}</div>
+            <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; margin-bottom:8px;">
               <div><b>Type:</b> ${d.vehicle_type}</div>
+              <div><b>Status:</b> ${statusBadge}</div>
               <div><b>Color:</b> ${d.color || "—"}</div>
               <div><b>Capacity:</b> ${d.capacity || "—"}</div>
               <div><b>Seating:</b> ${d.seating_capacity || "—"}</div>
-              <div><b>Route:</b> ${d.route_name || "—"}</div>
               <div><b>Reg. No:</b> ${d.registration_number || "—"}</div>
               <div><b>Chassis:</b> ${d.chassis_number || "—"}</div>
               <div><b>Speed:</b> ${d.speed?.toFixed(2) || 0} km/h</div>
             </div>
 
-            <hr class="my-2 border-gray-200"/>
+            <hr style="border:none; border-top:1px solid ${darkMode ? '#374151' : '#e5e7eb'}; margin:8px 0;" />
 
-            <!-- Driver + Standing Location side-by-side -->
-            <div class="grid grid-cols-2 gap-x-4 mb-2">
+            <!-- Driver + Standing Location -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
               <div>
                 <b>Driver Details:</b><br/>
                 ${driver}
@@ -472,28 +635,16 @@ const handleView = async (v: Vehicle) => {
               </div>
             </div>
 
-            <hr class="my-2 border-gray-200"/>
+            <hr style="border:none; border-top:1px solid ${darkMode ? '#374151' : '#e5e7eb'}; margin:8px 0;" />
 
-            <!-- Route points -->
-            <b>Route Points:</b>
-            <table style="width:100%; border-collapse:collapse; margin-top:4px; font-size:12px;">
-              <thead>
-                <tr style="border-bottom:1px solid #e5e7eb;">
-                  <th align="left">#</th>
-                  <th align="left">Name</th>
-                  <th align="left">Coordinates</th>
-                </tr>
-              </thead>
-              <tbody>${routeList}</tbody>
-            </table>
 
-            <hr class="my-2 border-gray-200"/>
+            <hr style="border:none; border-top:1px solid ${darkMode ? '#374151' : '#e5e7eb'}; margin:8px 0;" />
 
             <!-- Passengers -->
             <b>Passengers:</b>
             <table style="width:100%; border-collapse:collapse; margin-top:4px; font-size:12px;">
               <thead>
-                <tr style="border-bottom:1px solid #e5e7eb;">
+                <tr style="border-bottom:1px solid ${darkMode ? '#374151' : '#e5e7eb'};">
                   <th align="left">#</th>
                   <th align="left">Name</th>
                   <th align="left">Pickup → Dropoff</th>
@@ -503,13 +654,7 @@ const handleView = async (v: Vehicle) => {
             </table>
           </div>
         `,
-        confirmButtonText: "Close",
-        confirmButtonColor: "#2563eb",
-        showCloseButton: true,
-        customClass: {
-          popup: "rounded-xl shadow-md !p-3", // smaller padding
-          title: "text-sm font-semibold",
-        },
+        customClass: { popup: "rounded-xl shadow-lg !p-4" },
       });
     } else {
       Swal.fire("Error", data.message || "Failed to load details", "error");
@@ -518,6 +663,7 @@ const handleView = async (v: Vehicle) => {
     Swal.fire("Error", "Unable to fetch vehicle details", "error");
   }
 };
+
 
 
 
@@ -539,7 +685,8 @@ const handleView = async (v: Vehicle) => {
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      Swal.fire("Error", "Geolocation is not supported by your browser", "error");
+      // Swal.fire("Error", "Geolocation is not supported by your browser", "error");
+      showSuccess("Geolocation is not supported by your browser");
       return;
     }
 
@@ -560,7 +707,8 @@ const handleView = async (v: Vehicle) => {
       },
       (error) => {
         Swal.close();
-        Swal.fire("Error", "Unable to retrieve your location", "error");
+        // Swal.fire("Error", "Unable to retrieve your location", "error");
+        showSuccess("Unable to retrieve your location");
         console.error("Geolocation error:", error);
       },
       { enableHighAccuracy: true }
@@ -591,7 +739,8 @@ const handleView = async (v: Vehicle) => {
   // Device view
 const handleViewDevice = async (deviceId: string, vehicle?: Vehicle) => {
   if (!deviceId) {
-    Swal.fire("Info", "No device id provided", "info");
+    // Swal.fire("Info", "No device id provided", "info");
+    showSuccess("No device id provided");
     return;
   }
 
@@ -601,47 +750,98 @@ const handleViewDevice = async (deviceId: string, vehicle?: Vehicle) => {
 
     if (!data.error && data.data) {
       const d = data.data;
+      const darkMode = document.documentElement.classList.contains("dark");
       const vehicleInfo = d.assigned_vehicle || {};
 
+      const infoRow = (label: string, value: string | number | null | undefined) => `
+        <div style="
+          font-size:14px;
+          font-weight:500;
+          padding:4px 0;
+          color:${darkMode ? "#e5e7eb" : "#111827"};
+        ">
+          <b>${label} :</b> ${value ?? "—"}
+        </div>
+      `;
+
       Swal.fire({
-        title: `<strong style="font-size:16px;">Device: ${d.device_id || "—"}</strong>`,
+        showCloseButton: true,
+        showConfirmButton: false,
+        width: 480,
+        background: darkMode ? "#1f2937" : "#ffffff",
         html: `
-          <div style="text-align:left; font-size:13px; line-height:1.4; padding:4px;">
-            <div><b>IMEI:</b> ${d.imei || "—"}</div>
-            <div><b>Type:</b> ${d.device_type || "—"}</div>
-            <div><b>Firmware:</b> ${d.firmware_version || "—"}</div>
-            <div><b>SIM Number:</b> ${d.sim_number || "—"}</div>
-            <div><b>Battery:</b> ${d.battery_level != null ? d.battery_level + "%" : "—"}</div>
+          <div style="text-align:left;">
 
-            <hr style="margin:6px 0"/>
-
-            <div><b>Assigned Vehicle:</b></div>
-            <div style="margin-left:10px">
-              <div><b>Number:</b> ${vehicleInfo.vehicle_number || "Not Assigned"}</div>
-              <div><b>Type:</b> ${vehicleInfo.vehicle_type || "—"}</div>
-              <div><b>Route:</b> ${vehicleInfo.route_name || "—"}</div>
-              <div><b>Capacity:</b> ${vehicleInfo.capacity || "—"}</div>
-              <div><b>Status:</b> ${vehicleInfo.current_status || "—"}</div>
+            <!-- Header -->
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+              <div style="
+                width:45px; height:45px; border-radius:50%;
+                background:#4f46e533; display:flex; align-items:center; justify-content:center;
+                font-size:18px; font-weight:700; color:#4f46e5;">
+                ${d.device_id.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style="font-size:16px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
+                  ${d.device_id}
+                </div>
+                <div style="font-size:12px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
+                  Device Details
+                </div>
+              </div>
             </div>
 
-            <hr style="margin:6px 0"/>
-             <p><b>Status:</b> ${
-            d.status
-              ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-              : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-          }</p>
-            <div><b>Assigned Date:</b> ${
-              d.assigned_date ? new Date(d.assigned_date).toLocaleString() : "—"
-            }</div>
-          </div>
+            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+            <!-- Device Info -->
+            ${infoRow("IMEI", d.imei)}
+            ${infoRow("Type", d.device_type)}
+            ${infoRow("Firmware", d.firmware_version)}
+            ${infoRow("SIM Number", d.sim_number)}
+            ${infoRow("Battery Level", d.battery_level != null ? d.battery_level + "%" : "—")}
+
+            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+            <!-- Assigned Vehicle -->
+            <div style="font-weight:600; margin-bottom:4px;">Assigned Vehicle</div>
+            ${infoRow("Number", vehicleInfo.vehicle_number || "Not Assigned")}
+            ${infoRow("Type", vehicleInfo.vehicle_type)}
+            ${infoRow("Capacity", vehicleInfo.capacity)}
+            ${infoRow("Status", vehicleInfo.current_status)}
+
+            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+           <!-- Status -->
+<div style="
+  font-size:14px;
+  font-weight:500;
+  padding:4px 0;
+  color:${darkMode ? "#e5e7eb" : "#111827"};
+">
+  <b>Status :</b> ${
+    d.status
+      ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
+      : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
+  }
+</div>
+
+<!-- Assigned Date -->
+<div style="
+  font-size:14px;
+  font-weight:500;
+  padding:4px 0;
+  color:${darkMode ? "#e5e7eb" : "#111827"};
+">
+  ${infoRow("Assigned Date", d.assigned_date ? new Date(d.assigned_date).toLocaleString() : "—")}
+</div>
+
         `,
-        showCloseButton: true,
         confirmButtonText: "Close",
-        customClass: { popup: "rounded-xl" },
-        width: 400, // smaller popup width
+        confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
+        customClass: { popup: "rounded-xl shadow-lg !p-4" },
       });
     } else {
       Swal.fire("Error", data.message || "Unable to fetch device", "error");
+      
     }
   } catch (err) {
     console.error(err);
@@ -650,58 +850,81 @@ const handleViewDevice = async (deviceId: string, vehicle?: Vehicle) => {
 };
 
 
+
   // Assign device to vehicle
-  const handleAssignDevice = async (vehicle: Vehicle) => {
-    const unassignedDevices = devices.filter(d => !d.assigned_vehicle_id);
-    if (unassignedDevices.length === 0) {
-      Swal.fire("Info", "No unassigned devices available", "info");
-      return;
-    }
+const handleAssignDevice = async (vehicle: Vehicle) => {
+  const unassignedDevices = devices.filter(d => !d.assigned_vehicle_id);
+  if (unassignedDevices.length === 0) {
+    showSuccess("No unassigned devices available");
+    return;
+  }
 
-    const inputOptions: Record<string, string> = {};
-    unassignedDevices.forEach(d => {
-      inputOptions[d.device_id] = `${d.device_id} (${d.imei})`;
-    });
+  const inputOptions: Record<string, string> = {};
+  unassignedDevices.forEach(d => {
+    inputOptions[d.device_id] = `${d.device_id} (${d.imei})`;
+  });
 
-    const { value: device_id } = await Swal.fire({
-      title: `Assign Device to ${vehicle.vehicle_number}`,
-      input: "select",
-      inputLabel: "Select Device",
-      inputOptions,
-      inputPlaceholder: "Select a device",
-      showCancelButton: true,
-      confirmButtonText: "Assign",
-      confirmButtonColor: "#2563eb",
-      background: "#fff",
-      customClass: { popup: "rounded-2xl" },
-    });
+  const darkMode = document.documentElement.classList.contains("dark");
 
-    if (!device_id) return;
-
-    try {
-      const payload = { device_id, vehicle_id: vehicle.vehicle_id };
-      const res = await authFetch(`${API_BASE_URL}/operator/assignments/device-to-vehicle`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!data.error) {
-        Swal.fire("Success", data.message || "Device assigned", "success");
-        fetchVehicles();
-        fetchDevices(); // Refresh devices list
-      } else {
-        Swal.fire("Error", data.message || "Failed to assign device", "error");
+  const { value: device_id } = await Swal.fire({
+    title: `Assign Device to ${vehicle.vehicle_number}`,
+    input: "select",
+    inputLabel: "Select Device",
+    inputOptions,
+    inputPlaceholder: "Select a device",
+    showCancelButton: true,
+    confirmButtonText: "Assign",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: darkMode ? "#4f46e5" : "#2563eb",
+    cancelButtonColor: darkMode ? "#374151" : "#d1d5db",
+    background: darkMode ? "#1f2937" : "#ffffff",
+    color: darkMode ? "#e5e7eb" : "#111827",
+    customClass: {
+      popup: "rounded-2xl",
+      input: darkMode
+        ? "bg-gray-700 text-white border-gray-600"
+        : "bg-white text-gray-900 border-gray-300",
+    },
+    didOpen: () => {
+      // Style the select element after popup opens
+      const selectEl = document.querySelector<HTMLSelectElement>('.swal2-select');
+      if (selectEl) {
+        selectEl.style.backgroundColor = darkMode ? "#374151" : "#ffffff";
+        selectEl.style.color = darkMode ? "#e5e7eb" : "#111827";
+        selectEl.style.border = darkMode ? "1px solid #4b5563" : "1px solid #d1d5db";
       }
-    } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Unable to assign device", "error");
+    },
+  });
+
+  if (!device_id) return;
+
+  try {
+    const payload = { device_id, vehicle_id: vehicle.vehicle_id };
+    const res = await authFetch(`${API_BASE_URL}/operator/assignments/device-to-vehicle`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.error) {
+      showSuccess(data.message || "Device assigned");
+      fetchVehicles();
+      fetchDevices(); // Refresh devices list
+    } else {
+      Swal.fire("Error", data.message || "Failed to assign device", "error");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    Swal.fire("Error", "Unable to assign device", "error");
+  }
+};
+
+
 
   // Driver view
 const handleViewDriver = async (driverId: string, vehicle?: Vehicle) => {
   if (!driverId) {
-    Swal.fire("Info", "No driver id provided", "info");
+    // Swal.fire("Info", "No driver id provided", "info");
+    showSuccess("No driver id provided");
     return;
   }
 
@@ -721,47 +944,91 @@ const handleViewDriver = async (driverId: string, vehicle?: Vehicle) => {
       const d = data.data;
       const profile = d.driver_profile || {};
       const vehicleInfo = d.assigned_vehicle || {};
+      const darkMode = document.documentElement.classList.contains("dark");
+
+      const infoRow = (label: string, value: string | number | null | undefined) => `
+        <div style="
+          font-size:14px;
+          font-weight:500;
+          padding:4px 0;
+          color:${darkMode ? "#e5e7eb" : "#111827"};
+        ">
+          <b>${label} :</b> ${value ?? "—"}
+        </div>
+      `;
 
       Swal.fire({
-        title: `<strong style="font-size:16px;">Driver: ${d.name || profile.name || "—"}</strong>`,
+        showCloseButton: true,
+        showConfirmButton: false,
+        width: 480,
+        background: darkMode ? "#1f2937" : "#ffffff",
         html: `
-          <div style="text-align:left; font-size:13px; line-height:1.4; padding:4px;">
-            <div><b>Email:</b> ${d.email || profile.email || "—"}</div>
-            <div><b>Phone:</b> ${d.phone_number || profile.phone_number || "—"}</div>
+          <div style="text-align:left;">
 
-            <hr style="margin:6px 0"/>
+            <!-- Header -->
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+              <div style="
+                width:45px; height:45px; border-radius:50%;
+                background:#4f46e533; display:flex; align-items:center; justify-content:center;
+                font-size:18px; font-weight:700; color:#4f46e5;">
+                ${(d.name || profile.name || "D").charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style="font-size:16px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
+                  ${d.name || profile.name || "—"}
+                </div>
+                <div style="font-size:12px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
+                  Driver Details
+                </div>
+              </div>
+            </div>
 
-            <div><b>License No:</b> ${d.license_number || profile.license_number || "—"}</div>
-            <div><b>Expiry:</b> ${
+            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+            <!-- Contact Info -->
+            ${infoRow("Email", d.email || profile.email)}
+            ${infoRow("Phone", d.phone_number || profile.phone_number)}
+
+            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+            <!-- License Info -->
+            ${infoRow("License No", d.license_number || profile.license_number)}
+            ${infoRow(
+              "Expiry",
               d.license_expiry
                 ? new Date(d.license_expiry).toLocaleDateString()
                 : profile.license_expiry
                 ? new Date(profile.license_expiry).toLocaleDateString()
                 : "—"
-            }</div>
+            )}
 
-            <hr style="margin:6px 0"/>
+            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
 
-            <div><b>Vehicle Info:</b></div>
-            <div style="margin-left:10px">
-              <div><b>No:</b> ${vehicleInfo.vehicle_number || "Not Assigned"}</div>
-              <div><b>Type:</b> ${vehicleInfo.vehicle_type || "—"}</div>
-              <div><b>Route:</b> ${vehicleInfo.route_name || "—"}</div>
-              <div><b>Capacity:</b> ${vehicleInfo.capacity || "—"}</div>
-            </div>
+            <!-- Assigned Vehicle -->
+            <div style="font-weight:600; margin-bottom:4px;">Vehicle Info</div>
+            ${infoRow("Number", vehicleInfo.vehicle_number || "Not Assigned")}
+            ${infoRow("Type", vehicleInfo.vehicle_type)}
+            ${infoRow("Capacity", vehicleInfo.capacity)}
 
-            <hr style="margin:6px 0"/>
-              <p><b>Status:</b> ${
-            d.status
-              ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-              : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-          }</p>
-          </div>
+            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+            <!-- Status -->
+           <div style="
+  font-size:14px;
+  font-weight:500;
+  padding:4px 0;
+  color:${darkMode ? "#e5e7eb" : "#111827"};
+">
+  <b>Status :</b> ${
+    d.status
+      ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
+      : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
+  }
+</div>
         `,
-        showCloseButton: true,
         confirmButtonText: "Close",
-        customClass: { popup: "rounded-xl" },
-        width: 400, // smaller box
+        confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
+        customClass: { popup: "rounded-xl shadow-lg !p-4" },
       });
     } else {
       Swal.fire("Error", data.message || "Unable to fetch driver", "error");
@@ -773,228 +1040,358 @@ const handleViewDriver = async (driverId: string, vehicle?: Vehicle) => {
 };
 
 
+
   // Assign driver
-  const handleAssignDriver = async (vehicle: Vehicle) => {
-    const unassignedDrivers = drivers.filter(d => !d.assigned_vehicle_id);
-    if (unassignedDrivers.length === 0) {
-      Swal.fire("Info", "No unassigned drivers available", "info");
-      return;
-    }
-
-    const inputOptions: Record<string, string> = {};
-    unassignedDrivers.forEach(d => {
-      inputOptions[d.driver_profile?.driver_id || d._id] = d.name;
-    });
-
-    const { value: driver_id } = await Swal.fire({
-      title: `Assign Driver to ${vehicle.vehicle_number}`,
-      input: "select",
-      inputLabel: "Select Driver",
-      inputOptions,
-      inputPlaceholder: "Select a driver",
-      showCancelButton: true,
-      confirmButtonText: "Assign",
-      confirmButtonColor: "#2563eb",
-      background: "#fff",
-      customClass: { popup: "rounded-2xl" },
-    });
-
-    if (!driver_id) return;
-
-    try {
-      const payload = { driver_id, vehicle_id: vehicle.vehicle_id };
-      const res = await authFetch(`${API_BASE_URL}/operator/assignments/driver-to-vehicle`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!data.error) {
-        Swal.fire("Success", data.message || "Driver assigned", "success");
-        fetchVehicles();
-        fetchDrivers(); // Refresh drivers list
-      } else {
-        Swal.fire("Error", data.message || "Failed to assign driver", "error");
-      }
-    } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Unable to assign driver", "error");
-    }
-  };
-
-
-  // Passenger view (assumes this endpoint exists; change if needed)
-const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
-  if (!passengerId) {
-    Swal.fire("Info", "No passenger id provided", "info");
+const handleAssignDriver = async (vehicle: Vehicle) => {
+  const unassignedDrivers = drivers.filter(d => !d.assigned_vehicle_id);
+  if (unassignedDrivers.length === 0) {
+    // Swal.fire("Info", "No unassigned drivers available", "info");
+    showSuccess("No unassigned drivers available");
     return;
   }
 
+  const inputOptions: Record<string, string> = {};
+  unassignedDrivers.forEach(d => {
+    inputOptions[d.driver_profile?.driver_id || d._id] = d.name;
+  });
+
+  const darkMode = document.documentElement.classList.contains("dark");
+
+  const { value: driver_id } = await Swal.fire({
+    title: `Assign Driver to ${vehicle.vehicle_number}`,
+    input: "select",
+    inputLabel: "Select Driver",
+    inputOptions,
+    inputPlaceholder: "Select a driver",
+    showCancelButton: true,
+    confirmButtonText: "Assign",
+    cancelButtonText: "Cancel",
+    confirmButtonColor: darkMode ? "#4f46e5" : "#2563eb",
+    cancelButtonColor: darkMode ? "#374151" : "#d1d5db",
+    background: darkMode ? "#1f2937" : "#ffffff",
+    color: darkMode ? "#e5e7eb" : "#111827",
+    customClass: {
+      popup: "rounded-2xl",
+      input: darkMode
+        ? "bg-gray-700 text-white border-gray-600"
+        : "bg-white text-gray-900 border-gray-300",
+    },
+  });
+
+  if (!driver_id) return;
+
   try {
-    const res = await authFetch(`${API_BASE_URL}/operator/end-users/${passengerId}/view`);
+    const payload = { driver_id, vehicle_id: vehicle.vehicle_id };
+    const res = await authFetch(`${API_BASE_URL}/operator/assignments/driver-to-vehicle`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
     const data = await res.json();
-
-    if (!data.error && data.data) {
-      const p = data.data;
-      const profile = p.end_user_profile || {};
-      const sos = profile.sos_contact || {};
-      const pickup = profile.pickup_location || {};
-      const dropoff = profile.dropoff_location || {};
-      const vehicleInfo = p.assigned_vehicle || vehicle;
-
-      const darkMode = document.documentElement.classList.contains("dark");
-
-      const html = `
-        <div style="text-align:left; font-size:14px; line-height:1.6;">
-          <p><b>Name:</b> ${p.name || "—"}</p>
-          <p><b>Email:</b> ${p.email || "—"}</p>
-          <p><b>Phone:</b> ${p.phone_number || "—"}</p>
-
-          <hr style="margin:10px 0;border:none;border-top:1px solid ${
-            darkMode ? "#374151" : "#e5e7eb"
-          };"/>
-
-          <p><b>SOS Contact:</b> ${sos.name || "—"} (${sos.phone_number || "—"})</p>
-          <p><b>Pickup:</b> ${pickup.name || "—"} (${pickup.address || "—"})</p>
-          <p><b>Dropoff:</b> ${dropoff.name || "—"} (${dropoff.address || "—"})</p>
-
-          <hr style="margin:10px 0;border:none;border-top:1px solid ${
-            darkMode ? "#374151" : "#e5e7eb"
-          };"/>
-
-          <p><b>Assigned Vehicle:</b> ${vehicleInfo?.vehicle_number || "—"}</p>
-          <p><b>Assigned Driver:</b> ${vehicleInfo?.driver?.name || "—"}</p>
-           <p><b>Status:</b> ${
-            p.status
-              ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-              : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-          }</p>
-        </div>
-      `;
-
-      Swal.fire({
-        background: darkMode ? "#1f2937" : "#ffffff",
-        color: darkMode ? "#e5e7eb" : "#111827",
-        title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">Passenger Details</h3>`,
-        html,
-        showCloseButton: true,
-        showCancelButton: !!vehicle,
-        cancelButtonText: "Unassign",
-        confirmButtonText: "Close",
-        confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
-        customClass: { popup: "rounded-xl shadow-lg" },
-        width: 420,
-      }).then(async (resSwal) => {
-        if (resSwal.dismiss === Swal.DismissReason.cancel && vehicle) {
-          const confirm = await Swal.fire({
-            title: "Confirm Unassign",
-            text: `Unassign ${p.name || passengerId} from ${vehicle.vehicle_number}?`,
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Unassign",
-            confirmButtonColor: "#d33",
-          });
-
-          if (confirm.isConfirmed) {
-            try {
-              const payload = {
-                end_user_id: passengerId,
-                vehicle_id: vehicle.vehicle_id,
-              };
-              const res = await authFetch(
-                `${API_BASE_URL}/operator/assignments/unassign-end-user-from-vehicle`,
-                {
-                  method: "POST",
-                  body: JSON.stringify(payload),
-                }
-              );
-              const d = await res.json();
-              if (!d.error) {
-                Swal.fire("Success", d.message || "Unassigned", "success");
-                fetchVehicles();
-              } else {
-                Swal.fire("Error", d.message || "Failed to unassign", "error");
-              }
-            } catch (err) {
-              console.error(err);
-              Swal.fire("Error", "Unable to unassign passenger", "error");
-            }
-          }
-        }
-      });
+    if (!data.error) {
+      // Swal.fire("Success", data.message || "Driver assigned", "success");
+      showSuccess(data.message || "Driver assigned");
+      fetchVehicles();
+      fetchDrivers(); // Refresh drivers list
     } else {
-      Swal.fire("Error", data.message || "Unable to fetch passenger", "error");
+      Swal.fire("Error", data.message || "Failed to assign driver", "error");
     }
   } catch (err) {
     console.error(err);
-    Swal.fire("Error", "Unable to fetch passenger", "error");
+    Swal.fire("Error", "Unable to assign driver", "error");
   }
 };
 
 
-  // Assign passengers (single or multiple)
-  const handleAssignPassengers = async (vehicle: Vehicle) => {
-    const { value: selectedPassengers } = await Swal.fire({
-      title: `Assign Passengers to ${vehicle.vehicle_number}`,
-      html: `
-        <div id="passengers-container">
-          <select id="passenger-0" class="swal2-select">
-            <option value="">Select Passenger</option>
-            ${endUsers.filter(u => !u.assigned_vehicle_id && !u.end_user_profile?.assigned_vehicle_id).map(u => `<option value="${u.end_user_profile?.end_user_id}">${u.name}</option>`).join('')}
-          </select>
-        </div>
-        <button id="add-passenger" type="button" class="swal2-styled" style="margin-top: 10px;">Add Another</button>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'Assign',
-      didOpen: () => {
-        let count = 1;
-        document.getElementById('add-passenger')?.addEventListener('click', (e) => {
-          e.preventDefault();
-          const container = document.getElementById('passengers-container');
-          if (container) {
-            const select = document.createElement('select');
-            select.id = `passenger-${count}`;
-            select.className = 'swal2-select';
-            select.innerHTML = `<option value="">Select Passenger</option>${endUsers.filter(u => !u.assigned_vehicle_id && !u.end_user_profile?.assigned_vehicle_id).map(u => `<option value="${u.end_user_profile?.end_user_id}">${u.name}</option>`).join('')}`;
-            container.appendChild(select);
-            container.appendChild(document.createElement('br'));
-            count++;
-          }
-        });
-      },
-      preConfirm: () => {
-        const selects = document.querySelectorAll('#passengers-container select');
-        const selected = Array.from(selects).map(s => (s as HTMLSelectElement).value).filter(v => v);
-        return [...new Set(selected)]; // unique
-      }
-    });
 
-    if (!selectedPassengers || selectedPassengers.length === 0) return;
+  // Passenger view (assumes this endpoint exists; change if needed)
+  const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
+    if (!passengerId) {
+      // Swal.fire("Info", "No passenger id provided", "info");
+      showSuccess("No passenger id provided");
+      return;
+    }
 
     try {
-      for (const end_user_id of selectedPassengers) {
-        const payload = { end_user_id, vehicle_id: vehicle.vehicle_id };
-        const res = await authFetch(`${API_BASE_URL}/operator/assignments/end-user-to-vehicle`, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (data.error) {
-          throw new Error(data.message || "Failed to assign passenger");
-        }
+      const res = await authFetch(`${API_BASE_URL}/operator/end-users/${passengerId}/view`);
+      const data = await res.json();
+
+      if (!data.error && data.data) {
+        const p = data.data;
+        const profile = p.end_user_profile || {};
+        const sos = profile.sos_contact || {};
+        const pickup = profile.pickup_location || {};
+        const dropoff = profile.dropoff_location || {};
+        const vehicleInfo = p.assigned_vehicle || vehicle;
+
+        const darkMode = document.documentElement.classList.contains("dark");
+
+        const infoRow = (label: string, value: string | number | null | undefined) => `
+          <div style="
+            font-size:14px;
+            font-weight:500;
+            padding:4px 0;
+            color:${darkMode ? "#e5e7eb" : "#111827"};
+          ">
+            <b>${label} :</b> ${value ?? "—"}
+          </div>
+        `;
+
+        Swal.fire({
+          showCloseButton: true,
+          showCancelButton: !!vehicle,
+          cancelButtonText: "Unassign",
+          confirmButtonText: "Close",
+          confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
+          width: 480,
+          background: darkMode ? "#1f2937" : "#ffffff",
+          customClass: { popup: "rounded-xl shadow-lg !p-4" },
+          html: `
+            <div style="text-align:left;">
+
+              <!-- Header -->
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                <div style="
+                  width:45px; height:45px; border-radius:50%;
+                  background:#4f46e533; display:flex; align-items:center; justify-content:center;
+                  font-size:18px; font-weight:700; color:#4f46e5;">
+                  ${p.name?.charAt(0).toUpperCase() || "P"}
+                </div>
+                <div>
+                  <div style="font-size:16px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
+                    ${p.name || "—"}
+                  </div>
+                  <div style="font-size:12px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
+                    Passenger Details
+                  </div>
+                </div>
+              </div>
+
+              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+              <!-- Contact Info -->
+              ${infoRow("Email", p.email)}
+              ${infoRow("Phone", p.phone_number)}
+
+              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+              <!-- SOS & Locations -->
+              ${infoRow("SOS Contact", `${sos.name || "—"} (${sos.phone_number || "—"})`)}
+              ${infoRow("Pickup", `${pickup.name || "—"} (${pickup.address || "—"})`)}
+              ${infoRow("Dropoff", `${dropoff.name || "—"} (${dropoff.address || "—"})`)}
+
+              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+              <!-- Assigned Vehicle & Driver -->
+              ${infoRow("Assigned Vehicle", vehicleInfo?.vehicle_number)}
+              ${infoRow("Assigned Driver", vehicleInfo?.driver?.name)}
+
+              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+
+              <div style="
+    font-size:14px;
+    font-weight:500;
+    padding:4px 0;
+    color:${darkMode ? "#e5e7eb" : "#111827"};
+  ">
+    <b>Status :</b> ${
+      p.status
+        ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
+        : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
+    }
+  </div>
+          `,
+        }).then(async (resSwal) => {
+       if (resSwal.dismiss === Swal.DismissReason.cancel && vehicle) {
+  const confirm = await Swal.fire({
+    title: "Confirm Unassign",
+    text: `Unassign ${p.name || passengerId} from ${vehicle.vehicle_number}?`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Unassign",
+    confirmButtonColor: "#d33",
+
+     background: darkMode ? "#1f2937" : "#ffffff",      
+  color: darkMode ? "#f3f4f6" : "#1f2937",            
+
+  customClass: {
+    popup: darkMode
+      ? "rounded-xl shadow-lg border border-gray-700"
+      : "rounded-xl shadow-lg border border-gray-200",
+    title: "text-lg font-semibold",
+    htmlContainer: "text-sm",
+  },
+  });
+
+  if (confirm.isConfirmed) {
+    try {
+      const payload = {
+        end_user_id: passengerId,
+        vehicle_id: vehicle.vehicle_id,
+      };
+
+      const res = await authFetch(
+        `${API_BASE_URL}/operator/assignments/unassign-end-user-from-vehicle`,
+        { method: "POST", body: JSON.stringify(payload) }
+      );
+
+      const d = await res.json();
+
+      if (!d.error) {
+        // Replace Swal success with your custom toast
+        showSuccess(d.message || "Unassigned successfully");
+        fetchVehicles();
+      } else {
+        Swal.fire("Error", d.message || "Failed to unassign", "error");
       }
-      Swal.fire("Success", "Passengers assigned successfully", "success");
-      fetchVehicles();
-      fetchEndUsers(); // refresh
     } catch (err) {
       console.error(err);
-      const message = err instanceof Error ? err.message : "Unable to assign passengers";
-      Swal.fire("Error", message, "error");
+      Swal.fire("Error", "Unable to unassign passenger", "error");
+    }
+  }
+}
+
+        });
+      } else {
+        Swal.fire("Error", data.message || "Unable to fetch passenger", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Unable to fetch passenger", "error");
     }
   };
 
 
-  // ----------------- END NEW HELPERS -----------------
+
+  // Assign passengers (single or multiple)
+const handleAssignPassengers = async (vehicle: Vehicle) => {
+  const darkMode = document.documentElement.classList.contains("dark");
+
+  // Step 1: Check unassigned passengers
+const availablePassengers = Array.from(
+  new Map(
+    endUsers
+      .filter(u => !u.assigned_vehicle_id && !u.end_user_profile?.assigned_vehicle_id)
+      .map(u => [u.end_user_profile?.end_user_id, u])
+  ).values()
+);
+
+
+  if (availablePassengers.length === 0) {
+    Swal.fire({
+      icon: "info",
+      title: "No Unassigned Passengers",
+      text: "All passengers are already assigned to vehicles.",
+      confirmButtonColor: "#3b82f6",
+    });
+    return;
+  }
+
+  // Step 2: Open Swal only when passengers exist
+  const { value: selectedPassengers } = await Swal.fire({
+    title: `Assign Passengers to ${vehicle.vehicle_number}`,
+    html: `
+      <div id="passengers-container" style="display:flex; flex-direction:column; gap:8px;">
+        <select id="passenger-0" class="swal2-select" style="
+          background: ${darkMode ? "#1f2937" : "#fff"};
+          color: ${darkMode ? "#e5e7eb" : "#111827"};
+          border: 1px solid ${darkMode ? "#374151" : "#d1d5db"};
+          padding: 6px 8px;
+          border-radius: 6px;
+        ">
+          <option value="">Select Passenger</option>
+          ${availablePassengers
+            .map(u => `<option value="${u.end_user_profile?.end_user_id}">${u.name}</option>`)
+            .join('')}
+        </select>
+      </div>
+
+      <button id="add-passenger" type="button" class="swal2-styled" style="
+        margin-top: 10px;
+        background: ${darkMode ? "#4f46e5" : "#2563eb"};
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        cursor: pointer;
+      ">Add Another</button>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Assign',
+    cancelButtonText: 'Cancel',
+    confirmButtonColor: darkMode ? "#4f46e5" : "#2563eb",
+    cancelButtonColor: darkMode ? "#374151" : "#d1d5db",
+    background: darkMode ? "#1f2937" : "#ffffff",
+    color: darkMode ? "#e5e7eb" : "#111827",
+    customClass: { popup: "rounded-2xl !p-6" },
+
+    didOpen: () => {
+      let count = 1;
+      document.getElementById("add-passenger")?.addEventListener("click", () => {
+        const container = document.getElementById("passengers-container");
+
+        if (container) {
+          const select = document.createElement("select");
+          select.id = `passenger-${count}`;
+          select.className = "swal2-select";
+          select.style.background = darkMode ? "#1f2937" : "#fff";
+          select.style.color = darkMode ? "#e5e7eb" : "#111827";
+          select.style.border = darkMode ? "1px solid #374151" : "1px solid #d1d5db";
+          select.style.padding = "6px 8px";
+          select.style.borderRadius = "6px";
+
+          select.innerHTML = `
+            <option value="">Select Passenger</option>
+            ${availablePassengers
+              .map(u => `<option value="${u.end_user_profile?.end_user_id}">${u.name}</option>`)
+              .join("")}
+          `;
+
+          container.appendChild(select);
+        }
+        count++;
+      });
+    },
+
+    preConfirm: () => {
+      const selects = document.querySelectorAll("#passengers-container select");
+      return Array.from(selects)
+        .map((s) => (s as HTMLSelectElement).value)
+        .filter((v) => v)
+        .filter((v, i, arr) => arr.indexOf(v) === i); // unique
+    },
+  });
+
+  if (!selectedPassengers || selectedPassengers.length === 0) return;
+
+  try {
+    for (const end_user_id of selectedPassengers) {
+      const payload = { end_user_id, vehicle_id: vehicle.vehicle_id };
+      const res = await authFetch(`${API_BASE_URL}/operator/assignments/end-user-to-vehicle`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.message);
+    }
+
+    showSuccess("Passengers assigned successfully");
+    fetchVehicles();
+    fetchEndUsers();
+  } catch (err) {
+    console.error(err);
+    const message = err instanceof Error ? err.message : "Unable to assign passengers";
+    Swal.fire("Error", message, "error");
+  }
+};
+
+if (loading)
+  return (
+    <PageShimmer />
+  );
+
+
+
 
   // ---------- Render ----------
   return (
@@ -1042,13 +1439,13 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                 <option value="car">Car</option>
               </select>
 
-              <input
+              {/* <input
                 name="route_name"
                 value={form.route_name}
                 onChange={handleChange}
                 placeholder="route name"
                 className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
+              /> */}
 
               <input
                 name="capacity"
@@ -1091,8 +1488,14 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                 placeholder="seating capasity"
                 className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
-            </div>
-
+              <input
+               name="landmark"
+               value={form.landmark}
+               onChange={handleChange}
+               placeholder="Landmark"
+               className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+               />
+               </div>
             {/* 🗺️ Map Section with Stops */}
             <div className="relative h-[400px] border rounded-lg overflow-hidden mb-4">
               {/* 📍 Locate Me Button */}
@@ -1125,14 +1528,8 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                 )}
               </MapContainer>
             </div>
-            <p className="text-sm text-gray-500 italic text-center mb-4">🗺️ Click on the map where you want to add the stop.</p>
-             <input
-  name="landmark"
-  value={form.landmark}
-  onChange={handleChange}
-  placeholder="Landmark"
-  className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-/>
+            <p className="text-sm text-gray-500 italic text-center mb-4">🗺️ Click on Current location Icon on the map for fetching the Standing Location.</p>
+           
 
             <div className="flex justify-end gap-2 mt-4">
               <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
@@ -1151,7 +1548,7 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                 {[
                   "Vehicle No",
                   "Type",
-                  "Route",
+                  // "Route",
                   "Color",
                   "Seating",
                   "Assigned Device",
@@ -1186,13 +1583,19 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                     // prefer assigned_device_id, fallback to assigned_device.device_id or assigned_device._id
                     (v as any).assigned_device_id || (v as any).assigned_device?.device_id || (v as any).assigned_device?._id || null;
                   const driverId = (v as any).assigned_driver_id || (v as any).assigned_driver?._id || null;
-                  const assignedPassengers = endUsers.filter(u => u.assigned_vehicle_id === v.vehicle_id || u.end_user_profile?.assigned_vehicle_id === v.vehicle_id);
+const assignedPassengers = Array.from(
+  new Map(
+    endUsers
+      .filter(u => u.end_user_profile?.assigned_vehicle_id === v.vehicle_id)
+      .map(u => [u.end_user_profile?.end_user_id, u]) // unique by passenger ID
+  ).values()
+);
 
                   return (
                     <tr key={v._id} className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300">
                       <td className="px-3 py-2 whitespace-nowrap">{v.vehicle_number}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{v.vehicle_type}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{v.route_name}</td>
+                      {/* <td className="px-3 py-2 whitespace-nowrap">{v.route_name}</td> */}
                       <td className="px-3 py-2 whitespace-nowrap">{v.color}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{v.seating_capacity ?? "—"}</td>
 
@@ -1202,8 +1605,8 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleViewDevice(deviceId, v)}
-                              className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
-                            >
+                               className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
                               View
                             </button>
                           </div>
@@ -1211,7 +1614,7 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleAssignDevice(v)}
-                              className="text-xs px-3 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100"
+                               className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
                             >
                               Assign
                             </button>
@@ -1225,8 +1628,8 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleViewDriver(driverId, v)}
-                              className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
-                            >
+                                className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
                               View
                             </button>
                           </div>
@@ -1234,7 +1637,7 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleAssignDriver(v)}
-                              className="text-xs px-3 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100"
+                              className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
                             >
                               Assign
                             </button>
@@ -1244,63 +1647,64 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
 
 
                       {/* Assigned Passengers */}
-                   <td className="px-3 py-2 whitespace-nowrap">
-  <div
-    className={`flex gap-4 ${
-      assignedPassengers.length === 0 ? "justify-center" : "justify-start"
-    }`}
-  >
-    {/* Left column — View buttons */}
-    {assignedPassengers.length > 0 && (
-      <div className="flex flex-col gap-1">
-        {assignedPassengers.map((p) => (
+               <td className="px-3 py-2 whitespace-nowrap">
+  <div className="flex justify-between items-center">
+     {/* Right side — Assign button */}
+    <div>
+      <button
+        onClick={() => handleAssignPassengers(v)}
+        className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+      >
+        Assign
+      </button>
+    </div>
+    {/* Left side — View buttons */}
+    <div className="flex gap-2">
+      {assignedPassengers.length > 0 &&
+        assignedPassengers.map((p) => (
           <button
             key={p._id}
             onClick={() =>
               handleViewPassenger(p.end_user_profile?.end_user_id!, v)
             }
-            className="text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
+            className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
           >
             View
           </button>
         ))}
-      </div>
-    )}
-
-    {/* Right column — Assign button */}
-    <div className="flex flex-col justify-center">
-      <button
-        onClick={() => handleAssignPassengers(v)}
-        className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-      >
-        Assign
-      </button>
     </div>
   </div>
 </td>
 
 
+
                       <td className="px-3 py-2 whitespace-nowrap">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${v.status ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
-                        >
+            className={`px-3 py-1 rounded-full text-xs font-medium ${
+              v.status
+                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+            }`}
+          >
                           {v.status ? "Active" : "Inactive"}
                         </span>
                       </td>
 
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex gap-2">
-                          <button onClick={() => handleView(v)} className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100">
+                           <button
+                            onClick={() => handleToggleStatus(v)}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition"
+            >
+                            {v.status ? <DeactivateIcon /> : <ActivateIcon />}
+                          </button>
+                          <button onClick={() => handleView(v)}   className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
                             View
                           </button>
-                          <button onClick={() => handleEdit(v)} className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">
+                          <button onClick={() => handleEdit(v)}  className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+            >
                             Edit
-                          </button>
-                          <button
-                            onClick={() => handleToggleStatus(v)}
-                            className={`text-xs px-3 py-1 rounded ${v.status ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}
-                          >
-                            {v.status ? "Deactivate" : "Activate"}
                           </button>
                         </div>
                       </td>
@@ -1310,6 +1714,8 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
               )}
             </tbody>
           </table>
+         
+
         </div>
       </div>
     </>

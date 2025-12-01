@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import Button from "../components/ui/button/Button";
 import Input from "../components/form/input/InputField";
 import Label from "../components/form/Label";
 import { Mail, Phone, Shield, Clock, Calendar, Activity } from "lucide-react";
+import { Pencil } from "lucide-react";
+import Swal from "sweetalert2";
+
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 
@@ -36,6 +39,7 @@ export default function UserProfiles() {
   const [success, setSuccess] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [passwordMode, setPasswordMode] = useState(false);
+const editSectionRef = useRef<HTMLFormElement | null>(null);
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
@@ -73,6 +77,31 @@ export default function UserProfiles() {
   init(); // call immediately on mount
 }, []);
 
+useEffect(() => {
+  if (editMode && editSectionRef.current) {
+    editSectionRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+}, [editMode]);
+
+
+const showSuccess = (message: string) => {
+  const dark = document.documentElement.classList.contains("dark");
+
+  Swal.fire({
+    icon: "success",
+    title: message,
+    background: dark ? "#1f2937" : "#ffffff",
+    color: dark ? "#e5e7eb" : "#111827",
+    confirmButtonColor: dark ? "#6366f1" : "#4f46e5",
+    timer: 1600,
+    showConfirmButton: false,
+    toast: true,
+    position: "top-end",
+  });
+};
 
   const getRoleInfo = () => {
     const storedUser = localStorage.getItem("user");
@@ -152,20 +181,19 @@ export default function UserProfiles() {
 
       const data = await res.json();
 
-      if (!data.error) {
-        setSuccess("Profile updated successfully");
-        setEditMode(false);
-        fetchProfile();
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError(data.message || "Failed to update profile");
-      }
-    } catch {
-      setError("An error occurred while updating profile");
-    } finally {
-      setLoading(false);
+     if (!data.error) {
+      showSuccess("Profile updated successfully");
+      setEditMode(false);
+      fetchProfile();
+    } else {
+      setError(data.message || "Failed to update profile");
     }
-  };
+  } catch {
+    setError("An error occurred while updating profile");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,11 +231,11 @@ export default function UserProfiles() {
       const data = await res.json();
 
       if (!data.error) {
-        setSuccess("Password changed successfully");
-        setPasswords({ current: "", new: "", confirm: "" });
-        setPasswordMode(false);
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
+  showSuccess("Password changed successfully");
+  setPasswords({ current: "", new: "", confirm: "" });
+  setPasswordMode(false);
+}
+ else {
         setError(data.message || "Failed to change password");
       }
     } catch {
@@ -224,11 +252,22 @@ export default function UserProfiles() {
 
       <div className="space-y-8">
         {/* Profile Info Section */}
-        <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-8 shadow-lg">
+        <div className="relative overflow-hidden  bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-8 shadow-lg">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-4xl font-semibold shadow-md">
-              {profileData.name ? profileData.name.charAt(0).toUpperCase() : "U"}
-            </div>
+            <div className="relative">
+  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-4xl font-semibold shadow-md">
+    {profileData.name ? profileData.name.charAt(0).toUpperCase() : "U"}
+  </div>
+
+  {/* Pencil Icon on Avatar */}
+  <button
+    onClick={() => setEditMode(true)}
+    className="absolute bottom-1 right-1 p-2 rounded-full bg-white dark:bg-gray-700 shadow-md hover:bg-gray-100 dark:hover:bg-gray-600 transition"
+  >
+    <Pencil size={16} className="text-blue-600 dark:text-blue-300" />
+  </button>
+</div>
+
             <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
               {profileData.name || "User Name"}
             </h2>
@@ -288,17 +327,21 @@ export default function UserProfiles() {
             ))}
           </div>
 
-          <div className="mt-8 flex justify-center">
+          {/* <div className="mt-8 flex justify-center">
             <button
               onClick={() => setEditMode(!editMode)}
               className="px-6 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
             >
               {editMode ? "Cancel Edit" : "Edit Profile"}
             </button>
-          </div>
+          </div> */}
 
-          {editMode && (
-            <form onSubmit={handleProfileUpdate} className="mt-8 space-y-5">
+        {editMode && (
+  <form
+    ref={editSectionRef}
+    onSubmit={handleProfileUpdate}
+    className="mt-8 space-y-5"
+  >
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Full Name *</Label>
@@ -353,7 +396,7 @@ export default function UserProfiles() {
         </div>
 
         {/* Change Password */}
-        <div className="rounded-2xl border border-gray-100 bg-white dark:bg-gray-900 p-8 shadow-lg">
+        <div className=" bg-white dark:bg-gray-900 p-8 shadow-lg">
           <div className="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-gray-700 pb-3">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Change Password

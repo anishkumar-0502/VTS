@@ -3,6 +3,7 @@ import Swal from "sweetalert2";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import Button from "../../components/ui/button/Button";
+import PageShimmer from "../../components/common/PageShimmer";
 
 interface Driver {
   _id: string;
@@ -16,7 +17,16 @@ interface Driver {
     driver_id: string;
     assigned_vehicle_id?: string | null;
   };
+
+  // ⬇ ADD THIS
+  assigned_vehicle?: {
+    vehicle_number?: string;
+    vehicle_type?: string;
+    capacity?: number;
+    current_status?: string;
+  } | null;
 }
+
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -26,6 +36,10 @@ export default function ManageDrivers() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
+const [page, setPage] = useState(1);
+const [pageSize] = useState(10); // you can change this
+const [hasMore, setHasMore] = useState(true);
+const [loadingMore, setLoadingMore] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -41,32 +55,86 @@ export default function ManageDrivers() {
     Authorization: `Bearer ${token}`,
   };
 
+  const showSuccess = (message: string) => {
+  const dark = document.documentElement.classList.contains("dark");
+
+  Swal.fire({
+    icon: "success",
+    title: message,
+    background: dark ? "#1f2937" : "#ffffff",
+    color: dark ? "#e5e7eb" : "#111827",
+    confirmButtonColor: dark ? "#6366f1" : "#4f46e5",
+    timer: 1600,
+    showConfirmButton: false,
+    toast: true,
+    position: "top-end",
+  });
+};
+
+   
+// Toggle icons for activate/deactivate
+const DeactivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#ef4444" />
+    <circle cx="18" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
+
+const ActivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#10b981" />
+    <circle cx="6" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
   // ======================
   // FETCH DRIVERS
   // ======================
-  const fetchDrivers = async () => {
-    try {
+const fetchDrivers = async (reset = false) => {
+  try {
+    if (reset) {
+      setPage(1);
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/operator/drivers/list`, {
-        headers: authHeaders,
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setDrivers(data.data || []);
-      } else {
-        setError(data.message || "Failed to load drivers");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Error fetching drivers");
-    } finally {
-      setLoading(false);
+    } else {
+      setLoadingMore(true);
     }
-  };
+
+    const res = await fetch(
+      `${API_BASE_URL}/operator/drivers/list?page=${reset ? 1 : page}&limit=${pageSize}`,
+      { headers: authHeaders }
+    );
+
+    const data = await res.json();
+
+    if (res.ok) {
+      const newDrivers = data.data || [];
+
+    setDrivers(prev => {
+  const merged = reset ? newDrivers : [...prev, ...newDrivers];
+
+  return Array.from(
+    new Map(merged.map((d: Driver) => [d._id, d])).values()
+  ) as Driver[];
+});
+
+
+      setHasMore(newDrivers.length === pageSize);
+    } else {
+      setError(data.message || "Failed to load drivers");
+    }
+  } catch (err) {
+    console.error(err);
+    setError("Error fetching drivers");
+  } finally {
+    setLoading(false);
+    setLoadingMore(false);
+  }
+};
+
+
 
   useEffect(() => {
-    fetchDrivers();
+    fetchDrivers(true);
+    setPage(1);
   }, []);
 
   // ======================
@@ -100,12 +168,7 @@ export default function ManageDrivers() {
       const data = await res.json();
 
       if (res.ok) {
-        Swal.fire({
-          icon: "success",
-          title: editingDriver ? "Updated Successfully!" : "Driver Created!",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        showSuccess(editingDriver ? "Updated Successfully!" : "Driver Created!");
         setShowForm(false);
         setEditingDriver(null);
         resetForm();
@@ -129,94 +192,130 @@ const handleView = async (driver_id: string) => {
     });
     const data = await res.json();
 
-    if (res.ok && data.data) {
-      const d = data.data;
-      const v = d.assigned_vehicle || {};
-
-      Swal.fire({
-        title: `<h2 class='text-base font-semibold mb-2 text-gray-800'>Driver Details</h2>`,
-        html: `
-          <div style="
-            display: flex;
-            flex-direction: column;
-            text-align: left;
-            font-size: 13px;
-            line-height: 1.6;
-            color: #333;
-            gap: 6px;
-          ">
-
-            <p><b>Name:</b> ${d.name}</p>
-            <p><b>Email:</b> ${d.email}</p>
-            <p><b>Phone Number:</b> ${d.phone_number}</p>
-            <p><b>Status:</b> ${
-            d.status
-              ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-              : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-          }</p>
-            
-            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 6px 0;">
-
-            <p><b>License Number:</b> ${d.license_number || "N/A"}</p>
-            <p><b>License Expiry:</b> ${
-              d.license_expiry ? new Date(d.license_expiry).toLocaleDateString() : "N/A"
-            }</p>
-
-            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 6px 0;">
-
-            <p><b>Assigned Vehicle Number:</b> ${v.vehicle_number || "Not Assigned"}</p>
-            <p><b>Vehicle Type:</b> ${v.vehicle_type || "N/A"}</p>
-            <p><b>Route Name:</b> ${v.route_name || "N/A"}</p>
-            <p><b>Capacity:</b> ${v.capacity || "N/A"}</p>
-            <p><b>Vehicle Status:</b> ${v.current_status || "N/A"}</p>
-          </div>
-        `,
-        width: 420,
-        confirmButtonText: "Close",
-        confirmButtonColor: "#2563eb",
-      });
-    } else {
-      Swal.fire("Error", data.message || "Failed to fetch driver details", "error");
+    if (!res.ok || !data.data) {
+      throw new Error(data.message || "Failed to fetch driver details");
     }
-  } catch (err) {
-    console.error(err);
-    Swal.fire("Error", "Unable to fetch driver details", "error");
+
+    const d = data.data;
+    const v = d.assigned_vehicle || {};
+    const darkMode = document.documentElement.classList.contains("dark");
+
+    const formatDate = (dateStr: string) => (dateStr ? new Date(dateStr).toLocaleDateString() : "N/A");
+
+    // Helper for displaying label + value rows
+    const infoRow = (label: string, value: string | number | null | undefined): string => {
+      return `
+        <div style="
+          font-size:14px;
+          font-weight:500;
+          padding:4px 0;
+          color:${darkMode ? "#e5e7eb" : "#111827"};
+        ">
+          <b>${label} :</b> ${value ?? "N/A"}
+        </div>
+      `;
+    };
+
+    Swal.fire({
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: 520,
+      padding: "20px",
+      html: `
+        <div style="text-align:left;">
+
+          <!-- Header -->
+          <div style="display:flex; align-items:center; gap:15px; padding-bottom:15px;">
+            <div style="
+              width:55px; height:55px; border-radius:50%;
+              background:#4f46e533; display:flex;
+              align-items:center; justify-content:center;
+              font-size:22px; font-weight:700; color:#4f46e5;">
+              ${d.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style="font-size:20px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
+                ${d.name}
+              </div>
+              <div style="font-size:13px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
+                Driver Details
+              </div>
+            </div>
+          </div>
+
+          <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:12px 0;" />
+
+          <!-- Driver Info -->
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${infoRow("Email", d.email)}
+            ${infoRow("Phone Number", d.phone_number)}
+            ${infoRow("License Number", d.license_number)}
+            ${infoRow("License Expiry", formatDate(d.license_expiry))}
+            ${infoRow("Assigned Vehicle Number", v.vehicle_number)}
+            ${infoRow("Vehicle Type", v.vehicle_type)}
+            ${infoRow("Capacity", v.capacity)}
+            ${infoRow("Vehicle Status", v.current_status)}
+            <div style="
+              font-size:14px;
+              font-weight:500;
+              padding:4px 0;
+              color:${darkMode ? "#e5e7eb" : "#111827"};">
+              <b>Status :</b> ${
+                d.status
+                  ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
+                  : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
+              }
+            </div>
+          </div>
+
+        </div>
+      `,
+      customClass: { popup: "card-popup" },
+    });
+
+  } catch (err: any) {
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: err.message || "Failed to view driver",
+      confirmButtonColor: "#ef4444",
+    });
   }
 };
+
 
 
 
   // ======================
   // TOGGLE DRIVER STATUS
   // ======================
-  const handleToggleStatus = async (driver: Driver) => {
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/operator/drivers/${driver.driver_profile?.driver_id}/deactivate`,
-        {
-          method: "PUT",
-          headers: authHeaders,
-        }
-      );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        Swal.fire({
-          icon: "success",
-          title: driver.status ? "Driver Deactivated" : "Driver Activated",
-          showConfirmButton: false,
-          timer: 1500,
-        });
-        fetchDrivers();
-      } else {
-        Swal.fire("Error", data.message || "Failed to change driver status", "error");
+const handleToggleStatus = async (driver: Driver) => {
+  try {
+    const res = await fetch(
+      `${API_BASE_URL}/operator/drivers/${driver.driver_profile?.driver_id}/deactivate`,
+      {
+        method: "PUT",
+        headers: authHeaders,
       }
-    } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Unable to change driver status", "error");
+    );
+
+    const data = await res.json();
+
+    if (res.ok) {
+      showSuccess(driver.status ? "Driver Deactivated" : "Driver Activated");
+
+      // ⬇ FIX HERE
+      fetchDrivers(true); // Reset pagination & replace list
+      setPage(1);
+    } else {
+      Swal.fire("Error", data.message || "Failed to change driver status", "error");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    Swal.fire("Error", "Unable to change driver status", "error");
+  }
+};
+
 
   const handleEdit = (driver: Driver) => {
     setEditingDriver(driver);
@@ -240,13 +339,10 @@ const handleView = async (driver_id: string) => {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading drivers...</p>
-      </div>
-    );
-  }
+if (loading)
+  return (
+    <PageShimmer />
+  );
 
   return (
     <>
@@ -266,6 +362,8 @@ const handleView = async (driver_id: string) => {
                 setEditingDriver(null);
                 setShowForm(true);
               }}
+               disabled={showForm}
+  className={showForm ? "opacity-50 cursor-not-allowed" : ""}
             >
               Add Driver
             </Button>
@@ -327,7 +425,7 @@ const handleView = async (driver_id: string) => {
             <table className="min-w-full border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
-                  {["Name", "Email", "Phone", "License No", "Status", "Actions"].map((h) => (
+                  {["Name", "Email", "Phone", "Assigned vehicle", "Status", "Actions"].map((h) => (
                     <th
                       key={h}
                       className="px-2 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300"
@@ -346,43 +444,46 @@ const handleView = async (driver_id: string) => {
                     <td className="px-2 py-2">{driver.name}</td>
                     <td className="px-2 py-2">{driver.email}</td>
                     <td className="px-2 py-2">{driver.phone_number}</td>
-                    <td className="px-2 py-2">{driver.license_number}</td>
                     <td className="px-2 py-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          driver.status
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
+  {driver.assigned_vehicle?.vehicle_number || "Not Assigned"}
+</td>
+                    <td className="px-2 py-2">
+                       <span
+    className={`px-3 py-1 rounded-full text-xs font-medium ${
+      driver.status
+        ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+        : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+    }`}
+  >
                         {driver.status ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-2 py-2">
                       <div className="flex gap-2">
+                         <button
+        onClick={() => handleToggleStatus(driver)}
+      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+      title={driver.status ? "Deactivate User" : "Activate User"}
+    >
+      {driver.status ? <DeactivateIcon /> : <ActivateIcon />}
+    </button>
                         <button
                           onClick={() =>
                             handleView(driver.driver_profile?.driver_id || "")
                           }
-                          className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
-                        >
+                           className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded 
+                 hover:bg-gray-100 font-normal 
+                 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200"
+    >
                           View
                         </button>
                         <button
                           onClick={() => handleEdit(driver)}
-                          className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-                        >
+                           className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded 
+                 hover:bg-blue-100 font-normal 
+                 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+    >
                           Edit
-                        </button>
-                        <button
-                          onClick={() => handleToggleStatus(driver)}
-                          className={`text-xs px-3 py-1 rounded ${
-                            driver.status
-                              ? "bg-red-50 text-red-600 hover:bg-red-100"
-                              : "bg-green-50 text-green-600 hover:bg-green-100"
-                          }`}
-                        >
-                          {driver.status ? "Deactivate" : "Activate"}
                         </button>
                       </div>
                     </td>
@@ -398,6 +499,21 @@ const handleView = async (driver_id: string) => {
                 )}
               </tbody>
             </table>
+            {hasMore && (
+  <div className="flex justify-center py-4">
+    <button
+      disabled={loadingMore}
+      onClick={() => {
+        setPage(prev => prev + 1);
+        fetchDrivers();
+      }}
+      className="px-4 py-2 rounded text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+    >
+      {loadingMore ? "Loading..." : "Load More"}
+    </button>
+  </div>
+)}
+
           </div>
         </div>
       </div>

@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-
-// Assume these icons are imported from an icon library
 import {
-  ChevronDownIcon,
-  GridIcon,
-  HorizontaLDots,
-  UserCircleIcon,
-} from "../icons";
+  LayoutDashboard,
+  SatelliteDish,
+  Users,
+  UserCog,
+  Car,
+   UserCheck,
+  Cpu,
+   CircleUserRound,
+  Route,
+  ShieldCheck,
+  UserCircle,
+  ChevronDownIcon
+} from "lucide-react";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth, type Permissions } from "../context/AuthContext";
 import SidebarWidget from "./SidebarWidget";
+import { HorizontaLDots } from "../icons";
 
 type NavItem = {
   name: string;
@@ -32,43 +39,43 @@ type NavItem = {
 
 const superAdminNavItems: NavItem[] = [
   {
-    icon: <GridIcon />,
+    icon: <LayoutDashboard />,
     name: "Dashboard",
     path: "/",
     permission: "view_dashboard",
   },
    {
-    icon: <UserCircleIcon />,
+    icon: <SatelliteDish />,
     name: "Live Tracking",
     path: "/live-tracking",
     permission: "view_telemetry",
   },
    {
-    icon: <UserCircleIcon />,
+    icon: <Users />,
     name: "View user",
     path: "/view-user",
     permission: "manage_users",
   },
   {
-    icon: <UserCircleIcon />,
+    icon: <UserCog />,
     name: "Manage Operators",
     path: "/manage-operators",
     permission: "manage_users",
   },
   {
-    icon: <UserCircleIcon />,
+    icon: <Cpu />,
     name: "Manage Device",
     path: "/manage-device",
     permission: "view_devices",
   },
   {
-    icon: <UserCircleIcon />,
+     icon: <ShieldCheck />,
     name: "Manage Roles",
     path: "/manage-roles",
     permission: "manage_roles",
   },
   {
-    icon: <UserCircleIcon />,
+     icon: <UserCircle />,
     name: "Profile",
     path: "/profile",
     permission: "view_dashboard",
@@ -78,49 +85,49 @@ const superAdminNavItems: NavItem[] = [
 
 const operatorNavItems: NavItem[] = [
   {
-    icon: <GridIcon />,
+    icon: <LayoutDashboard />,
     name: "Dashboard",
     path: "/",
     permission: "view_dashboard",
   },
   {
-    icon: <UserCircleIcon />,
+    icon: <SatelliteDish />,
     name: "Live Tracking",
     path: "/live-tracking",
     permission: "view_telemetry",
   },
   {
-    icon: <UserCircleIcon />,
+     icon: <Users />,
     name: "Manage All Users",
     path: "/manage-all-users",
     permission: "manage_users",
   },
    {
-    icon: <UserCircleIcon />,
+   icon: <UserCheck />,
     name: "Manage End Users",
     path: "/manage-end-users",
     permission: "manage_users",
   },
   {
-    icon: <UserCircleIcon />,
+     icon: <Cpu />,
     name: "Manage Devices",
     path: "/operator-manage-device",
     permission: "manage_devices",
   },
   {
-    icon: <UserCircleIcon />,
+    icon: <Car />,
     name: "Manage Vehicles",
     path: "/manage-vehicles",
     permission: "view_devices",
   },
   {
-    icon: <UserCircleIcon />,
+     icon: <CircleUserRound />,
     name: "Manage Drivers",
     path: "/manage-drivers",
     permission: "view_devices",
   },
    {
-    icon: <UserCircleIcon />,
+     icon: <Route />,
     name: "Manage Trips",
     path: "/manage-trips",
     permission: "view_devices",
@@ -138,7 +145,7 @@ const operatorNavItems: NavItem[] = [
   //   permission: "manage_users",
   // },
   {
-    icon: <UserCircleIcon />,
+     icon: <UserCircle />,
     name: "Profile",
     path: "/profile",
     permission: "view_dashboard",
