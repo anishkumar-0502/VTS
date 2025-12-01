@@ -30,7 +30,6 @@ const vehicleSchema = new mongoose.Schema(
       enum: ['bus', 'truck', 'car', 'van'],
       default: 'bus'
     },
-    route_name: String,
     assigned_driver_id: {
       type: String,
       ref: 'User',
@@ -55,6 +54,11 @@ const vehicleSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    current_trip_id: {
+      type: String,
+      ref: 'Trip',
+      default: null
+    },
     latitude: Number,
     longitude: Number,
     speed: {
@@ -64,16 +68,6 @@ const vehicleSchema = new mongoose.Schema(
     altitude: Number,
     bearing: Number,
     last_update: Date,
-    route_points: [
-      {
-        name: String,
-        landmark: String,
-        latitude: Number,
-        longitude: Number,
-        order: Number,
-        arrival_time: Date
-      }
-    ],
     standing_location: {
       name: String,
       latitude: Number,

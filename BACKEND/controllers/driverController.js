@@ -140,6 +140,12 @@ class DriverController {
 
       const trip = await TripService.startTrip(tripPayload);
 
+      await Vehicle.findOneAndUpdate(
+        { vehicle_id: vehicle_id },
+        { current_trip_id: trip.trip_id },
+        { new: true }
+      );
+
       if (global.socketManager) {
         global.socketManager.emitToTrip(trip._id.toString(), 'trip_started', {
           tripId: trip._id,
@@ -182,6 +188,12 @@ class DriverController {
         distance_traveled
       });
 
+      await Vehicle.findOneAndUpdate(
+        { vehicle_id: trip.vehicle_id },
+        { current_trip_id: null },
+        { new: true }
+      );
+
       const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
 
       if (global.socketManager) {
@@ -214,23 +226,37 @@ class DriverController {
   static async getActiveTrip(req, res, next) {
     try {
       const OnDemandTrip = require('../models/Trip');
-      const trip = await OnDemandTrip.findOne({
-        driver_id: req.user.user_id,
-        status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
-      });
+      const Trip = OnDemandTrip;
+      
+      const result = await Trip.aggregate([
+        { $match: { driver_id: req.user.user_id, status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] } } },
+        { $lookup: { from: 'vehicles', localField: 'vehicle_id', foreignField: 'vehicle_id', as: 'vehicle' } },
+        { $unwind: { path: '$vehicle', preserveNullAndEmptyArrays: true } },
+        { $project: {
+          trip_id: 1,
+          driver_id: 1,
+          vehicle_id: '$vehicle',
+          route_name: 1,
+          status: 1,
+          start_location: 1,
+          end_location: 1,
+          selected_start_point: 1,
+          selected_end_point: 1,
+          passengers: 1,
+          route_points: 1,
+          createdAt: 1,
+          updatedAt: 1
+        } }
+      ]);
 
-      if (!trip) {
+      if (!result.length) {
         throw new CustomError('No active trip found', 404);
       }
-
-      const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
-      const tripData = trip.toObject();
-      tripData.vehicle_id = vehicle;
 
       res.status(200).json({
         error: false,
         message: 'Active trip retrieved successfully',
-        data: tripData
+        data: result[0]
       });
     } catch (error) {
       next(error);
@@ -264,30 +290,37 @@ class DriverController {
 
   static async getTripHistory(req, res, next) {
     try {
-      const { skip, limit, page } = req.pagination;
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page, isPaginated } = req.pagination;
 
       const filter = { driver_id: req.user.user_id };
       const total = await TripHistory.countDocuments(filter);
 
-      const trips = await TripHistory.find(filter)
-        .skip(skip)
-        .limit(limit)
-        .sort({ completed_date: -1, end_time: -1 });
+      let query = TripHistory.aggregate([
+        { $match: filter },
+        { $sort: { completed_date: -1, end_time: -1 } }
+      ]);
 
-      const tripsWithVehicles = await Promise.all(
-        trips.map(async history => {
-          const historyData = history.toObject();
-          const vehicle = await findVehicleByIdentifier(historyData.vehicle_id, req.user.operator_id, { lean: true });
-          historyData.vehicle_id = vehicle;
-          historyData.trip_snapshot = historyData.snapshot || null;
-          delete historyData.snapshot;
-          return historyData;
-        })
-      );
+      if (isPaginated) {
+        query = TripHistory.aggregate([
+          { $match: filter },
+          { $sort: { completed_date: -1, end_time: -1 } },
+          { $skip: skip },
+          { $limit: limit }
+        ]);
+      }
 
-      const PaginationHelper = require('../utils/paginationHelper');
+      const tripsBeforeJoin = await query.exec();
+      const vehicleIds = [...new Set(tripsBeforeJoin.map(t => t.vehicle_id))];
+      const vehicles = vehicleIds.length ? await Vehicle.find({ vehicle_id: { $in: vehicleIds } }).select('vehicle_id vehicle_number vehicle_type').lean() : [];
+      const vehicleMap = new Map(vehicles.map(v => [v.vehicle_id, v]));
+
+      const tripsWithVehicles = tripsBeforeJoin.map(trip => ({
+        ...trip,
+        vehicle_details: vehicleMap.get(trip.vehicle_id) || null
+      }));
+
       const response = PaginationHelper.formatPaginatedResponse(tripsWithVehicles, total, page, limit);
-
       res.status(200).json({
         error: false,
         message: 'Trip history retrieved successfully',
@@ -301,19 +334,44 @@ class DriverController {
   static async getTripDetails(req, res, next) {
     try {
       const { tripId } = req.params;
-      const trip = await findTripByIdentifier(tripId, req.user.user_id);
+      const Trip = require('../models/Trip');
+      
+      const result = await Trip.aggregate([
+        { $match: { trip_id: tripId, driver_id: req.user.user_id } },
+        { $lookup: { from: 'vehicles', localField: 'vehicle_id', foreignField: 'vehicle_id', as: 'vehicle' } },
+        { $unwind: { path: '$vehicle', preserveNullAndEmptyArrays: true } },
+        { $limit: 1 },
+        { $project: {
+          trip_id: 1,
+          driver_id: 1,
+          vehicle_id: '$vehicle',
+          route_name: 1,
+          status: 1,
+          start_location: 1,
+          end_location: 1,
+          selected_start_point: 1,
+          selected_end_point: 1,
+          passengers: 1,
+          route_points: 1,
+          distance_traveled: 1,
+          start_time: 1,
+          end_time: 1,
+          createdAt: 1,
+          updatedAt: 1
+        } }
+      ]);
 
-      const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
+      if (!result.length) {
+        throw new CustomError('Trip not found', 404);
+      }
 
-      const analytics = await TripService.getTripAnalytics(trip.trip_id || trip._id);
-
-      const tripData = trip.toObject();
-      tripData.vehicle_id = vehicle;
+      const trip = result[0];
+      const analytics = await TripService.getTripAnalytics(trip.trip_id);
 
       res.status(200).json({
         error: false,
         message: 'Trip details retrieved successfully',
-        data: { trip: tripData, analytics }
+        data: { trip, analytics }
       });
     } catch (error) {
       next(error);
@@ -435,37 +493,29 @@ class DriverController {
 
   static async getDailyTrips(req, res, next) {
     try {
-      const { skip, limit, page } = req.pagination;
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page, isPaginated } = req.pagination;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const total = await OnDemandTrip.countDocuments({
+      const filter = {
         driver_id: req.user.user_id,
         start_time: { $gte: today, $lt: tomorrow }
-      });
+      };
 
-      const trips = await OnDemandTrip.find({
-        driver_id: req.user.user_id,
-        start_time: { $gte: today, $lt: tomorrow }
-      })
-        .skip(skip)
-        .limit(limit)
-        .sort({ start_time: 1 });
+      const total = await OnDemandTrip.countDocuments(filter);
 
-      const tripsWithVehicles = await Promise.all(
-        trips.map(async trip => {
-          const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
-          const tripData = trip.toObject();
-          tripData.vehicle_id = vehicle;
-          return tripData;
-        })
-      );
+      let query = OnDemandTrip.find(filter).sort({ start_time: 1 });
+      
+      if (isPaginated) {
+        query = query.skip(skip).limit(limit);
+      }
 
-      const paginationHelper = require('../utils/paginationHelper');
-      const response = paginationHelper.formatPaginatedResponse(tripsWithVehicles, total, page, limit);
+      const trips = await query.lean();
 
+      const response = PaginationHelper.formatPaginatedResponse(trips, total, page, limit);
       res.status(200).json({
         error: false,
         message: 'Daily trips retrieved successfully',
@@ -478,6 +528,9 @@ class DriverController {
 
   static async getAvailableTrips(req, res, next) {
     try {
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page } = req.pagination;
+
       const driver = await User.findOne({ user_id: req.user.user_id }).populate('assigned_vehicle_id');
 
       if (!driver || !driver.assigned_vehicle_id) {
@@ -491,26 +544,37 @@ class DriverController {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const trips = await OnDemandTrip.find({
+      const filter = {
         driver_id: req.user.user_id,
         vehicle_id: driver.assigned_vehicle_id,
         start_time: { $gte: today, $lt: tomorrow },
         status: { $in: ['active', 'en_route', 'at_stop', 'delayed'] }
-      })
-        .lean()
-        .select('_id trip_id route_name passengers route_points');
+      };
 
+      const total = await OnDemandTrip.countDocuments(filter);
+      let query = OnDemandTrip.find(filter)
+        .lean()
+        .select('_id trip_id route_name passengers route_points')
+        .sort({ start_time: 1 });
+      
+      if (isPaginated) {
+        query = query.skip(skip).limit(limit);
+      }
+
+      const trips = await query;
+
+      const response = PaginationHelper.formatPaginatedResponse(trips, total, page, limit);
       res.status(200).json({
         error: false,
         message: 'Available trips retrieved successfully',
+        ...response,
         data: {
+          ...response.data,
           vehicle: {
             _id: vehicle._id,
             vehicle_number: vehicle.vehicle_number,
-            route_points: vehicle.route_points,
             capacity: vehicle.capacity
-          },
-          trips
+          }
         }
       });
     } catch (error) {
@@ -536,14 +600,12 @@ class DriverController {
         throw new CustomError('Unauthorized', 403);
       }
 
-      const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
-
-      if (!vehicle || !vehicle.route_points) {
-        throw new CustomError('Vehicle route points not found', 404);
+      if (!trip.route_points || !Array.isArray(trip.route_points) || trip.route_points.length === 0) {
+        throw new CustomError('Trip route points not found', 404);
       }
 
-      const startPoint = vehicle.route_points[startPointIndex];
-      const endPoint = vehicle.route_points[endPointIndex];
+      const startPoint = trip.route_points[startPointIndex];
+      const endPoint = trip.route_points[endPointIndex];
 
       if (!startPoint || !endPoint) {
         throw new CustomError('Invalid route point indices', 400);
@@ -1002,59 +1064,25 @@ class DriverController {
 
   static async getScheduledTrips(req, res, next) {
     try {
+      const PaginationHelper = require('../utils/paginationHelper');
+      const { skip, limit, page } = req.pagination;
       const ScheduledTrip = require('../models/ScheduledTrip');
       const driverIdentifiers = await getDriverIdentifiers(req.user.user_id);
-      const resetDateKey = new Date().toISOString().slice(0, 10);
 
-      await ScheduledTrip.updateMany(
-        {
-          driver_id: { $in: driverIdentifiers },
-          status: 'completed',
-          last_completed_on: { $ne: resetDateKey }
-        },
-        {
-          $set: {
-            status: 'pending',
-            associated_trip_id: null,
-            last_started_on: null,
-            last_status_change_at: new Date()
-          }
-        }
-      );
+      const filter = { driver_id: { $in: driverIdentifiers } };
+      const total = await ScheduledTrip.countDocuments(filter);
 
-      const scheduledTrips = await ScheduledTrip.find({
-        driver_id: { $in: driverIdentifiers },
-        is_active: true
-      }).sort({ scheduled_start_time: 1 });
+      const scheduledTrips = await ScheduledTrip.find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort({ scheduled_start_time: 1 })
+        .lean();
 
-      const plannedTrips = await TripService.ensurePlannedTripsForScheduledTrips(scheduledTrips, resetDateKey);
-      const plannedTripMap = new Map(plannedTrips.map(planned => [planned.scheduled_trip_id, planned]));
-
-      const tripsWithVehicles = await Promise.all(
-        scheduledTrips.map(async trip => {
-          const vehicle = await findVehicleByIdentifier(trip.vehicle_id, req.user.operator_id, { lean: true });
-          const tripData = trip.toObject();
-          tripData.vehicle_id = vehicle;
-          const completedToday = tripData.last_completed_on === resetDateKey;
-          tripData.isCompletedToday = completedToday;
-          tripData.daily_status = completedToday ? 'completed' : tripData.status;
-          const plannedTrip = plannedTripMap.get(tripData.scheduled_trip_id);
-          if (plannedTrip) {
-            tripData.planned_trip_id = plannedTrip.trip_id || plannedTrip._id;
-            tripData.planned_start_time = plannedTrip.planned_start_time;
-            tripData.planned_end_time = plannedTrip.planned_end_time;
-            tripData.planned_route_points = plannedTrip.route_points;
-            tripData.passenger_manifest = plannedTrip.passengers;
-            tripData.total_passengers_planned = plannedTrip.total_passengers;
-          }
-          return tripData;
-        })
-      );
-
+      const response = PaginationHelper.formatPaginatedResponse(scheduledTrips, total, page, limit);
       res.status(200).json({
         error: false,
         message: 'Scheduled trips retrieved successfully',
-        data: tripsWithVehicles
+        ...response
       });
     } catch (error) {
       next(error);

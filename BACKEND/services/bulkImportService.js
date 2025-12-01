@@ -344,32 +344,7 @@ class BulkImportService {
           errors.push('Capacity must be a number');
         }
 
-        let routePoints = [];
-        if (vehicle.route_points_json) {
-          try {
-            routePoints = JSON.parse(vehicle.route_points_json);
-            if (!Array.isArray(routePoints)) {
-              errors.push('route_points_json must be a valid JSON array');
-            } else {
-              for (let j = 0; j < routePoints.length; j++) {
-                const point = routePoints[j];
-                if (!point.latitude || !point.longitude) {
-                  errors.push(`Route point ${j + 1} missing latitude or longitude`);
-                } else {
-                  const lat = parseFloat(point.latitude);
-                  const lng = parseFloat(point.longitude);
-                  if (isNaN(lat) || lat < -90 || lat > 90) {
-                    errors.push(`Route point ${j + 1} has invalid latitude`);
-                  } else if (isNaN(lng) || lng < -180 || lng > 180) {
-                    errors.push(`Route point ${j + 1} has invalid longitude`);
-                  }
-                }
-              }
-            }
-          } catch (err) {
-            errors.push('Invalid JSON format for route_points_json');
-          }
-        }
+
 
         if (errors.length === 0) {
           seenNumbers.add(vehicle.vehicle_number);
@@ -378,23 +353,11 @@ class BulkImportService {
             vehicle_type: vehicle.vehicle_type.trim(),
             capacity: parseInt(vehicle.capacity) || 50,
             registration_number: vehicle.registration_number?.trim(),
-            route_name: vehicle.route_name?.trim(),
             color: vehicle.color?.trim(),
             seating_capacity: vehicle.seating_capacity ? parseInt(vehicle.seating_capacity) : null,
             operator_id: operatorId,
             rowNumber: i + 2
           };
-
-          if (routePoints.length > 0) {
-            validVehicle.route_points = routePoints.map((point, idx) => ({
-              name: point.name?.trim() || `Stop ${idx + 1}`,
-              landmark: point.landmark?.trim(),
-              latitude: parseFloat(point.latitude),
-              longitude: parseFloat(point.longitude),
-              order: point.order || idx + 1,
-              arrival_time: point.arrival_time ? new Date(point.arrival_time) : null
-            }));
-          }
 
           results.valid.push(validVehicle);
         } else {
@@ -438,24 +401,58 @@ class BulkImportService {
             vehicle_type: vehicleData.vehicle_type,
             capacity: vehicleData.capacity,
             registration_number: vehicleData.registration_number,
-            route_name: vehicleData.route_name,
             color: vehicleData.color,
             seating_capacity: vehicleData.seating_capacity,
             operator_id: operatorId,
             current_status: 'idle'
           };
 
-          if (vehicleData.route_points && vehicleData.route_points.length > 0) {
-            vehicleObj.route_points = vehicleData.route_points;
-          }
-
           const newVehicle = new Vehicle(vehicleObj);
           await newVehicle.save();
+
+          // Create scheduled trip if route data is provided
+          let scheduledTripId = null;
+          if (vehicleData.route_name && vehicleData.route_points && vehicleData.route_points.length > 0) {
+            try {
+              const ScheduledTrip = require('../models/ScheduledTrip');
+              const tripData = {
+                vehicle_id: newVehicle.vehicle_id,
+                driver_id: vehicleData.driver_id || null,
+                operator_id: operatorId,
+                route_name: vehicleData.route_name,
+                scheduled_start_time: vehicleData.scheduled_start_time || "09:00",
+                trip_period: vehicleData.trip_period || "morning",
+                start_location: vehicleData.start_location || null,
+                end_location: vehicleData.end_location || null,
+                route_points: vehicleData.route_points,
+                repeat_days: vehicleData.repeat_days || {
+                  Monday: true,
+                  Tuesday: true,
+                  Wednesday: true,
+                  Thursday: true,
+                  Friday: true,
+                  Saturday: false,
+                  Sunday: false
+                },
+                is_active: true
+              };
+
+              const newTrip = new ScheduledTrip(tripData);
+              await newTrip.save();
+              scheduledTripId = newTrip.scheduled_trip_id;
+
+              logger.loggerInfo(`Created scheduled trip for vehicle ${vehicleData.vehicle_number}: ${scheduledTripId}`);
+            } catch (tripError) {
+              logger.loggerError(`Error creating scheduled trip for vehicle ${vehicleData.vehicle_number}: ${tripError.message}`);
+              // Don't fail the vehicle import if trip creation fails
+            }
+          }
 
           createdVehicles.push({
             vehicle_number: vehicleData.vehicle_number,
             vehicle_type: vehicleData.vehicle_type,
             vehicleId: newVehicle._id,
+            scheduled_trip_id: scheduledTripId,
             route_points_count: vehicleData.route_points ? vehicleData.route_points.length : 0
           });
 

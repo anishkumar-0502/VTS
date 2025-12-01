@@ -4,6 +4,7 @@ const SuperadminController = require('../controllers/superadminController');
 const AuthController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
+const PaginationHelper = require('../utils/paginationHelper');
 const {
   getAuditLogs,
   getAuditLogById,
@@ -12,6 +13,7 @@ const {
 } = require('../middlewares/auditTrail');
 
 router.use(authMiddleware, roleMiddleware(['superadmin']));
+router.use(PaginationHelper.createPaginationMiddleware());
 
 // ========== PROFILE MANAGEMENT ========== COMPLETED
 router.get('/profile', SuperadminController.getOwnProfile);
@@ -67,5 +69,8 @@ router.post('/audit-logs/clear', clearAuditLogs);
 // ========== SYSTEM STATISTICS ========== // TODO - will be implement this later
 
 router.get('/stats/system', SuperadminController.getSystemStats);
+
+// ========== DATA CLEANUP ==========
+router.post('/cleanup/data', SuperadminController.cleanupData);
 
 module.exports = router;
