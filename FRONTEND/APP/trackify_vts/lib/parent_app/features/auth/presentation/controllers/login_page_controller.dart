@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../Sessionhandler/session_controller.dart';
+import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
 import '../../../dashboard/presentation/pages/parent_home_page.dart';
 import '../../domain/models/login_model.dart';
 import '../../domain/repositories/login_repository.dart';
@@ -63,7 +64,12 @@ class ParentLoginPageController extends GetxController {
         if (!response.error) {
           await _saveSession(response);
           showStatusBanner(response.message, Colors.green, Icons.check_circle);
-          Get.offAll(() => const ParentHomePage());
+          Get.offAll(
+            () => const ParentHomePage(),
+            binding: BindingsBuilder(() {
+              Get.put(ParentHomeController());
+            }),
+          );
         } else {
           showStatusBanner(
             response.message,

@@ -46,11 +46,7 @@ class AssignedVehiclePage extends StatelessWidget {
             const SizedBox(height: 16),
             _buildDetailCard('Vehicle Number', vehicle!.vehicleNumber),
             _buildDetailCard('Vehicle Type', vehicle!.vehicleType),
-            _buildDetailCard('Route Name', vehicle!.routeName),
             _buildDetailCard('Capacity', vehicle!.capacity.toString()),
-            _buildDetailCard('Current Status', vehicle!.currentStatus),
-            _buildDetailCard('Status', vehicle!.status ? 'Active' : 'Inactive'),
-            _buildDetailCard('Speed', '${vehicle!.speed} km/h'),
             _buildDetailCard(
               'Registration Number',
               vehicle!.registrationNumber,
@@ -65,8 +61,7 @@ class AssignedVehiclePage extends StatelessWidget {
               'Assigned Device ID',
               vehicle!.assignedDeviceId ?? 'N/A',
             ),
-            _buildDetailCard('Created At', _formatDateTime(vehicle!.createdAt)),
-            _buildDetailCard('Updated At', _formatDateTime(vehicle!.updatedAt)),
+
           ],
         ),
       ),

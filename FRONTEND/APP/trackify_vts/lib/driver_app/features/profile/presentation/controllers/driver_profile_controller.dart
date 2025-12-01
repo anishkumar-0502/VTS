@@ -10,7 +10,7 @@ import '../../../../../utilities/exception/exception.dart' as exceptions;
 import '../../../../../utilities/widgets/status_banner.dart';
 
 class DriverProfileController extends GetxController {
-  final SessionController sessionController = Get.find<SessionController>();
+  final SessionController sessionController = Get.find<SessionController>(tag: 'driver');
   final ProfileRepository _profileRepository = ProfileRepository();
 
   final RxBool isLoading = true.obs;
@@ -104,7 +104,7 @@ class DriverProfileController extends GetxController {
     final operator = data.operatorDetails!;
     return [
       {'label': 'Operator name', 'value': operator.name},
-      {'label': 'Company', 'value': operator.companyName},
+      {'label': 'Company', 'value': operator.companyName ?? 'N/A'},
       {'label': 'Contact', 'value': operator.phone},
       {'label': 'Email', 'value': operator.email},
       {'label': 'Plan', 'value': operator.subscriptionPlan},
@@ -225,6 +225,26 @@ class DriverProfileController extends GetxController {
         try {
           profileData.value = response.data;
           print('Profile data set: ${profileData.value?.name}');
+          
+          final profile = response.data!;
+          final rawData = <String, dynamic>{
+            'name': profile.name,
+            'email': profile.email,
+            'phone_number': profile.phoneNumber,
+            'user_id': profile.userId,
+            'assigned_vehicle_id': profile.assignedVehicleId,
+            'role_id': profile.roleId,
+            'license_number': profile.licenseNumber,
+            'license_expiry': profile.licenseExpiry,
+            'operator_id': profile.operatorId,
+          };
+          await sessionController.saveSession(
+            userId: profile.userId,
+            emailId: profile.email,
+            token: sessionController.token.value,
+            username: profile.name,
+            rawData: rawData,
+          );
         } catch (e) {
           print('Error setting profile data: $e');
           showStatusBanner(
@@ -344,13 +364,16 @@ class DriverProfileController extends GetxController {
   }
 
   Future<void> confirmLogout(BuildContext context) async {
+    final primaryColor = Theme.of(context).colorScheme.primary; // ✅ Access app theme color
+
     PanaraConfirmDialog.show(
       context,
       title: 'Logout',
       message: 'Are you sure you want to logout?',
       confirmButtonText: 'Yes',
       cancelButtonText: 'No',
-      panaraDialogType: PanaraDialogType.warning,
+      panaraDialogType: PanaraDialogType.custom,
+      color: primaryColor, // ✅ Use the theme’s primary blue
       onTapCancel: () {
         Get.back();
       },
@@ -363,6 +386,8 @@ class DriverProfileController extends GetxController {
       },
     );
   }
+
+
 
   Future<void> updateProfile({
     required String name,
