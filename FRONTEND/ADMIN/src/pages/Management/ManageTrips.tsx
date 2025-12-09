@@ -100,6 +100,7 @@ interface Trip {
   };
   status: "pending" | "in-progress" | "started" | "completed" | "cancelled";
    scheduled_start_time: string;
+   trip_type: "pickup" | "drop";
   trip_period: "morning" | "afternoon" | "evening";
   repeat_days: { 
     Monday: boolean;
@@ -326,6 +327,7 @@ const [drivers, setDrivers] = useState<
   const [routeName, setRouteName] = useState("");
   const [driverId, setDriverId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
+  const [tripType, setTripType] = useState<"pickup" | "drop">("pickup");
   const [startLocation, setStartLocation] = useState({
     address: "",
     latitude: 0,
@@ -476,6 +478,7 @@ useEffect(() => {
   vehicle_id: vehicleId, 
   scheduled_start_time: scheduledStartTime,
   trip_period: tripPeriod,
+    trip_type: tripType,
   repeat_days: repeatDays,
   start_location: {
     latitude: startLocation.latitude,
@@ -940,6 +943,19 @@ if (loading)
     </select>
   </div>
 </div>
+<div>
+  <label className="block mb-1 font-medium">Trip Type</label>
+  <select
+    value={tripType}
+    onChange={(e) => setTripType(e.target.value as "pickup" | "drop")}
+      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+  >
+    <option value="pickup">Pickup</option>
+    <option value="drop">Drop</option>
+  </select>
+</div>
+
+
 
 {/* Repeat Days */}
 <div>
