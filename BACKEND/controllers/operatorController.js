@@ -2519,55 +2519,84 @@ class OperatorController {
   }
 
   static async createScheduledTrip(req, res, next) {
-    try {
-      const { vehicle_id, driver_id, route_name, scheduled_start_time, trip_period, start_location, end_location, route_points, repeat_days } = req.body;
-      const { CustomError } = require('../middlewares/errorHandler');
-      const ScheduledTrip = require('../models/ScheduledTrip');
-      const { generateScheduledTripId } = require('../utils/uuidUtils');
+  try {
+    const { 
+      vehicle_id, 
+      driver_id, 
+      route_name, 
+      scheduled_start_time, 
+      pickup_type, 
+      start_location, 
+      end_location, 
+      route_points, 
+      repeat_days 
+    } = req.body;
 
-      if (!vehicle_id || !driver_id || !scheduled_start_time) {
-        throw new CustomError('Vehicle ID, Driver ID, and scheduled start time are required', 400);
-      }
+    const { CustomError } = require('../middlewares/errorHandler');
+    const ScheduledTrip = require('../models/ScheduledTrip');
+    const { generateScheduledTripId } = require('../utils/uuidUtils');
 
-      const conflictingTrip = await ScheduledTrip.findOne({
-        operator_id: req.user.operator_id,
-        scheduled_start_time,
-        is_active: true,
-        $or: [{ vehicle_id }, { driver_id }]
-      });
-
-      if (conflictingTrip) {
-        throw new CustomError('Driver or vehicle already scheduled at this time', 400);
-      }
-
-      const normalizedRoutePoints = normalizeRoutePointsPayload(route_points);
-
-      const scheduledTrip = new ScheduledTrip({
-        scheduled_trip_id: generateScheduledTripId(),
-        vehicle_id,
-        driver_id,
-        operator_id: req.user.operator_id,
-        route_name,
-        scheduled_start_time,
-        trip_period: trip_period || 'morning',
-        start_location,
-        end_location,
-        route_points: normalizedRoutePoints,
-        repeat_days: repeat_days || [],
-        is_active: true
-      });
-
-      await scheduledTrip.save();
-
-      res.status(201).json({
-        error: false,
-        message: 'Scheduled trip created successfully',
-        data: scheduledTrip
-      });
-    } catch (error) {
-      next(error);
+    if (!vehicle_id || !driver_id || !scheduled_start_time) {
+      throw new CustomError('Vehicle ID, Driver ID, and scheduled start time are required', 400);
     }
+
+    // Validate pickup/drop type
+    const { trip_type } = req.body;
+if (!trip_type || !['pickup', 'drop'].includes(trip_type)) {
+  throw new CustomError("trip_type must be 'pickup' or 'drop'", 400);
+}
+
+
+    // 🔎 Check conflict using aggregation pipeline
+    const conflictingTrip = await ScheduledTrip.aggregate([
+      {
+        $match: {
+          operator_id: req.user.operator_id,
+          scheduled_start_time: new Date(scheduled_start_time),
+          is_active: true,
+          $or: [
+            { vehicle_id: vehicle_id },
+            { driver_id: driver_id }
+          ]
+        }
+      },
+      { $limit: 1 }   // fastest way to stop scanning
+    ]);
+
+    if (conflictingTrip.length > 0) {
+      throw new CustomError('Driver or vehicle already scheduled at this time', 400);
+    }
+
+    const normalizedRoutePoints = normalizeRoutePointsPayload(route_points);
+
+    const scheduledTrip = new ScheduledTrip({
+      scheduled_trip_id: generateScheduledTripId(),
+      vehicle_id,
+      driver_id,
+      operator_id: req.user.operator_id,
+      route_name,
+      scheduled_start_time,
+      trip_type,
+      start_location,
+      end_location,
+      route_points: normalizedRoutePoints,
+      repeat_days: repeat_days || [],
+      is_active: true
+    });
+
+    await scheduledTrip.save();
+
+    res.status(201).json({
+      error: false,
+      message: 'Scheduled trip created successfully',
+      data: scheduledTrip
+    });
+
+  } catch (error) {
+    next(error);
   }
+}
+
 
   static async getScheduledTrips(req, res, next) {
     try {

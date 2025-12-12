@@ -156,6 +156,12 @@ const scheduledTripSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    trip_type: {
+  type: String,
+  enum: ['pickup', 'drop'],
+  required: true
+},
+
     status: {
       type: String,
       enum: ['pending', 'in-progress', 'completed', 'cancelled'],

@@ -3,8 +3,13 @@ const Device = require('../../models/Device');
 const Vehicle = require('../../models/Vehicle');
 const TrackingData = require('../../models/TrackingData');
 const ScheduledTrip = require('../../models/ScheduledTrip');
+const User = require('../../models/User');
+const EndUser = require('../../models/EndUser');
 const logger = require('../../utils/logger');
 const { generateEntityId } = require('../../utils/uuidUtils');
+const { sendTripLiveUpdateNotification } = require('../../services/firebaseService');
+const { calculateDistance } = require('../../utils/distanceUtils');
+const GPSNotificationService = require('../../firebase/sendNotification');
 
 class TelemetryHandler {
   static toNumber(value) {
@@ -103,8 +108,128 @@ class TelemetryHandler {
     }
   }
 
+  static async sendParentLiveNotifications(vehicleId, latitude, longitude, scheduledTrip, vehicleNumber) {
+    try {
+      if (!vehicleId || !scheduledTrip) return;
+
+      const vehicle = await Vehicle.findOne({ vehicle_id: vehicleId })
+        .select('end_user_ids standing_location')
+        .lean();
+
+      if (!vehicle || !Array.isArray(vehicle.end_user_ids) || vehicle.end_user_ids.length === 0) {
+        return;
+      }
+
+      for (const endUserId of vehicle.end_user_ids) {
+        try {
+          const user = await User.findOne({ end_user_id: endUserId })
+            .select('name fcm_tokens')
+            .lean();
+
+          if (!user || !Array.isArray(user.fcm_tokens) || user.fcm_tokens.length === 0) {
+            continue;
+          }
+
+          const routePoints = scheduledTrip.route_points || [];
+          let currentStop = null;
+          let nextStop = null;
+          let distanceToNextStop = null;
+
+          for (const stop of routePoints) {
+            if (stop.status === 'arrived' || stop.status === 'at_stop') {
+              currentStop = stop;
+            }
+            if (stop.status === 'pending' || stop.status === 'approaching') {
+              nextStop = stop;
+              if (currentStop && nextStop) {
+                distanceToNextStop = calculateDistance(latitude, longitude, nextStop.latitude, nextStop.longitude);
+              }
+              break;
+            }
+          }
+
+          const tripData = {
+            currentLocation: {
+              latitude,
+              longitude,
+              address: vehicle.standing_location?.name || 'In Transit'
+            },
+            currentStop: currentStop || { name: 'En Route' },
+            nextStop: nextStop || { name: 'Final Destination' },
+            vehicleNumber: vehicleNumber,
+            distanceToNextStop: distanceToNextStop || 0,
+            eta: nextStop ? `${Math.ceil(distanceToNextStop / 40)} mins` : 'Shortly'
+          };
+
+          await sendTripLiveUpdateNotification(user.fcm_tokens, user.name, tripData, endUserId, scheduledTrip?.scheduled_trip_id || scheduledTrip?._id);
+        } catch (error) {
+          logger.loggerWarn(`Failed to send notification to parent ${endUserId}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      logger.loggerWarn(`Error sending parent live notifications: ${error.message}`);
+    }
+  }
+
+  static async sendGPSLocationUpdateNotifications(vehicleId, latitude, longitude, speedKmh) {
+    try {
+      if (!vehicleId) return;
+
+      const vehicle = await Vehicle.findOne({ vehicle_id: vehicleId })
+        .select('end_user_ids vehicle_number')
+        .lean();
+
+      if (!vehicle || !Array.isArray(vehicle.end_user_ids) || vehicle.end_user_ids.length === 0) {
+        logger.loggerInfo(`No end users associated with vehicle ${vehicleId}`);
+        return;
+      }
+
+      const recipientList = [];
+
+      for (const endUserId of vehicle.end_user_ids) {
+        try {
+          const user = await User.findOne({ end_user_id: endUserId })
+            .select('fcm_tokens user_id name')
+            .lean();
+
+          if (!user || !Array.isArray(user.fcm_tokens) || user.fcm_tokens.length === 0) {
+            logger.loggerDebug(`User ${endUserId} has no FCM tokens`);
+            continue;
+          }
+
+          recipientList.push({
+            fcmTokens: user.fcm_tokens,
+            latitude,
+            longitude,
+            speedKmh,
+            userData: {
+              userId: user.user_id,
+              endUserId,
+              userName: user.name,
+              vehicleNumber: vehicle.vehicle_number || vehicleId
+            }
+          });
+        } catch (error) {
+          logger.loggerWarn(`Failed to fetch user data for end_user_id ${endUserId}: ${error.message}`);
+        }
+      }
+
+      if (recipientList.length > 0) {
+        await GPSNotificationService.sendBulkLocationNotifications(recipientList);
+      }
+    } catch (error) {
+      logger.loggerError(`Error sending GPS location update notifications: ${error.message}`);
+    }
+  }
+
   static async ensureDevice(trackerId, payload = {}) {
-    const device = await Device.findOne({ device_id: trackerId });
+    let device = await Device.findOne({
+      $or: [
+        { tracker_id: trackerId },
+        { device_id: trackerId }
+      ]
+    });
+
     if (!device) {
       await TelemetryHandler.recordUnregisteredDevice(trackerId, payload);
       logger.loggerWarn(`Unregistered tracker denied: ${trackerId}`);
@@ -153,7 +278,7 @@ class TelemetryHandler {
 
   static async handleLocationUpdate(payload) {
     try {
-      const trackerId = payload.vehicle_id;
+      const trackerId = payload.tracker_id || payload.vehicle_id;
       const timestamp = TelemetryHandler.resolveTimestamp(payload.timestamp);
       const { device } = await TelemetryHandler.ensureDevice(trackerId, payload);
       const latitude = TelemetryHandler.toNumber(payload.latitude);
@@ -189,11 +314,12 @@ class TelemetryHandler {
           is_active: true,
           status: { $in: ['pending', 'in-progress'] }
         })
-        .select('route_name start_location end_location route_points scheduled_start_time trip_period')
+        .select('scheduled_trip_id route_name start_location end_location route_points scheduled_start_time trip_period')
         .lean();
 
         if (scheduledTrip) {
           routeData = {
+            scheduled_trip_id: scheduledTrip.scheduled_trip_id || scheduledTrip._id,
             route_name: scheduledTrip.route_name,
             start_location: scheduledTrip.start_location,
             end_location: scheduledTrip.end_location,
@@ -248,6 +374,26 @@ class TelemetryHandler {
           device.toObject()
         );
       }
+
+      if (assignedVehicleId) {
+        if (routeData) {
+          TelemetryHandler.sendParentLiveNotifications(
+            assignedVehicleId,
+            latitude,
+            longitude,
+            routeData,
+            vehicleNumber
+          ).catch(err => logger.loggerError(`Failed to send parent live notifications: ${err.message}`));
+        }
+
+        GPSNotificationService.sendVehicleApproachingStopNotification({
+          tracker_id: trackerId,
+          latitude,
+          longitude,
+          speed_kmh: speed
+        }).catch(err => logger.loggerError(`Failed to send vehicle approaching stop notification: ${err.message}`));
+      }
+
       logger.loggerWebhook('Location update processed', {
         trackerId,
         lat: latitude,
