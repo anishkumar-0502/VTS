@@ -5,6 +5,21 @@ import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import Button from "../../components/ui/button/Button";
 
+// Toggle icons for activate/deactivate
+const DeactivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#ef4444" />
+    <circle cx="18" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
+
+const ActivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#10b981" />
+    <circle cx="6" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
+
 interface AppUser {
   _id: string;
   name: string;
@@ -47,21 +62,25 @@ export default function AppUsers() {
     }
   };
 
-  const handleDeactivate = async (userId: string) => {
-    if (window.confirm("Are you sure you want to deactivate this app user?")) {
+  const handleToggleStatus = async (userId: string, currentStatus: boolean) => {
+    const action = currentStatus ? "deactivate" : "activate";
+    if (window.confirm(`Are you sure you want to ${action} this app user?`)) {
       try {
-        const response = await appUsersAPI.deactivate(userId);
+        const response = currentStatus
+          ? await appUsersAPI.deactivate(userId)
+          : await appUsersAPI.activate(userId);
+
         if (response.success) {
           setAppUsers(
             appUsers.map((u) =>
-              u._id === userId ? { ...u, status: false } : u
+              u._id === userId ? { ...u, status: !currentStatus } : u
             )
           );
         } else {
-          setError(response.message || "Failed to deactivate user");
+          setError(response.message || `Failed to ${action} user`);
         }
       } catch (err) {
-        setError("Error deactivating user");
+        setError(`Error ${action}ing user`);
       }
     }
   };
@@ -179,14 +198,13 @@ export default function AppUsers() {
                         >
                           View
                         </button>
-                        {appUser.status && (
-                          <button
-                            onClick={() => handleDeactivate(appUser._id)}
-                            className="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30"
-                          >
-                            Deactivate
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleToggleStatus(appUser._id, appUser.status)}
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                          title={appUser.status ? "Deactivate User" : "Activate User"}
+                        >
+                          {appUser.status ? <DeactivateIcon /> : <ActivateIcon />}
+                        </button>
                       </div>
                     </td>
                   </tr>

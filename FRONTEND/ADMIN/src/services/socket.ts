@@ -4,7 +4,7 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 interface GPSDeviceInfo {
   status: boolean;
-  battery_level?: number;
+  battery_level?: number; 
   last_signal?: string;
 }
 

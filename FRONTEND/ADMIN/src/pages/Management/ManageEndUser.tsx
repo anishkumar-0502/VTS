@@ -5,6 +5,7 @@ import L from "leaflet";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import Button from "../../components/ui/button/Button";
+import PageShimmer from "../../components/common/PageShimmer";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.50:8787";
 
@@ -12,16 +13,19 @@ interface EndUser {
   _id: string;
   name: string;
   email: string;
-  phone_number: string | number;
+  phone_number: number;
+  role_id: number;
   status: boolean;
   operator_id: string;
-  end_user_id: string;
-  createdAt: string;
-  updatedAt: string;
+  assigned_vehicle_id?: string | null;
+
+  // ⭐ ADD THESE
+  user_id: string; 
+  end_user_reference?: string;
   end_user_profile?: {
     sos_contact?: {
       name: string;
-      phone_number: string | number;
+      phone_number: number;
     };
     pickup_location?: {
       latitude: number;
@@ -36,7 +40,15 @@ interface EndUser {
       name: string;
     };
   };
+
+  assigned_vehicle?: {
+    vehicle_number: string;
+    driver?: {
+      name: string;
+    };
+  } | null;
 }
+
 
 // Custom hook for selecting location on map
 function LocationSelector({ onSelect }: { onSelect: (lat: number, lng: number) => void }) {
@@ -98,6 +110,18 @@ export default function ManageEndUsers() {
 
   const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lng: number } | null>(null);
+const [page, setPage] = useState(1);
+const [pageSize] = useState(10);
+const [hasMore, setHasMore] = useState(true);
+const [loadingMore, setLoadingMore] = useState(false);
+
+const normalizePhone = (value: string | number): string => {
+  return String(value)
+    .replace(/\D/g, "") // remove non-numeric characters
+    .replace(/^91/, "") // remove 91 if typed without +
+    .slice(-10); // keep last 10 digits
+};
+
 
   const isDark = document.documentElement.classList.contains("dark");
   const swalBaseConfig = {
@@ -106,31 +130,55 @@ export default function ManageEndUsers() {
     confirmButtonColor: isDark ? "#6366f1" : "#4f46e5",
   };
 
+  // Toggle icons for activate/deactivate
+const DeactivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#ef4444" />
+    <circle cx="18" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
+
+const ActivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#10b981" />
+    <circle cx="6" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
   // Fetch End Users
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/operator/end-users/list`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.data) setUsers(data.data);
-      else throw new Error(data.message || "Failed to fetch end users");
-    } catch (err: any) {
-      Swal.fire({
-        ...swalBaseConfig,
-        icon: "error",
-        title: "Error",
-        text: err.message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchUsers = async (pageNum = 1) => {
+  try {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
+
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/operator/end-users/list?page=${pageNum}&limit=${pageSize}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch end users");
+
+    // Append for lazy loading (not overwrite)
+    setUsers(prev => pageNum === 1 ? data.data : [...prev, ...data.data]);
+
+    // Set pagination control
+    setHasMore(data.data.length === pageSize);
+    setPage(pageNum);
+  } catch (err: any) {
+    Swal.fire({
+      ...swalBaseConfig,
+      icon: "error",
+      title: "Error",
+      text: err.message,
+    });
+  } finally {
+    setLoading(false);
+    setLoadingMore(false);
+  }
+};
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1);
   }, []);
 
   // Create / Update End User
@@ -150,10 +198,10 @@ export default function ManageEndUsers() {
     const body = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
-      phone_number: formData.get("phone_number") as string,
+      phone_number: String(normalizePhone(formData.get("phone_number") as string)),
       sos_contact: {
         name: formData.get("sos_name") as string,
-        phone_number: formData.get("sos_phone") as string,
+        phone_number: String(normalizePhone(formData.get("sos_phone") as string)),
       },
       pickup_location: {
         latitude: pickupCoords.lat,
@@ -172,7 +220,7 @@ export default function ManageEndUsers() {
     try {
       const token = localStorage.getItem("token");
       const url = editingUser
-        ? `${BASE_URL}/operator/end-users/${editingUser.end_user_id}/update`
+        ? `${BASE_URL}/operator/end-users/${editingUser.user_id}/update`
         : `${BASE_URL}/operator/end-users/create`;
       const method = editingUser ? "PUT" : "POST";
 
@@ -226,74 +274,118 @@ export default function ManageEndUsers() {
   };
 
   // View user details
-  const handleView = async (guardian_id: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/operator/end-users/${guardian_id}/view`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      const u = data.data;
+const handleView = async (user_id: string) => {
+  console.log("Viewing ID:", user_id);
 
-      const darkMode = document.documentElement.classList.contains("dark");
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/operator/end-users/${user_id}/view`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-     Swal.fire({
-  background: darkMode ? "#1f2937" : "#ffffff",
-  color: darkMode ? "#e5e7eb" : "#111827",
-  title: `<h3 style="font-size:16px; font-weight:600; margin-bottom:8px;">End User Details</h3>`,
-  html: `
-    <div style="text-align:left; font-size:14px; line-height:1.6;">
-      <p><b>Name:</b> ${u.name}</p>
-      <p><b>Email:</b> ${u.email}</p>
-      <p><b>Phone:</b> ${u.phone_number}</p>
-      <p><b>Status:</b> ${
-        u.status
-          ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-          : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-      }</p>
-      <hr style="margin:10px 0;border:none;border-top:1px solid ${
-        darkMode ? "#374151" : "#e5e7eb"
-      };"/>
-      <p><b>SOS Contact:</b> ${u.end_user_profile?.sos_contact?.name || "-"} (${
-    u.end_user_profile?.sos_contact?.phone_number || "-"
-  })</p>
-      <p><b>Pickup:</b> ${u.end_user_profile?.pickup_location?.address || "-"} (${
-    u.end_user_profile?.pickup_location?.name || "-"
-  })</p>
-      <p><b>Dropoff:</b> ${u.end_user_profile?.dropoff_location?.address || "-"} (${
-    u.end_user_profile?.dropoff_location?.name || "-"
-  })</p>
-      <hr style="margin:10px 0;border:none;border-top:1px solid ${
-        darkMode ? "#374151" : "#e5e7eb"
-      };"/>
-      <p><b>Assigned Vehicle:</b> ${
-        u.assigned_vehicle?.vehicle_number || "-"
-      }</p>
-      <p><b>Assigned Driver:</b> ${
-        u.assigned_vehicle?.driver?.name || "-"
-      }</p>
-      <hr style="margin:10px 0;border:none;border-top:1px solid ${
-        darkMode ? "#374151" : "#e5e7eb"
-      };"/>
-    </div>`,
-  confirmButtonText: "Close",
-  confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
-  width: 420,
-  customClass: { popup: "rounded-xl shadow-lg" },
-});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+    const u = data.data;
 
-    } catch (err: any) {
-      Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
-    }
-  };
+    const darkMode = document.documentElement.classList.contains("dark");
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading end users...</p>
-      </div>
-    );
+    // Helper for displaying label + value rows
+    const infoRow = (
+      label: string,
+      value: string | number | null | undefined
+    ): string => {
+      return `
+        <div style="
+          font-size:14px;
+          font-weight:500;
+          padding:4px 0;
+          color:${darkMode ? "#e5e7eb" : "#111827"};
+        ">
+          <b>${label} :</b> ${value ?? "N/A"}
+        </div>
+      `;
+    };
+
+    Swal.fire({
+      showCloseButton: true,
+      showConfirmButton: false,
+      width: 520,
+      padding: "20px",
+      html: `
+        <div style="text-align:left;">
+
+          <!-- Header -->
+          <div style="display:flex; align-items:center; gap:15px; padding-bottom:15px;">
+            <div style="
+              width:55px; height:55px; border-radius:50%;
+              background:#4f46e533; display:flex;
+              align-items:center; justify-content:center;
+              font-size:22px; font-weight:700; color:#4f46e5;">
+              ${u.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style="font-size:20px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
+                ${u.name}
+              </div>
+              <div style="font-size:13px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
+                End User
+              </div>
+            </div>
+          </div>
+
+          <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:12px 0;" />
+
+          <!-- Account Info -->
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${infoRow("Email", u.email)}
+            ${infoRow("Phone", u.phone_number)}
+            <div style="
+              font-size:14px;
+              font-weight:500;
+              padding:4px 0;
+              color:${darkMode ? "#e5e7eb" : "#111827"};">
+              <b>Status :</b> ${
+                u.status
+                  ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
+                  : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
+              }
+            </div>
+          </div>
+
+          <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:14px 0;" />
+
+          <!-- SOS & Pickup/Dropoff -->
+          <div style="margin-bottom:10px;">
+            <div style="font-size:14px; font-weight:600; margin-bottom:8px;">Contact & Location</div>
+            ${infoRow("SOS Contact", `${u.end_user_profile?.sos_contact?.name || "-"} (${u.end_user_profile?.sos_contact?.phone_number || "-"})`)}
+            ${infoRow("Pickup", `${u.end_user_profile?.pickup_location?.address || "-"} (${u.end_user_profile?.pickup_location?.name || "-"})`)}
+            ${infoRow("Dropoff", `${u.end_user_profile?.dropoff_location?.address || "-"} (${u.end_user_profile?.dropoff_location?.name || "-"})`)}
+          </div>
+
+          <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:14px 0;" />
+
+          <!-- Vehicle Info -->
+          <div style="margin-bottom:10px;">
+            <div style="font-size:14px; font-weight:600; margin-bottom:8px;">Assigned Vehicle</div>
+            ${infoRow("Vehicle", u.assigned_vehicle?.vehicle_number)}
+            ${infoRow("Driver", u.assigned_vehicle?.driver?.name)}
+          </div>
+
+        </div>
+      `,
+      customClass: { popup: "card-popup" },
+    });
+  } catch (err: any) {
+    Swal.fire({ icon: "error", title: "Error", text: err.message });
+  }
+};
+
+
+if (loading)
+  return (
+    <PageShimmer />
+  );
+
 
   const defaultCenter = [13.0827, 80.2707]; // Chennai
 
@@ -494,8 +586,15 @@ export default function ManageEndUsers() {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
+                           <button
+                    title={u.status ? "Deactivate User" : "Activate User"}
+                    onClick={() => toggleStatus(u.user_id)}
+                    className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    {u.status ? <DeactivateIcon /> : <ActivateIcon />}
+                  </button>
                           <button
-                            onClick={() => handleView(u.end_user_id)}
+                            onClick={() => handleView(u.user_id)}
                             className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                           >
                             View
@@ -508,16 +607,6 @@ export default function ManageEndUsers() {
                             className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
                           >
                             Edit
-                          </button>
-                          <button
-                            onClick={() => toggleStatus(u.operator_id)}
-                            className={`text-xs px-3 py-1 rounded font-medium transition ${
-                              u.status
-                                ? "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800"
-                                : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
-                            }`}
-                          >
-                            {u.status ? "Deactivate" : "Activate"}
                           </button>
                         </div>
                       </td>
@@ -533,6 +622,18 @@ export default function ManageEndUsers() {
               </tbody>
             </table>
           </div>
+          {hasMore && (
+  <div className="flex justify-center py-4">
+    <Button
+      size="sm"
+      disabled={loadingMore}
+      onClick={() => fetchUsers(page + 1)}
+    >
+      {loadingMore ? "Loading..." : "Load More"}
+    </Button>
+  </div>
+)}
+
         </div>
       </div>
     </>

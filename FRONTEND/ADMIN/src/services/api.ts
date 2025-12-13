@@ -6,6 +6,7 @@ interface ApiResponse<T = any> {
   data?: T;
   errors?: any[];
   status?: number;
+  
 }
 
 const getAuthToken = () => {
@@ -96,34 +97,58 @@ export const authAPI = {
 };
 
 export const operatorsAPI = {
-  // ✅ Get all operators
-  getAll: () => api.get('/superadmin/operators/list'),
+  // Operators
+  getAll: (page = 1, pageSize = 10) =>
+    api.get(`/superadmin/operators/list?page=${page}&limit=${pageSize}`),
 
-  // ✅ Create operator
-  create: (data: any) => api.post('/superadmin/operators/create', data),
+  create: (data: any) => api.post('/superadmin/operators/create', data),
+  getById: (operatorId: string) =>
+    api.get(`/superadmin/operators/${operatorId}/view`),
+  update: (operatorId: string, data: any) =>
+    api.post(`/superadmin/operators/${operatorId}/update`, data),
+  toggleStatus: (operatorId: string) =>
+    api.put(`/superadmin/operators/${operatorId}/deactivate`),
+  assignDevice: (operatorId: string, deviceId: string) =>
+    api.post(`/superadmin/assignments/device-to-operator`, {
+      operator_id: operatorId,
+      device_id: deviceId,
+    }),
+  unassignDevice: (operatorId: string, deviceId: string) =>
+    api.post(`/superadmin/assignments/unassign-device-from-operator`, {
+      operator_id: operatorId,
+      device_id: deviceId,
+    }),
 
-  // ✅ View operator details
-  getById: (operatorId: string) =>
-    api.get(`/superadmin/operators/${operatorId}/view`),
-
-  // ✅ Update operator details
-  update: (operatorId: string, data: any) =>
-    api.post(`/superadmin/operators/${operatorId}/update`, data),
-
-  // ✅ Toggle active/inactive
-  toggleStatus: (operatorId: string) =>
-    api.put(`/superadmin/operators/${operatorId}/deactivate`),
+  // Devices with pagination
+  getDevices: (page = 1, pageSize = 10) =>
+    api.get(`/superadmin/devices/list?page=${page}&limit=${pageSize}`),
 };
+
+
 
 
 export const usersAPI = {
-  getAll: () => api.get('/superadmin/operators'),
-  create: (data: any) => api.post('/superadmin/operators/create', data), 
+  // ✅ Pagination with role filter support
+  list: (page: number, limit: number, roleId?: number) =>
+    api.get(`/superadmin/users/list?page=${page}&limit=${limit}${roleId ? `&role_id=${roleId}` : ''}`),
+
+  create: (data: any) => api.post('/superadmin/users/create', data),
+
   update: (userId: string, data: any) =>
-    api.put(`/superadmin/operators/${userId}`, data),
+    api.put(`/superadmin/users/${userId}/update`, data),
+
   delete: (userId: string) =>
-    api.delete(`/superadmin/operators/${userId}`),
+    api.delete(`/superadmin/users/${userId}`),
+
+  // ✅ Toggle user status (Activate/Deactivate)
+  toggleStatus: (userId: string) =>
+    api.put(`/superadmin/users/${userId}/deactivate`),
+
+  // ✅ View user details
+  view: (userId: string) =>
+    api.get(`/superadmin/users/${userId}/view`),
 };
+
 
 export const vehiclesAPI = {
   getAll: () => api.get('/vehicles'),

@@ -25,6 +25,7 @@
     "clsx": "^2.1.1",
     "flatpickr": "^4.6.13",
     "leaflet": "^1.9.4",
+    "leaflet-routing-machine": "^3.2.12",
     "lucide-react": "^0.548.0",
     "react": "^19.0.0",
     "react-apexcharts": "^1.7.0",
