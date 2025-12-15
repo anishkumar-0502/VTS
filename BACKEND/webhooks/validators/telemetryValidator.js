@@ -19,8 +19,17 @@ class TelemetryValidator {
   static validateLocationUpdate(payload) {
     const errors = [];
 
-    if (!payload.vehicle_id) errors.push('vehicle_id is required');
-    if (typeof payload.vehicle_id !== 'string') errors.push('vehicle_id must be a string');
+    if (!payload.tracker_id && !payload.vehicle_id) {
+      errors.push('tracker_id or vehicle_id is required');
+    }
+
+    if (payload.tracker_id && typeof payload.tracker_id !== 'string') {
+      errors.push('tracker_id must be a string');
+    }
+
+    if (payload.vehicle_id && typeof payload.vehicle_id !== 'string') {
+      errors.push('vehicle_id must be a string');
+    }
 
     if (payload.latitude === undefined) errors.push('latitude is required');
     if (payload.longitude === undefined) errors.push('longitude is required');

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
+import PageShimmer from "../../components/common/PageShimmer";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.39:8787";
 
@@ -38,27 +39,74 @@ export default function ManageRoles() {
     permissions: [],
   });
 
+  const [rolePage, setRolePage] = useState(1); // current page
+const [roleTotalPages, setRoleTotalPages] = useState(1); // total pages from API
+const [loadingMoreRoles, setLoadingMoreRoles] = useState(false); // lazy load state
+const pageSize = 10; // items per page
+
+// Toggle icons for activate/deactivate
+const DeactivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#ef4444" />
+    <circle cx="18" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
+
+const ActivateIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="20" height="12" rx="6" fill="#10b981" />
+    <circle cx="6" cy="12" r="5" fill="#ffffff" />
+  </svg>
+);
+
+const showSuccess = (message: string) => {
+  const dark = document.documentElement.classList.contains("dark");
+
+  Swal.fire({
+    icon: "success",
+    title: message,
+    background: dark ? "#1f2937" : "#ffffff",
+    color: dark ? "#e5e7eb" : "#111827",
+    confirmButtonColor: dark ? "#6366f1" : "#4f46e5",
+    timer: 1600,
+    showConfirmButton: false,
+    toast: true,
+    position: "top-end",
+  });
+};
+
+
   /** Fetch roles */
-  const fetchRoles = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/superadmin/roles/list`, {
-        headers: { Authorization: token ? `Bearer ${token}` : "" },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to fetch roles");
-      setRoles(data.data || []);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to fetch roles.");
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchRoles = async (pageNum = 1) => {
+  try {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMoreRoles(true);
+
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/superadmin/roles/list?page=${pageNum}&limit=${pageSize}`, {
+      headers: { Authorization: token ? `Bearer ${token}` : "" },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch roles");
+
+    const fetchedRoles = data.data || [];
+    setRoles(pageNum === 1 ? fetchedRoles : [...roles, ...fetchedRoles]);
+
+    // Update total pages if API provides it
+    setRoleTotalPages(data.totalPages || 1);
+    setRolePage(pageNum);
+  } catch (err: any) {
+    console.error(err);
+    setError(err.message || "Failed to fetch roles.");
+  } finally {
+    setLoading(false);
+    setLoadingMoreRoles(false);
+  }
+};
+
 
   useEffect(() => {
-    fetchRoles();
+    fetchRoles(1);
   }, []);
 
   /** Open create form */
@@ -121,7 +169,7 @@ export default function ManageRoles() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to save role");
 
-      Swal.fire("Success", editingRole ? "Role updated!" : "Role created!", "success");
+     showSuccess(editingRole ? "Role updated!" : "Role created!");
       setShowForm(false);
       setEditingRole(null);
       fetchRoles();
@@ -140,7 +188,7 @@ export default function ManageRoles() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to change status");
-      Swal.fire("Success", `Role ${role.status ? "deactivated" : "activated"}!`, "success");
+showSuccess(`Role ${role.status ? "deactivated" : "activated"}!`);
       fetchRoles();
     } catch (err: any) {
       Swal.fire("Error", err.message || "Failed to change status.", "error");
@@ -175,13 +223,18 @@ export default function ManageRoles() {
   //   }
   // };
 
+if (loading)
+  return (
+    <PageShimmer />
+  );
+
   return (
     <>
       <PageMeta title="Manage Roles | VTS Admin" description="Manage system roles and permissions" />
-      <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+      <div className="overflow-x-hidden"> {/* ✅ prevents full page scroll horizontally */}
         <PageBreadCrumb pageTitle="Manage Roles" />
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow p-5 max-w-6xl mx-auto">
+        <div className="bg-white rounded-lg border border-gray-200 shadow p-6 dark:bg-gray-900 dark:border-gray-800 max-w-6xl mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-title-md font-semibold text-gray-900 dark:text-gray-100">Roles</h2>
             <button
@@ -259,72 +312,89 @@ export default function ManageRoles() {
             </div>
           )}
 
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  {/* {["Name", "Description", "Permissions", "Status", "Actions"].map((h) => ( */}
-                    {["Name", "Description", "Status", "Actions"].map((h) => (
-                    <th
-                      key={h}
-                      className="px-2 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {roles.length === 0 && !loading && (
-                  <tr>
-                    <td colSpan={5} className="text-center py-6 text-gray-500 dark:text-gray-400">
-                      No roles found
-                    </td>
-                  </tr>
-                )}
-                {roles.map((role) => (
-                  <tr key={role.role_id} className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                    <td className="px-2 py-2">{role.role_name}</td>
-                    <td className="px-2 py-2">{role.description}</td>
-                    {/* <td className="px-2 py-2">{role.permissions.join(", ") || "-"}</td> */}
-                    <td className="px-2 py-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          role.status ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {role.status ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-2 py-2">
-                      <div className="flex gap-2">
-                        {/* <button
-                          onClick={() => handleView(role)}
-                          className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100"
-                        >
-                          View
-                        </button> */}
-                        <button
-                          onClick={() => handleEdit(role)}
-                          className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleToggleStatus(role)}
-                          className={`text-xs px-3 py-1 rounded ${
-                            role.status ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"
-                          }`}
-                        >
-                          {role.status ? "Deactivate" : "Activate"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+<div className="w-full overflow-x-auto">
+  <div
+    id="roles-table-scroll"
+    className="max-h-[400px] overflow-y-auto scroll-smooth border border-gray-200 dark:border-gray-700 rounded-lg"
+    onScroll={(e) => {
+      const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+      if (scrollTop + clientHeight >= scrollHeight - 20 && rolePage < roleTotalPages && !loadingMoreRoles) {
+        fetchRoles(rolePage + 1);
+      }
+    }}
+  >
+    <table className="min-w-[800px] w-full border-collapse">
+      <thead>
+        <tr className="sticky top-0 bg-gray-100 dark:bg-gray-800 z-20 border-b border-gray-200 dark:border-gray-700">
+          {["Name", "Description", "Status", "Actions"].map((h) => (
+            <th
+              key={h}
+              className="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap"
+            >
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+
+      <tbody className="bg-white dark:bg-gray-900">
+        {roles.length > 0 ? (
+          roles.map((role) => (
+            <tr
+              key={role.role_id}
+              className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              <td className="px-3 py-2 whitespace-nowrap">{role.role_name}</td>
+              <td className="px-3 py-2 whitespace-nowrap">{role.description}</td>
+              <td className="px-3 py-2 whitespace-nowrap">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    role.status
+                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                      : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                  }`}
+                >
+                  {role.status ? "Active" : "Inactive"}
+                </span>
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <button
+                    title={role.status ? "Deactivate Role" : "Activate Role"}
+                    onClick={() => handleToggleStatus(role)}
+                    className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    {role.status ? <DeactivateIcon /> : <ActivateIcon />}
+                  </button>
+                  <button
+                    onClick={() => handleEdit(role)}
+                    className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 font-normal dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan={4} className="text-center py-6 text-gray-500 dark:text-gray-400">
+              No roles found.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+
+    {loadingMoreRoles && (
+      <div className="text-center py-2 text-gray-500 dark:text-gray-400">
+        Loading more roles...
+      </div>
+    )}
+  </div>
+</div>
+
+
         </div>
       </div>
     </>

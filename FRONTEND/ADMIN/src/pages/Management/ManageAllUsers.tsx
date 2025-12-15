@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
+import PageShimmer from "../../components/common/PageShimmer";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.50:8787";
 
@@ -34,6 +35,11 @@ export default function ManageUsersTable() {
   const [endUsers, setEndUsers] = useState<EndUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedType, setSelectedType] = useState<"driver" | "endUser">("driver"); // ✅ Default: Driver table
+  const [page, setPage] = useState(1);
+const [pageSize] = useState(10);
+const [totalPages, setTotalPages] = useState(1);
+const [loadingMore, setLoadingMore] = useState(false);
+
 
   const isDark = document.documentElement.classList.contains("dark");
 
@@ -43,36 +49,49 @@ export default function ManageUsersTable() {
     confirmButtonColor: isDark ? "#6366f1" : "#4f46e5",
   };
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/operator/users/list?type=all`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+ const fetchUsers = async (pageNum = 1) => {
+  try {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
 
-      if (!res.ok) throw new Error(data.message || "Failed to fetch users");
+    const token = localStorage.getItem("token");
+    const res = await fetch(
+      `${BASE_URL}/operator/users/list?page=${pageNum}&limit=${pageSize}&type=all`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.message || "Failed to fetch users");
+
+    if (pageNum === 1) {
       setDrivers(data.data.drivers || []);
       setEndUsers(data.data.end_users || []);
-    } catch (err: any) {
-      Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
-    } finally {
-      setLoading(false);
+    } else {
+      setDrivers((prev) => [...prev, ...(data.data.drivers || [])]);
+      setEndUsers((prev) => [...prev, ...(data.data.end_users || [])]);
     }
-  };
+
+    setTotalPages(data.pagination?.totalPages || 1);
+    setPage(pageNum);
+  } catch (err: any) {
+    Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
+  } finally {
+    setLoading(false);
+    setLoadingMore(false);
+  }
+};
+
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1);
   }, []);
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading users...</p>
-      </div>
-    );
+if (loading)
+  return (
+    <PageShimmer />
+  );
+
 
   // ✅ Common reusable table renderer
   const renderTable = (
@@ -84,7 +103,7 @@ export default function ManageUsersTable() {
       <table className="min-w-full border-collapse">
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700">
-            {["Name", "Email", "Phone", "Vehicle", "Route", "Status"].map((h) => (
+            {["Name", "Email", "Phone", "Vehicle",  "Status"].map((h) => (
               <th
                 key={h}
                 className="px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300"
@@ -105,7 +124,6 @@ export default function ManageUsersTable() {
                 <td className="px-3 py-2">{u.email}</td>
                 <td className="px-3 py-2">{u.phone_number}</td>
                 <td className="px-3 py-2">{u.assigned_vehicle?.vehicle_number || "-"}</td>
-                <td className="px-3 py-2">{u.assigned_vehicle?.route_name || "-"}</td>
                 <td className="px-3 py-2">
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -129,16 +147,16 @@ export default function ManageUsersTable() {
         </tbody>
       </table>
     </div>
-  );
+  ); 
 
   return (
     <>
       <PageMeta title="Operator Users | Dashboard" description="List of operator users" />
-      <div>
+      <div> 
         <PageBreadCrumb pageTitle="Operator User Management" />
 
         <div className="bg-white rounded-lg border border-gray-200 shadow p-6 dark:bg-gray-900 dark:border-gray-800 max-w-6xl mx-auto overflow-x-auto">
-          {/* ✅ Dropdown for selecting user type */}
+          {/* ✅ Dropdown for selecting user type */} 
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Select User Type
@@ -159,6 +177,18 @@ export default function ManageUsersTable() {
           {selectedType === "driver"
             ? renderTable(drivers, "Drivers")
             : renderTable(endUsers, "End Users")}
+            {page < totalPages && (
+  <div className="flex justify-center mt-4">
+    <button
+      onClick={() => fetchUsers(page + 1)}
+      className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+      disabled={loadingMore}
+    >
+      {loadingMore ? "Loading..." : "Load More"}
+    </button>
+  </div>
+)}
+
         </div>
       </div>
     </>

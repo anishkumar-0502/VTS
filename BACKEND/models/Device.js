@@ -9,6 +9,12 @@ const deviceSchema = new mongoose.Schema(
       required: true,
       default: generateDeviceId
     },
+    tracker_id: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true
+    },
     imei: {
       type: String,
       required: true,

@@ -1,33 +1,18 @@
-const admin = require('firebase-admin');
+const { isInitialized, getMessaging } = require('../firebase/firebase-admin');
+const { sendFCMv1Multicast } = require('../firebase/fcm-v1');
 const logger = require('../utils/logger');
-
-let initialized = false;
-
-const initializeFirebase = () => {
-  try {
-    if (!initialized) {
-      const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || 
-        './config/firebase-service-account.json';
-      
-      const serviceAccount = require(serviceAccountPath);
-      
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        databaseURL: process.env.FIREBASE_DATABASE_URL
-      });
-      
-      initialized = true;
-      logger.loggerInfo('Firebase initialized successfully');
-    }
-  } catch (error) {
-    logger.loggerWarn(`Firebase initialization skipped: ${error.message}`);
-  }
-};
+const GPSNotificationService = require('../firebase/sendNotification');
 
 const sendNotification = async (fcmToken, title, body, data = {}) => {
   try {
-    if (!initialized) {
+    if (!isInitialized()) {
       logger.loggerWarn('Firebase not initialized, skipping notification');
+      return false;
+    }
+
+    const messaging = getMessaging();
+    if (!messaging) {
+      logger.loggerWarn('Firebase messaging unavailable');
       return false;
     }
 
@@ -45,7 +30,7 @@ const sendNotification = async (fcmToken, title, body, data = {}) => {
       token: fcmToken
     };
 
-    const response = await admin.messaging().send(message);
+    const response = await messaging.send(message);
     logger.loggerInfo(`Notification sent successfully: ${response}`);
     return true;
   } catch (error) {
@@ -56,34 +41,21 @@ const sendNotification = async (fcmToken, title, body, data = {}) => {
 
 const sendMulticast = async (fcmTokens, title, body, data = {}) => {
   try {
-    if (!initialized) {
-      logger.loggerWarn('Firebase not initialized, skipping notifications');
-      return { successCount: 0, failureCount: fcmTokens.length };
-    }
-
     if (!fcmTokens || fcmTokens.length === 0) {
-      logger.loggerWarn('No FCM tokens provided');
+      logger.loggerWarn('⚠️ FCM v1: No FCM tokens provided');
       return { successCount: 0, failureCount: 0 };
     }
 
-    const message = {
-      notification: {
-        title,
-        body
-      },
-      data,
-      tokens: fcmTokens
-    };
+    logger.loggerInfo(`🔄 Switching to FCM v1 API (Dashboard-tracked)`);
+    const result = await sendFCMv1Multicast(fcmTokens, title, body, data);
 
-    const response = await admin.messaging().sendMulticast(message);
-    logger.loggerInfo(`Multicast sent: ${response.successCount} succeeded, ${response.failureCount} failed`);
     return {
-      successCount: response.successCount,
-      failureCount: response.failureCount
+      successCount: result.successCount,
+      failureCount: result.failureCount
     };
   } catch (error) {
-    logger.loggerError(`Error sending multicast: ${error.message}`);
-    return { successCount: 0, failureCount: fcmTokens.length };
+    logger.loggerError(`❌ FCM v1 Error: ${error.message}`);
+    return { successCount: 0, failureCount: fcmTokens?.length || 0 };
   }
 };
 
@@ -158,11 +130,205 @@ const sendSOSNotification = async (adminFcmTokens, driverName, location) => {
   }
 };
 
+const sendCurrentStopNotification = async (parentFcmTokens, studentName, currentStop, vehicleNumber) => {
+  try {
+    if (!parentFcmTokens || parentFcmTokens.length === 0) {
+      return { successCount: 0, failureCount: 0 };
+    }
+
+    const title = `Current Stop - ${studentName}`;
+    const body = `Your child is currently at: ${currentStop?.name || 'Unknown Stop'}`;
+    
+    const data = {
+      type: 'current_stop',
+      studentName,
+      stopName: currentStop?.name || 'Unknown',
+      stopLocation: JSON.stringify({
+        latitude: currentStop?.latitude,
+        longitude: currentStop?.longitude
+      }),
+      vehicleNumber,
+      timestamp: new Date().toISOString()
+    };
+
+    return await sendMulticast(parentFcmTokens, title, body, data);
+  } catch (error) {
+    logger.loggerError(`Error sending current stop notification: ${error.message}`);
+    return { successCount: 0, failureCount: parentFcmTokens?.length || 0 };
+  }
+};
+
+const sendNextStopNotification = async (parentFcmTokens, studentName, nextStop, vehicleNumber) => {
+  try {
+    if (!parentFcmTokens || parentFcmTokens.length === 0) {
+      return { successCount: 0, failureCount: 0 };
+    }
+
+    const title = `Next Stop - ${studentName}`;
+    const body = `Next stop: ${nextStop?.name || 'Unknown Stop'}`;
+    
+    const data = {
+      type: 'next_stop',
+      studentName,
+      stopName: nextStop?.name || 'Unknown',
+      stopLocation: JSON.stringify({
+        latitude: nextStop?.latitude,
+        longitude: nextStop?.longitude
+      }),
+      vehicleNumber,
+      timestamp: new Date().toISOString()
+    };
+
+    return await sendMulticast(parentFcmTokens, title, body, data);
+  } catch (error) {
+    logger.loggerError(`Error sending next stop notification: ${error.message}`);
+    return { successCount: 0, failureCount: parentFcmTokens?.length || 0 };
+  }
+};
+
+const sendTripStatusNotification = async (parentFcmTokens, studentName, status, additionalInfo = {}) => {
+  try {
+    if (!parentFcmTokens || parentFcmTokens.length === 0) {
+      return { successCount: 0, failureCount: 0 };
+    }
+
+    let title = '';
+    let body = '';
+
+    switch (status) {
+      case 'trip_started':
+        title = `Trip Started - ${studentName}`;
+        body = `Your child's trip has started`;
+        break;
+      case 'approaching_stop':
+        title = `Approaching Stop - ${studentName}`;
+        body = `Bus is approaching: ${additionalInfo.stopName || 'next stop'}`;
+        break;
+      case 'on_the_way':
+        title = `On the Way - ${studentName}`;
+        body = `Your child is on the way. ETA: ${additionalInfo.eta || 'Shortly'}`;
+        break;
+      case 'trip_completed':
+        title = `Trip Completed - ${studentName}`;
+        body = `Your child's trip has been completed`;
+        break;
+      case 'trip_delayed':
+        title = `Trip Delayed - ${studentName}`;
+        body = `Trip is delayed by ${additionalInfo.delayMinutes || 'a few'} minutes`;
+        break;
+      default:
+        title = `Trip Update - ${studentName}`;
+        body = `Trip status: ${status}`;
+    }
+    
+    const data = {
+      type: status,
+      studentName,
+      timestamp: new Date().toISOString(),
+      ...Object.entries(additionalInfo).reduce((acc, [key, value]) => {
+        if (typeof value === 'object') {
+          acc[key] = JSON.stringify(value);
+        } else {
+          acc[key] = String(value);
+        }
+        return acc;
+      }, {})
+    };
+
+    return await sendMulticast(parentFcmTokens, title, body, data);
+  } catch (error) {
+    logger.loggerError(`Error sending trip status notification: ${error.message}`);
+    return { successCount: 0, failureCount: parentFcmTokens?.length || 0 };
+  }
+};
+
+const tripLiveUpdateTracker = new Map();
+
+const generateTripStatusHash = (tripData) => {
+  const currentStopName = tripData.currentStop?.name || 'N/A';
+  const nextStopName = tripData.nextStop?.name || 'N/A';
+  const distanceBucket = Math.round((tripData.distanceToNextStop || 0) / 100) * 100;
+  return `${currentStopName}|${nextStopName}|${distanceBucket}`;
+};
+
+const sendTripLiveUpdateNotification = async (parentFcmTokens, studentName, tripData, endUserId, tripId) => {
+  try {
+    if (!parentFcmTokens || parentFcmTokens.length === 0) {
+      return { successCount: 0, failureCount: 0 };
+    }
+
+    const now = new Date();
+    const tripKey = `${endUserId || 'unknown'}:${tripId || 'unknown'}`;
+    const currentStatusHash = generateTripStatusHash(tripData);
+    const lastSentData = tripLiveUpdateTracker.get(tripKey);
+    const lastStatusHash = lastSentData?.statusHash;
+
+    if (lastStatusHash === currentStatusHash) {
+      logger.loggerInfo(`⏭ Trip status unchanged for ${endUserId}/${tripId} (${currentStatusHash}), skipping notification`);
+      return { successCount: 0, failureCount: 0, isDuplicate: true };
+    }
+
+    const title = `Live Trip Update - ${studentName}`;
+    const body = `Bus is en route. Current location: ${tripData.currentLocation?.address || 'On route'}`;
+    
+    const data = {
+      type: 'trip_live_update',
+      studentName,
+      currentLocation: JSON.stringify(tripData.currentLocation),
+      currentStop: tripData.currentStop?.name || 'N/A',
+      nextStop: tripData.nextStop?.name || 'N/A',
+      vehicleNumber: tripData.vehicleNumber || 'N/A',
+      distanceToNextStop: tripData.distanceToNextStop?.toString() || 'N/A',
+      eta: tripData.eta || 'N/A',
+      timestamp: now.toISOString()
+    };
+
+    logger.loggerInfo(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    logger.loggerInfo(`📤 SENDING TRIP LIVE UPDATE NOTIFICATION`);
+    logger.loggerInfo(`   User: ${endUserId}`);
+    logger.loggerInfo(`   Trip: ${tripId}`);
+    logger.loggerInfo(`   Status Change: ${lastStatusHash || 'INITIAL'} → ${currentStatusHash}`);
+    logger.loggerInfo(`   Title: "${title}"`);
+    logger.loggerInfo(`   Body: "${body}"`);
+    logger.loggerInfo(`   FCM Tokens: ${parentFcmTokens.length}`);
+    logger.loggerInfo(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+
+    const result = await sendMulticast(parentFcmTokens, title, body, data);
+
+    logger.loggerInfo(`📊 FIREBASE RESPONSE FOR TRIP UPDATE:`);
+    logger.loggerInfo(`   Success Count: ${result.successCount}`);
+    logger.loggerInfo(`   Failure Count: ${result.failureCount}`);
+    logger.loggerInfo(`   Total Attempted: ${parentFcmTokens.length}`);
+
+    if (result.successCount > 0) {
+      tripLiveUpdateTracker.set(tripKey, {
+        sentAt: now,
+        type: 'trip_live_update',
+        endUserId,
+        tripId,
+        statusHash: currentStatusHash
+      });
+      logger.loggerInfo(`✅ SUCCESS - Notification delivered to ${result.successCount}/${parentFcmTokens.length} tokens`);
+      logger.loggerInfo(`✅ Status tracked: ${currentStatusHash}`);
+    } else {
+      logger.loggerError(`❌ FAILED - No successful deliveries. Check FCM tokens.`);
+    }
+
+    return result;
+  } catch (error) {
+    logger.loggerError(`Error sending trip live update notification: ${error.message}`);
+    return { successCount: 0, failureCount: parentFcmTokens?.length || 0 };
+  }
+};
+
 module.exports = {
-  initializeFirebase,
   sendNotification,
   sendMulticast,
   sendStudentNotificationToParents,
   sendSpeedAlertNotification,
-  sendSOSNotification
+  sendSOSNotification,
+  sendCurrentStopNotification,
+  sendNextStopNotification,
+  sendTripStatusNotification,
+  sendTripLiveUpdateNotification
 };

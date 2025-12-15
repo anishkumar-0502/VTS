@@ -120,6 +120,7 @@ app.get('/docs/:filename', (req, res) => {
 });
 
 app.use('/auth', require('./routes/authRoutes'));
+app.use('/fcm', require('./routes/fcmRoutes'));
 app.use('/superadmin', require('./routes/superadminRoutes'));
 app.use('/operator', require('./routes/operatorRoutes'));
 app.use('/driver', require('./routes/driverRoutes'));

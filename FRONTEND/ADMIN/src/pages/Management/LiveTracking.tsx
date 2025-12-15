@@ -40,6 +40,9 @@ interface DeviceOption {
   _id?: string;
   imei?: string;
   assigned_operator_id?: string | null;
+   assigned_vehicle?: {
+    vehicle_number?: string;
+  } | null;
 }
 
 type ConnectionState = "connecting" | "connected" | "disconnected";
@@ -66,6 +69,12 @@ export default function LiveTracking() {
   const selectedVehicleIdRef = useRef<string | null>(null);
   const selectedOperatorIdRef = useRef<string | null>(null);
   const filtersRef = useRef<{ operatorId?: string; deviceId?: string }>({});
+
+  const resolveDeviceLabel = (device: DeviceOption) => {
+  const id = device.device_id || device._id || device.imei || "-";
+  const veh = device.assigned_vehicle?.vehicle_number || "-";
+  return `${id} – ${veh}`;
+};
 
   useEffect(() => {
     const deviceIdParam = searchParams.get("deviceId") ?? "";
@@ -509,9 +518,12 @@ export default function LiveTracking() {
                     return null;
                   }
                   return (
-                    <option key={key} value={device.device_id || device._id || ""}>
-                      {device.device_id || device.imei}
-                    </option>
+                   <option key={key} value={device.device_id || device._id || ""}>
+  {(device.device_id || device.imei) +
+    (device.assigned_vehicle?.vehicle_number
+      ? ` - ${device.assigned_vehicle.vehicle_number}`
+      : "")}
+</option>
                   );
                 })}
               </select>

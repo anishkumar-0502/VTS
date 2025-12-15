@@ -15,6 +15,11 @@ const ansiBlue = '\x1B[34m';
 const ansiYellow = '\x1B[33m';
 const ansiOrange = '\x1B[38;5;214m';
 const ansiCyan = '\x1B[36m';
+const ansiMagenta = '\x1B[35m';
+const ansiWhite = '\x1B[37m';
+const ansiBgGreen = '\x1B[42m';
+const ansiBgBlue = '\x1B[44m';
+const ansiBgMagenta = '\x1B[45m';
 
 const customLevels = {
     levels: {
@@ -24,7 +29,8 @@ const customLevels = {
         success: 3,
         debug: 4,
         pingpong: 5,
-        webhook: 6
+        webhook: 6,
+        notification: 7
     },
     colors: {
         error: 'red',
@@ -33,12 +39,14 @@ const customLevels = {
         success: 'green',
         debug: 'blue',
         pingpong: 'cyan',
-        webhook: 'magenta'
+        webhook: 'magenta',
+        notification: 'magenta'
     },
 };
 
 const consoleFormat = winston.format.printf(({ level, message, timestamp }) => {
     let colorizedMessage = message;
+    let prefix = `${timestamp} [${level.toUpperCase()}]: `;
 
     switch (level) {
         case 'info':
@@ -62,9 +70,13 @@ const consoleFormat = winston.format.printf(({ level, message, timestamp }) => {
         case 'webhook':
             colorizedMessage = `${ansiCyan}${message}${ansiReset}`;
             break;
+        case 'notification':
+            prefix = `${timestamp} ${ansiBgMagenta}${ansiWhite}[NOTIFICATION]${ansiReset}: `;
+            colorizedMessage = `${ansiMagenta}🔔 ${message}${ansiReset}`;
+            break;
     }
 
-    return `${timestamp} [${level.toUpperCase()}]: ${colorizedMessage}`;
+    return `${prefix}${colorizedMessage}`;
 });
 
 const fileFormat = winston.format.printf(({ level, message, timestamp }) => {
@@ -107,6 +119,13 @@ const loggerWebhook = (message, data) => {
         logger.log('webhook', message);
     }
 };
+const loggerNotification = (message, data) => {
+    if (data) {
+        logger.log('notification', `${message} | ${JSON.stringify(data)}`);
+    } else {
+        logger.log('notification', message);
+    }
+};
 
 module.exports = {
     loggerInfo,
@@ -116,6 +135,7 @@ module.exports = {
     loggerDebug,
     loggerPingPong,
     loggerWebhook,
+    loggerNotification,
     error: loggerError,
     http: loggerInfo,
     warn: loggerWarn,

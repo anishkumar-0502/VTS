@@ -64,7 +64,7 @@ class WebhookController {
 
             case 'location_update':
               response = await TelemetryHandler.handleLocationUpdate({
-                vehicle_id: tracker_id,
+                tracker_id: tracker_id,
                 ...payload
               });
               break;

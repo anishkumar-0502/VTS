@@ -9,6 +9,8 @@ import RecentOrders from "../../components/ecommerce/RecentOrders";
 import PageMeta from "../../components/common/PageMeta";
 import { dashboardAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import DashboardShimmer from "../../components/common/DashboardShimmer";
+
 
 interface FleetOverviewData {
   totalVehicles: number;
@@ -472,12 +474,27 @@ export default function Home() {
     navigate(query ? `/live-tracking?${query}` : "/live-tracking");
   };
 
+
+if (loading) {
   return (
     <>
       <PageMeta
-        title="React.js Ecommerce Dashboard | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js Ecommerce Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="Live Vehicle Tracking System"
+        description="Track vehicles in real time, view activity status, and manage fleet performance."
       />
+      <DashboardShimmer />
+    </>
+  );
+}
+
+  
+  return (
+    <>
+     <PageMeta
+  title="Live Vehicle Tracking System"
+  description="Track vehicles in real time, view activity status, and manage fleet performance."
+/>
+
       <div>
         {error && !loading && (
           <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-600">
