@@ -1,12 +1,9 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
-import Button from "../../components/ui/button/Button";
 import UsersTable from "../../components/tables/UsersTable";
 import { usersAPI } from "../../services/api";
-
-const API_EMPTY_ID = "";
 
 const DeactivateIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -66,9 +66,7 @@ export default function AppUsers() {
     const action = currentStatus ? "deactivate" : "activate";
     if (window.confirm(`Are you sure you want to ${action} this app user?`)) {
       try {
-        const response = currentStatus
-          ? await appUsersAPI.deactivate(userId)
-          : await appUsersAPI.activate(userId);
+        const response = await appUsersAPI.toggleStatus(userId);
 
         if (response.success) {
           setAppUsers(

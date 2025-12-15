@@ -70,12 +70,6 @@ export default function LiveTracking() {
   const selectedOperatorIdRef = useRef<string | null>(null);
   const filtersRef = useRef<{ operatorId?: string; deviceId?: string }>({});
 
-  const resolveDeviceLabel = (device: DeviceOption) => {
-  const id = device.device_id || device._id || device.imei || "-";
-  const veh = device.assigned_vehicle?.vehicle_number || "-";
-  return `${id} – ${veh}`;
-};
-
   useEffect(() => {
     const deviceIdParam = searchParams.get("deviceId") ?? "";
     const vehicleIdParam = searchParams.get("vehicleId") ?? "";

@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 interface GPSDeviceInfo {
+  id?: string;
   status: boolean;
   battery_level?: number; 
   last_signal?: string;

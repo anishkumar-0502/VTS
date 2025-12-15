@@ -22,7 +22,7 @@ interface LoginPayload {
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: { id: string; name?: string; email: string; role: string } | null;
+  user: { id: string; name?: string; email: string; role: string; operator_id?: string } | null;
   permissions: Permissions;
   login: (payload: LoginPayload) => Promise<string>;
   logout: () => void;
@@ -45,7 +45,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<{ id: string; name?: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; name?: string; email: string; role: string; operator_id?: string } | null>(null);
   const [permissions, setPermissions] = useState<Permissions>(defaultPermissions);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -107,6 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: profileData.data.name || profileData.data.full_name,
         email: profileData.data.email,
         role: role,
+        operator_id: profileData.data.operator_id,
       };
 
       // ✅ Save user

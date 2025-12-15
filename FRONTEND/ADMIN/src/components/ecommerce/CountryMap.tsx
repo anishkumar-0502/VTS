@@ -55,8 +55,7 @@ const CountryMap: React.FC<CountryMapProps> = ({ mapColor, markers }) => {
       zoomMin={1}
       zoomAnimate={true}
       zoomStep={1.5}
-      containerStyle={{ width: "100%", height: "100%" }}
-      containerClassName="w-full h-full"
+      className="w-full h-full"
       focusOn={{ x: 0.78, y: 0.62, scale: 1.8 }}
       selectedRegions={["IN"]}
       style={{ width: "100%", height: "100%" }}
@@ -85,7 +84,7 @@ const CountryMap: React.FC<CountryMapProps> = ({ mapColor, markers }) => {
       series={{
         regions: [
           {
-            values: { IN: "#465FFF" },
+            values: { IN: 1 },
             attribute: "fill",
           },
         ],
