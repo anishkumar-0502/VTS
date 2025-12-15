@@ -23,7 +23,8 @@ class WebhookController {
         logger.loggerError(`Invalid webhook payload format in Controller. Expected: Array []. Received: ${JSON.stringify(messageArray)}`);
         return res.status(400).json({
           error: true,
-          message: 'Payload must be an array'
+          message: 'Payload must be an array',
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -110,7 +111,7 @@ class WebhookController {
               continue;
           }
 
-          responses.push({
+          const successResponse = {
             message_type,
             tracker_id,
             status: 'Accepted',
@@ -118,7 +119,14 @@ class WebhookController {
             reason: 'Processed successfully',
             timestamp: new Date().toISOString(),
             data: response
-          });
+          };
+
+          // Lift interval to top-level for BootNotification if present
+          if (response && response.interval) {
+            successResponse.interval = response.interval;
+          }
+
+          responses.push(successResponse);
         } catch (error) {
           logger.loggerError(`Webhook Rejected: ${error.message} | Tracker: ${message.tracker_id || 'unknown'}`);
           responses.push({
@@ -138,6 +146,7 @@ class WebhookController {
       res.status(200).json({
         error: false,
         message: 'Telemetry processed',
+        timestamp: new Date().toISOString(),
         responses
       });
     } catch (error) {
