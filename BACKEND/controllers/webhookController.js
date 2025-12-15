@@ -20,6 +20,7 @@ class WebhookController {
       const messageArray = req.body;
 
       if (!Array.isArray(messageArray)) {
+        logger.loggerError(`Invalid webhook payload format in Controller. Expected: Array []. Received: ${JSON.stringify(messageArray)}`);
         return res.status(400).json({
           error: true,
           message: 'Payload must be an array'
