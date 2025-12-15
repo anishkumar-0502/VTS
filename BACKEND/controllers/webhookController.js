@@ -61,6 +61,7 @@ class WebhookController {
 
           switch (message_type) {
             case 'boot_notification':
+            case 'BootNotification':
               response = await TelemetryHandler.handleBootNotification({
                 vehicle_id: tracker_id,
                 ...payload
@@ -68,6 +69,7 @@ class WebhookController {
               break;
 
             case 'location_update':
+            case 'LocationUpdate':
               response = await TelemetryHandler.handleLocationUpdate({
                 tracker_id: tracker_id,
                 ...payload
@@ -75,6 +77,7 @@ class WebhookController {
               break;
 
             case 'heartbeat':
+            case 'Heartbeat':
               response = await TelemetryHandler.handleHeartbeat({
                 vehicle_id: tracker_id,
                 ...payload
@@ -82,6 +85,7 @@ class WebhookController {
               break;
 
             case 'status_notification':
+            case 'StatusNotification':
               response = await TelemetryHandler.handleStatusNotification({
                 vehicle_id: tracker_id,
                 ...payload
