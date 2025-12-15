@@ -1,17 +1,17 @@
 {
   "api_key": "AIzaSyDdBinCjuyocru7Lgi6YT3FZ1P6_xi0tco",
+  "day": null,
+  "default_speed_kmh": 30,
+  "device_id": "simulated-tracker-2",
   "duration": 0,
   "end": "Bengaluru, Karnataka, India",
   "interval": 1,
+  "mongo_db": null,
+  "mongo_uri": "mongodb+srv://zdart2026:ibzPcNPmJ71uFhnw@cluster0.dryjxuy.mongodb.net/VTS_V1",
+  "scheduled_trip_id": null,
   "start": "Coimbatore, Tamil Nadu, India",
   "tracker_id": "simulated-tracker-3",
-  "webhook_api_key": "my-secret-key-123",
-  "webhook_url": "http://localhost:8787/webhook",
-  "mongo_uri": "mongodb+srv://zdart2026:ibzPcNPmJ71uFhnw@cluster0.dryjxuy.mongodb.net/VTS_V1",
-  "mongo_db": null,
-  "scheduled_trip_id": null,
-  "device_id": "simulated-tracker-2",
   "trip_period": "morning",
-  "day": null,
-  "default_speed_kmh": 30
+  "webhook_api_key": "my-secret-key-123",
+  "webhook_url": "http://localhost:8787/webhook"
 }

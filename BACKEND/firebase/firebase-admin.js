@@ -41,6 +41,7 @@ function findServiceAccountPath() {
   return null;
 }
 
+
 function initializeFirebaseApp() {
   if (initialized) return true;
 
