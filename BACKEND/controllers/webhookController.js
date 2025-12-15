@@ -34,10 +34,12 @@ class WebhookController {
           const parsed = WebhookController.parseMessage(message);
           
           if (!parsed) {
+            const reason = 'Invalid message format: requires message_type and tracker_id';
+            logger.loggerError(`Webhook Rejected: ${reason} | Payload: ${JSON.stringify(message)}`);
             responses.push({
-              status: 'error',
+              status: 'Rejected',
               error_code: 400,
-              reason: 'Invalid message format: requires message_type and tracker_id',
+              reason: reason,
               timestamp: new Date().toISOString()
             });
             continue;
@@ -46,12 +48,14 @@ class WebhookController {
           const { message_type, tracker_id, payload } = parsed;
 
           if (!message_type || !tracker_id) {
+            const reason = 'Missing message_type or tracker_id';
+            logger.loggerError(`Webhook Rejected: ${reason} | Payload: ${JSON.stringify(message)}`);
             responses.push({
               message_type,
               tracker_id,
-              status: 'error',
+              status: 'Rejected',
               error_code: 400,
-              reason: 'Missing message_type or tracker_id',
+              reason: reason,
               timestamp: new Date().toISOString()
             });
             continue;
@@ -93,12 +97,14 @@ class WebhookController {
               break;
 
             default:
+              const reason = 'Unknown message type';
+              logger.loggerError(`Webhook Rejected: ${reason} | Type: ${message_type} | Tracker: ${tracker_id}`);
               responses.push({
                 message_type,
                 tracker_id,
-                status: 'error',
+                status: 'Rejected',
                 error_code: 400,
-                reason: 'Unknown message type',
+                reason: reason,
                 timestamp: new Date().toISOString()
               });
               continue;
@@ -107,19 +113,19 @@ class WebhookController {
           responses.push({
             message_type,
             tracker_id,
-            status: 'success',
+            status: 'Accepted',
             error_code: 0,
             reason: 'Processed successfully',
             timestamp: new Date().toISOString(),
             data: response
           });
         } catch (error) {
-          logger.loggerError(`Error processing message: ${error.message}`);
+          logger.loggerError(`Webhook Rejected: ${error.message} | Tracker: ${message.tracker_id || 'unknown'}`);
           responses.push({
             message_type,
             tracker_id: message.tracker_id || 'unknown',
-            status: 'error',
-            error_code: 500,
+            status: 'Rejected',
+            error_code: error.status || error.statusCode || 500,
             reason: error.message,
             timestamp: new Date().toISOString()
           });
