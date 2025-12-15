@@ -17,15 +17,20 @@ class WebhookController {
 
   static async handleTelemetry(req, res, next) {
     try {
-      const messageArray = req.body;
+      let messageArray = req.body;
 
+      // Accept both single object and array
       if (!Array.isArray(messageArray)) {
-        logger.loggerError(`Invalid webhook payload format in Controller. Expected: Array []. Received: ${JSON.stringify(messageArray)}`);
-        return res.status(400).json({
-          error: true,
-          message: 'Payload must be an array',
-          timestamp: new Date().toISOString()
-        });
+        if (typeof messageArray === 'object' && messageArray !== null) {
+          messageArray = [messageArray];
+        } else {
+          logger.loggerError(`Invalid webhook payload format in Controller. Expected: Object {} or Array []. Received: ${JSON.stringify(messageArray)}`);
+          return res.status(400).json({
+            error: true,
+            message: 'Payload must be an object or array',
+            timestamp: new Date().toISOString()
+          });
+        }
       }
 
       const responses = [];
@@ -143,11 +148,14 @@ class WebhookController {
       // Log the response sent to the client
       logger.loggerInfo(`Webhook response sent: ${JSON.stringify(responses)}`);
 
+      // Return single object if one message, array if multiple
+      const responseBody = responses.length === 1 ? responses[0] : responses;
+
       res.status(200).json({
         error: false,
         message: 'Telemetry processed',
         timestamp: new Date().toISOString(),
-        responses
+        response: responseBody
       });
     } catch (error) {
       next(error);
