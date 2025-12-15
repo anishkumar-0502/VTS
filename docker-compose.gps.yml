@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  gps-simulator:
+    container_name: vts-gps-simulator
+    build:
+      context: ./GPS-SIMULATOR
+    ports:
+      - "5000:5000"
+    restart: always
+    environment:
+      MONGODB_URI: ${MONGODB_URI:-mongodb+srv://zdart2026:ibzPcNPmJ71uFhnw@cluster0.dryjxuy.mongodb.net/}
+      MONGODB_DB_NAME: ${MONGODB_DB_NAME:-VTS_V1}
+    env_file:
+      - ./BACKEND/.env.${ENV:-production}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    driver: bridge

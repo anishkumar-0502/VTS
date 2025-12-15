@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  backend:
+    container_name: vts-backend
+    build:
+      context: ./BACKEND
+      target: ${BUILD_TARGET:-production}
+    ports:
+      - "8787:8787"
+    env_file:
+      - ./BACKEND/.env.${ENV:-production}
+    restart: always
+    networks:
+      - appnet
+    volumes:
+      - ./BACKEND/Log:/app/Log
+
+  admin-frontend:
+    container_name: vts-admin-frontend
+    build:
+      context: ./FRONTEND/ADMIN
+      args:
+        VITE_API_URL: http://172.235.29.67:8787
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge

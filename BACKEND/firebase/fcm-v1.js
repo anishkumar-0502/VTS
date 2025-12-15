@@ -24,6 +24,8 @@ function findServiceAccountPath() {
   candidates.push(path.join(__dirname, '..', 'config', 'firebase-service-account.json'));
   candidates.push(path.join(__dirname, '..', '..', 'config', 'firebase-service-account.json'));
 
+  
+
   for (const p of candidates) {
     try {
       if (p && fs.existsSync(p)) return p;

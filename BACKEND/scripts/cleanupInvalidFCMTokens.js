@@ -14,15 +14,15 @@ const isValidFCMToken = (token) => {
 
 async function cleanupInvalidTokens() {
   try {
-    const mongoUri = (process.env.MONGODB_URI || 'mongodb://localhost:27017/') + 
+    const mongoUri = (process.env.MONGODB_URI || 'mongodb://localhost:27017/') +
       (process.env.MONGODB_DB_NAME || 'vts-db');
-    
+
     logger.loggerInfo(`Connecting to MongoDB...`);
     await mongoose.connect(mongoUri);
     logger.loggerInfo('Connected to MongoDB');
 
-    const users = await User.find({ 
-      fcm_tokens: { $exists: true, $ne: [] } 
+    const users = await User.find({
+      fcm_tokens: { $exists: true, $ne: [] }
     });
 
     logger.loggerInfo(`Found ${users.length} users with FCM tokens`);

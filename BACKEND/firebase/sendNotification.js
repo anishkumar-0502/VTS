@@ -88,6 +88,8 @@ class GPSNotificationService {
         return { successCount: 0, failureCount: 0, userId };
       }
 
+      
+
       const messaging = getMessaging();
       if (!messaging) {
         loggerWarn('Firebase messaging unavailable');
