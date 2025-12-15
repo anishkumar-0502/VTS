@@ -28,7 +28,7 @@ export default function GPSDevicesTable({ onEdit, onDelete }: GPSDevicesTablePro
   const fetchDevices = async () => {
     try {
       setLoading(true);
-      const response = await gpsAPI.getDevices();
+      const response = await gpsAPI.getAll();
       if (response.success && response.data) {
         setDevices(response.data.devices || []);
       } else {
@@ -44,7 +44,7 @@ export default function GPSDevicesTable({ onEdit, onDelete }: GPSDevicesTablePro
   const handleDelete = async (deviceId: string) => {
     if (window.confirm("Are you sure you want to delete this GPS device?")) {
       try {
-        const response = await gpsAPI.deleteDevice(deviceId);
+        const response = await gpsAPI.delete(deviceId);
         if (response.success) {
           setDevices(devices.filter(d => d._id !== deviceId));
           if (onDelete) onDelete(deviceId);

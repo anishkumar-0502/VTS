@@ -30,6 +30,7 @@ interface Vehicle {
   timestamp?: string;
   path?: [number, number][];
   device?: {
+    id?: string;
     status: boolean;
     battery_level?: number | null;
   };

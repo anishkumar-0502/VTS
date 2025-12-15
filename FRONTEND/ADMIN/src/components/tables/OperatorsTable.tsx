@@ -1,4 +1,3 @@
-import React from "react";
 import { Operator, Device } from "../../types"; // Create a types file if needed
 import { DeactivateIcon, ActivateIcon } from "../icons/StatusIcons";
 
