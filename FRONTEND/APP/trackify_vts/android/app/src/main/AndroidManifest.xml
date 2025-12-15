@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
+    <!-- Firebase Cloud Messaging Permissions -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <!-- Optional for CALL button, not required for opening dialer -->
     <uses-permission android:name="android.permission.CALL_PHONE"/>
 

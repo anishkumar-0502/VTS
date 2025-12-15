@@ -4,6 +4,7 @@ import '../../../../Sessionhandler/session_controller.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
 import '../../../dashboard/presentation/pages/parent_home_page.dart';
+import '../../../dashboard/presentation/bindings/parent_home_binding.dart';
 
 class ParentSplashScreenController extends GetxController {
   final SessionController _sessionController = Get.find<SessionController>();
@@ -19,12 +20,26 @@ class ParentSplashScreenController extends GetxController {
   }
 
   Future<void> _evaluateSession() async {
-    await _sessionController.loadSession();
-    final hasToken = _sessionController.token.value.isNotEmpty;
-    final loggedIn = _sessionController.isLoggedIn.value;
-    if (loggedIn && hasToken) {
-      _goToHome();
-    } else {
+    try {
+      await _sessionController.ensureInitialized();
+      await _sessionController.loadSession();
+      
+      print('[SplashScreen] Session evaluation - loggedIn: ${_sessionController.isLoggedIn.value}, hasToken: ${_sessionController.token.value.isNotEmpty}');
+      
+      final hasToken = _sessionController.token.value.isNotEmpty;
+      final loggedIn = _sessionController.isLoggedIn.value;
+      final hasRequiredData = _sessionController.parentData.value?.containsKey('end_user_id') ?? false;
+      
+      if (loggedIn && hasToken && hasRequiredData) {
+        print('[SplashScreen] ✅ Valid session found, navigating to home');
+        _goToHome();
+      } else {
+        print('[SplashScreen] ⚠️ Invalid session (loggedIn=$loggedIn, hasToken=$hasToken, hasData=$hasRequiredData), clearing and going to login');
+        await _sessionController.clearSession();
+        _goToLogin();
+      }
+    } catch (e) {
+      print('[SplashScreen] ❌ Error evaluating session: $e');
       await _sessionController.clearSession();
       _goToLogin();
     }
@@ -33,10 +48,8 @@ class ParentSplashScreenController extends GetxController {
   void _goToHome() {
     if (!isClosed) {
       Get.offAll(
-        () => const ParentHomePage(),
-        binding: BindingsBuilder(() {
-          Get.put(ParentHomeController());
-        }),
+        () => ParentHomePage(),
+        binding: ParentHomeBinding(),
       );
     }
   }

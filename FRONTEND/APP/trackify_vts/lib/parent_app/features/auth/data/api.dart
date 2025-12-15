@@ -85,4 +85,49 @@ class AuthAPICalls {
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
   }
+
+  Future<Map<String, dynamic>> registerFcmToken(
+    String token,
+    String authToken,
+  ) async {
+    final url = AuthUrl.registerFcmToken;
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $authToken',
+            },
+            body: jsonEncode({
+              'fcm_token': token,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw TimeoutException(
+                408,
+                'FCM registration request timed out.',
+              );
+            },
+          );
+
+      debugPrint('FCM Registration Status Code: ${response.statusCode}');
+      debugPrint('FCM Registration Response: ${response.body}');
+
+      return _handleResponse(response);
+    } on TimeoutException {
+      throw HttpException(408, 'FCM registration timed out.');
+    } on http.ClientException {
+      throw HttpException(
+        503,
+        'Unable to register FCM token. Please check your connection.',
+      );
+    } catch (e) {
+      debugPrint('FCM registration error: $e');
+      throw HttpException(500, _getDefaultErrorMessage(500));
+    }
+  }
 }

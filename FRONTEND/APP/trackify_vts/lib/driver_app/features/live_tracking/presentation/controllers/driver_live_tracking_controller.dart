@@ -14,4 +14,6 @@ class DriverLiveTrackingController extends GetxController {
     {'time': '07:50 AM', 'event': 'Picked up at Pine Avenue'},
     {'time': '07:58 AM', 'event': 'Approaching Oak Crescent'},
   ];
+
+ 
 }

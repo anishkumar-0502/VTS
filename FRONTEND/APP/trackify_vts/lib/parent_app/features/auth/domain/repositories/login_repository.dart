@@ -13,4 +13,15 @@ class AuthRepository {
       rethrow;
     }
   }
+
+  Future<Map<String, dynamic>> registerFcmToken(
+    String fcmToken,
+    String authToken,
+  ) async {
+    try {
+      return await _api.registerFcmToken(fcmToken, authToken);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

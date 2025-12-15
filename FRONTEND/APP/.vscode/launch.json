@@ -1,0 +1,31 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+
+
+        {
+            "name": "trackify_vts",
+            "cwd": "trackify_vts",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "trackify_vts (profile mode)",
+            "cwd": "trackify_vts",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "trackify_vts (release mode)",
+            "cwd": "trackify_vts",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

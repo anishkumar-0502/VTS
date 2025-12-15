@@ -81,6 +81,54 @@ class OpenRouteService {
     return [];
   }
 
+  Future<LatLng> snapToRoad(LatLng point) async {
+    try {
+      final url = Uri.https(
+        'api.openrouteservice.org',
+        '/v2/snap/driving-car',
+        {
+          'api_key': apiKey,
+          'format': 'json',
+        },
+      );
+
+      final body = jsonEncode({
+        'coordinates': [[point.longitude, point.latitude]],
+      });
+
+      final res = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
+
+      if (res.statusCode != 200) {
+        print('[OpenRouteService] Snap to road failed: ${res.body}');
+        return point;
+      }
+
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final snappedCoordinates = data['snapped_coordinates'] as List<dynamic>?;
+      
+      if (snappedCoordinates != null && snappedCoordinates.isNotEmpty) {
+        final coord = snappedCoordinates.first as List<dynamic>;
+        if (coord.length >= 2) {
+          final lon = (coord[0] as num).toDouble();
+          final lat = (coord[1] as num).toDouble();
+          print('[OpenRouteService] Snapped: ($lat, $lon)');
+          return LatLng(lat, lon);
+        }
+      }
+      
+      return point;
+    } catch (e) {
+      print('[OpenRouteService] Error snapping to road: $e');
+      return point;
+    }
+  }
+
   List<LatLng> _decodePolyline(String polyline) {
     final points = <LatLng>[];
     int index = 0;

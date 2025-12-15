@@ -73,13 +73,17 @@ class ParentProfileEmergencyContactPage extends StatelessWidget {
         children: items.asMap().entries.map((entry) {
           final item = entry.value;
           final isLast = entry.key == items.length - 1;
+          final label = item['label'] ?? '';
+          final value = item['value'] ?? '';
+          final isPhoneLabel = label.toLowerCase() == 'phone';
+          
           return Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    item['label'] ?? '',
+                    label,
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[600],
@@ -87,14 +91,37 @@ class ParentProfileEmergencyContactPage extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: Text(
-                      item['value'] ?? '',
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: isPhoneLabel
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Icon(
+                                Icons.phone,
+                                color: Colors.red,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                value,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.red,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            value,
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: primaryColor,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                   ),
                 ],
               ),

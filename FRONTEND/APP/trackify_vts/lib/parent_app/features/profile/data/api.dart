@@ -275,4 +275,43 @@ class ParentProfileAPICalls {
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
   }
+
+  Future<Map<String, dynamic>> getNextStop(String token, String tripId, String childId) async {
+    final url = ParentProfileUrl.nextStop(tripId, childId);
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              throw TimeoutException(
+                408,
+                'Request timed out. Please try again.',
+              );
+            },
+          );
+
+      debugPrint('Response Status Code: ${response.statusCode}');
+      debugPrint('Response next stop Body: ${response.body}');
+
+      return _handleResponse(response);
+    } on TimeoutException {
+      throw HttpException(408, 'Request timed out. Please try again.');
+    } on http.ClientException {
+      throw HttpException(
+        503,
+        'Unable to reach the server. \nPlease check your connection or try again later.',
+      );
+    } catch (e) {
+      debugPrint("Error: $e");
+      throw HttpException(500, _getDefaultErrorMessage(500));
+    }
+  }
 }
