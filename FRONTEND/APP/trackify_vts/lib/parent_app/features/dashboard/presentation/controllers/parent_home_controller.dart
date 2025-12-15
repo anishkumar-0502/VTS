@@ -60,19 +60,29 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver {
     print('[ParentHome] onInit called');
     _initializeData();
     _setupSocketConnection();
-    isInitializationComplete.value = true;
   }
 
   Future<void> _initializeData() async {
-    await _fetchProfileAndGetVehicleId();
-    fetchCurrentTrip();
-    fetchTripMapData();
+    try {
+      await _fetchProfileAndGetVehicleId();
+      await fetchCurrentTrip();
+      await fetchTripMapData();
+    } catch (e) {
+      print('[Home] Error during initialization: $e');
+    } finally {
+      isInitializationComplete.value = true;
+    }
   }
 
   String? _getChildId() {
-    if (parentProfile.value != null && parentProfile.value!.associatedUsers.isNotEmpty) {
-      return parentProfile.value!.associatedUsers.first.id;
+    if (parentProfile.value != null) {
+      final endUserId = parentProfile.value!.endUserId;
+      if (endUserId.isNotEmpty) {
+        print('[Home] ✅ Using endUserId: $endUserId');
+        return endUserId;
+      }
     }
+    print('[Home] ❌ No child ID found!');
     return null;
   }
 
@@ -117,35 +127,84 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver {
     try {
       final token = sessionController.token.value;
       if (token.isEmpty) {
-        print('[Home] No token for trip map data');
+        print('[Home] ❌ No token for trip map data');
         return;
       }
 
       final childId = _getChildId();
       if (childId == null) {
-        print('[Home] No child ID found for map data');
+        print('[Home] ❌ No child ID found for map data');
         return;
       }
 
       if (showLoading) isFetchingTripMap.value = true;
 
+      print('[Home] 📍 Fetching trip map data for childId: $childId');
+      
+      final response = await _profileRepository.getCurrentTrip(token, childId);
+      print('[Home] 📊 API Response - Error: ${response.error}, Has Data: ${response.data != null}');
+      print('[Home] 📊 Full API Response: ${jsonEncode(response.toJson())}');
+      
       final baseData = await _liveTrackingRepository.fetchBaseTripData(token, childId);
+      
+      if (baseData.timeline.isEmpty) {
+        print('[Home] ⚠️ Trip map data has NO stops! Timeline is empty');
+        print('[Home] ⚠️ Route name: ${baseData.routeName}');
+        print('[Home] ⚠️ Start location: ${baseData.startLocation}');
+        print('[Home] ⚠️ End location: ${baseData.endLocation}');
+      } else {
+        print('[Home] ✅ Trip map data set with ${baseData.timeline.length} stops');
+      }
+      
+      print('[Home] ✅ Route name: ${baseData.routeName}');
+      print('[Home] ✅ Start: ${baseData.startLocation}');
+      print('[Home] ✅ End: ${baseData.endLocation}');
       
       tripMapData.value = baseData;
       tripMapError.value = '';
-      print('[Home] Trip map data set with ${baseData.timeline.length} stops');
+      
+      await _generateRoutePolyline(baseData);
       
       if (showLoading) isFetchingTripMap.value = false;
 
     } on exceptions.HttpException catch (e) {
-      print('[Home] HttpException while fetching trip map: $e');
-      tripMapError.value = '';
+      print('[Home] ❌ HttpException while fetching trip map: ${e.message}');
+      print('[Home] Status Code: ${e.statusCode}');
+      tripMapError.value = e.message;
       if (showLoading) isFetchingTripMap.value = false;
     } catch (e, stackTrace) {
-      print('[Home] Exception in fetchTripMapData: $e');
+      print('[Home] ❌ Exception in fetchTripMapData: $e');
       print('[Home] Stack trace: $stackTrace');
-      tripMapError.value = '';
+      tripMapError.value = e.toString();
       if (showLoading) isFetchingTripMap.value = false;
+    }
+  }
+
+  Future<void> _generateRoutePolyline(ParentLiveTripData tripData) async {
+    try {
+      print('[Home] 🛣️ Generating route polyline through all stops...');
+      
+      final coordinates = [
+        tripData.startLocation,
+        ...tripData.timeline.map((stop) => stop.location),
+        tripData.endLocation,
+      ];
+
+      print('[Home] 🛣️ Route coordinates count: ${coordinates.length}');
+
+      final polylinePoints = await _openRouteService.getRouteThrough(coordinates);
+      
+      routePolylinePoints.value = polylinePoints;
+      print('[Home] ✅ Route polyline generated with ${polylinePoints.length} points');
+    } catch (e) {
+      print('[Home] ❌ Error generating route polyline: $e');
+      final coordinates = [
+        tripData.startLocation,
+        ...tripData.timeline.map((stop) => stop.location),
+        tripData.endLocation,
+      ];
+      routePolylinePoints.value = coordinates;
+      print('[Home] ℹ️ Using straight-line route as fallback');
     }
   }
 
@@ -157,33 +216,84 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver {
     try {
       final token = sessionController.token.value;
       if (token.isEmpty) {
-        print('[ParentHome] No token available for profile fetch');
+        print('[ParentHome] ❌ No token available for profile fetch');
         return;
       }
 
-      print('[ParentHome] Fetching and updating complete profile data');
+      print('[ParentHome] 📍 Fetching complete profile data');
       final response = await _profileRepository.getParentProfile(token);
       if (!response.error && response.data != null) {
         final profile = response.data!;
         parentProfile.value = profile;
         assignedVehicleId = profile.assignedVehicleId;
-        print('[ParentHome] Assigned Vehicle ID: $assignedVehicleId');
+        print('[ParentHome] ✅ Profile fetched: ${profile.name}');
+        print('[ParentHome] ✅ EndUserId: ${profile.endUserId}');
+        print('[ParentHome] ✅ Associated Users: ${profile.associatedUsers.length}');
+        print('[ParentHome] ✅ Assigned Vehicle ID: $assignedVehicleId');
         
         if (profile.vehicleDetails != null && assignedVehicleId != null) {
           assignedVehicleNumber = profile.vehicleDetails!.vehicleNumber;
           vehicleNumbers[assignedVehicleId!] = assignedVehicleNumber!;
           vehicleNumbers.refresh();
-          print('[ParentHome] Assigned Vehicle Number: $assignedVehicleNumber');
+          print('[ParentHome] ✅ Assigned Vehicle Number: $assignedVehicleNumber');
         }
+      } else {
+        print('[ParentHome] ❌ Error in profile response: ${response.message}');
       }
-    } catch (e) {
-      print('[ParentHome] Error fetching profile: $e');
+    } catch (e, stackTrace) {
+      print('[ParentHome] ❌ Error fetching profile: $e');
+      print('[ParentHome] Stack trace: $stackTrace');
     }
   }
 
   void _setupSocketConnection() {
     print('[ParentHome] Setting up socket connection');
     _socketIOService.initialize();
+    
+    _socketIOService.onFrameUpdate = (data) {
+      if (data is Map) {
+        _handleSocketData(data);
+      } else if (data is List) {
+        for (var item in data) {
+          if (item is Map) {
+            _handleSocketData(item);
+          }
+        }
+      }
+    };
+  }
+
+  void _handleSocketData(Map data) {
+    try {
+      final vehicleId = data['vehicleId'] ?? data['vehicle_id'] ?? data['id'];
+      final latitude = data['latitude'];
+      final longitude = data['longitude'];
+      final timestamp = data['timestamp'];
+      final vehicleNumber = data['vehicleNumber'] ?? data['vehicle_number'];
+
+      if (vehicleId != null && latitude != null && longitude != null) {
+        final location = LatLng(latitude as double, longitude as double);
+        vehicleLocations[vehicleId] = location;
+        vehicleLocations.refresh();
+
+        if (timestamp != null) {
+          vehicleTimestamps[vehicleId] = DateTime.tryParse(timestamp.toString()) ?? DateTime.now();
+          vehicleTimestamps.refresh();
+        }
+
+        if (vehicleNumber != null) {
+          vehicleNumbers[vehicleId] = vehicleNumber;
+          vehicleNumbers.refresh();
+        }
+
+        if (vehicleId == assignedVehicleId) {
+          currentVehicleLocation.value = location;
+          print('[ParentHome] Updated currentVehicleLocation for $vehicleId: $location');
+        }
+      }
+    } catch (e) {
+      print('[ParentHome] Error handling socket data: $e');
+    }
   }
 
   bool shouldAutoZoomOnFirstLogin() {
