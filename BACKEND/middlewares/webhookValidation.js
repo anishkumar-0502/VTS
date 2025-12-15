@@ -15,8 +15,13 @@ const webhookValidation = (req, res, next) => {
     // }
 
     if (!Array.isArray(req.body)) {
-      logger.loggerError(`Invalid webhook payload format. Expected: Array []. Received: ${JSON.stringify(req.body)}`);
-      throw new CustomError('Payload must be an array', 400);
+      if (typeof req.body === 'object' && req.body !== null) {
+        // Normalize single object to array
+        req.body = [req.body];
+      } else {
+        logger.loggerError(`Invalid webhook payload format. Expected: Array [] or Object {}. Received: ${JSON.stringify(req.body)}`);
+        throw new CustomError('Payload must be an array or object', 400);
+      }
     }
 
     next();
