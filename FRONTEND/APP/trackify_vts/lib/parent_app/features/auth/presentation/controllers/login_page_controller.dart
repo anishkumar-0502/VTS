@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
 import '../../../dashboard/presentation/pages/parent_home_page.dart';
 import '../../domain/models/login_model.dart';
 import '../../domain/repositories/login_repository.dart';
+import '../../../profile/domain/repositories/parent_profile_repository.dart';
+import '../../data/api.dart';
 import '../../../../../utilities/exception/exception.dart' as exceptions;
 import '../../../../../utilities/widgets/status_banner.dart';
 
@@ -18,6 +21,7 @@ class ParentLoginPageController extends GetxController {
 
   final AuthRepository _authRepository = AuthRepository();
   final SessionController _sessionController = Get.find<SessionController>();
+  final AuthAPICalls _authAPICalls = AuthAPICalls();
 
   @override
   void onClose() {
@@ -63,14 +67,16 @@ class ParentLoginPageController extends GetxController {
         final response = await _authRepository.login(email, password);
         if (!response.error) {
           await _saveSession(response);
+          await _fetchAndUpdateFullProfile();
+          await _registerFcmToken();
           showStatusBanner(response.message, Colors.green, Icons.check_circle);
           Get.offAll(
-            () => const ParentHomePage(),
+            () => ParentHomePage(),
             binding: BindingsBuilder(() {
               Get.put(ParentHomeController());
             }),
-          );
-        } else {
+          ); 
+        } else {  
           showStatusBanner(
             response.message,
             Colors.redAccent,
@@ -93,23 +99,102 @@ class ParentLoginPageController extends GetxController {
     }
   }
 
-  Future<void> _saveSession(GetLoginResponse response) async {
-    final data = response.data;
-    if (data == null) {
-      return;
+  Future<void> _saveSession(dynamic response) async {
+    try {
+      final data = response.data;
+      if (data == null) {
+        return;
+      }
+      final userId = data['user_id'];
+      final token = data['token'];
+      final email = data['email'];
+      final name = data['name'];
+      if (userId is String && token is String && email is String) {
+        await _sessionController.saveSession(
+          userId: userId,
+          emailId: email,
+          token: token,
+          username: name is String ? name : null,
+          rawData: data,
+        );
+      }
+    } catch (e) {
+      print('Error saving session: $e');
     }
-    final userId = data['user_id'];
-    final token = data['token'];
-    final email = data['email'];
-    final name = data['name'];
-    if (userId is String && token is String && email is String) {
-      await _sessionController.saveSession(
-        userId: userId,
-        emailId: email,
-        token: token,
-        username: name is String ? name : null,
-        rawData: data,
-      );
+  }
+
+  Future<void> _fetchAndUpdateFullProfile() async {
+    try {
+      final token = _sessionController.token.value;
+      if (token.isEmpty) {
+        print('Token not available for profile fetch after login');
+        return;
+      }
+
+      print('[LoginController] Fetching full profile after login');
+      
+      final profileRepository = ParentProfileRepository();
+      final response = await profileRepository.getParentProfile(token);
+      
+      if (!response.error && response.data != null) {
+        final profile = response.data!;
+        
+        final completeProfileData = <String, dynamic>{
+          'name': profile.name,
+          'email': profile.email,
+          'phone_number': profile.phoneNumber,
+          'user_id': profile.userId,
+          'assigned_vehicle_id': profile.assignedVehicleId,
+          'role_id': profile.roleId,
+          'operator_id': profile.operatorId,
+          'end_user_id': profile.endUserId,
+        };
+        
+        await _sessionController.saveSession(
+          userId: profile.userId,
+          emailId: profile.email,
+          token: token,
+          username: profile.name,
+          rawData: completeProfileData,
+        );
+        
+        print('[LoginController] ✅ Full profile fetched and session updated with all required fields');
+      } else {
+        print('[LoginController] ⚠️ Failed to fetch full profile after login: ${response.message}');
+      }
+    } catch (e) {
+      print('[LoginController] ⚠️ Error fetching profile after login: $e');
+    }
+  }
+
+  Future<void> _registerFcmToken() async {
+    try {
+      final authToken = _sessionController.token.value;
+      if (authToken.isEmpty) {
+        print('[LoginController] ⚠️ Auth token not available for FCM registration');
+        return;
+      }
+
+      final firebaseMessaging = FirebaseMessaging.instance;
+      final fcmToken = await firebaseMessaging.getToken();
+
+      if (fcmToken == null || fcmToken.isEmpty) {
+        print('[LoginController] ⚠️ Failed to get FCM token');
+        return;
+      }
+
+      print('[LoginController] 📱 Registering FCM token: $fcmToken');
+
+      final response = await _authAPICalls.registerFcmToken(fcmToken, authToken);
+
+      if (response['error'] == false) {
+        print('[LoginController] ✅ FCM token registered successfully');
+        print('[LoginController] FCM Token Count: ${response['data']['fcm_token_count']}');
+      } else {
+        print('[LoginController] ⚠️ Failed to register FCM token: ${response['message']}');
+      }
+    } catch (e) {
+      print('[LoginController] ⚠️ Error registering FCM token: $e');
     }
   }
 }

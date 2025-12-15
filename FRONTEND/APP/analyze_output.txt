@@ -1,0 +1,60 @@
+Analyzing parent_home_controller.dart...                        
+
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:70:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:76:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:82:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:85:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:90:9 - avoid_print
+warning - The left operand can't be null, so the right operand is never executed - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:91:47 - dead_null_aware_expression
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:95:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:96:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:98:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:102:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:105:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:106:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:117:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:123:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:129:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:132:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:137:9 - avoid_print
+warning - The left operand can't be null, so the right operand is never executed - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:138:53 - dead_null_aware_expression
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:142:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:144:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:148:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:151:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:152:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:175:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:181:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:187:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:202:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:204:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:207:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:208:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:228:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:250:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:285:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:299:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:305:5 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:312:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:328:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:331:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:338:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:341:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:353:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:354:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:360:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:365:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:370:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:375:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:379:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:382:9 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:385:11 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:394:15 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:396:15 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:408:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:412:7 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:447:5 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:452:5 - avoid_print
+   info - Don't invoke 'print' in production code - trackify_vts\lib\parent_app\features\dashboard\presentation\controllers\parent_home_controller.dart:456:5 - avoid_print
+
+56 issues found. (ran in 1.9s)

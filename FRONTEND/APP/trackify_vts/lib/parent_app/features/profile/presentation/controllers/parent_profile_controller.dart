@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:panara_dialogs/panara_dialogs.dart';
 
 import '../../../../Sessionhandler/session_controller.dart';
+import 'package:trackify_vts/shared/widgets/modern_dialog.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../domain/models/parent_profile_model.dart';
 import '../../domain/repositories/parent_profile_repository.dart';
@@ -170,10 +171,10 @@ class ParentProfileController extends GetxController {
         );
         return;
       }
-      print('Fetching parent profile...');
+      print('[ParentProfileController] Fetching parent profile...');
       final response = await _profileRepository.getParentProfile(token);
       print(
-        'Got response: error=${response.error}, message=${response.message}, data!=null=${response.data != null}',
+        '[ParentProfileController] Got response: error=${response.error}, message=${response.message}, data!=null=${response.data != null}',
       );
       if (response.error) {
         showStatusBanner(
@@ -183,8 +184,8 @@ class ParentProfileController extends GetxController {
         );
       } else if (response.data != null) {
         try {
-          profileData.value = response.data;
-          print('Parent profile data set: ${profileData.value?.name}');
+          profileData.value = response.data as ParentProfileData?;
+          print('[ParentProfileController] ✅ Profile data set: ${profileData.value?.name}');
           
           final profile = response.data!;
           final rawData = <String, dynamic>{
@@ -204,8 +205,9 @@ class ParentProfileController extends GetxController {
             username: profile.name,
             rawData: rawData,
           );
+          print('[ParentProfileController] ✅ Session updated with complete profile data');
         } catch (e) {
-          print('Error setting profile data: $e');
+          print('[ParentProfileController] ❌ Error setting profile data: $e');
           showStatusBanner(
             'Failed to parse profile data',
             Colors.redAccent,
@@ -213,7 +215,7 @@ class ParentProfileController extends GetxController {
           );
         }
       } else {
-        print('Response data is null');
+        print('[ParentProfileController] ⚠️ Response data is null');
         showStatusBanner(
           'No profile data received',
           Colors.redAccent,
@@ -221,10 +223,10 @@ class ParentProfileController extends GetxController {
         );
       }
     } on exceptions.HttpException catch (e) {
-      print('HttpException: $e');
+      print('[ParentProfileController] HttpException: $e');
       showStatusBanner(e.message, Colors.redAccent, Icons.error_outline);
     } catch (e) {
-      print('Exception in fetchProfile: $e');
+      print('[ParentProfileController] Exception in fetchProfile: $e');
       showStatusBanner(
         'Failed to load profile',
         Colors.redAccent,
@@ -238,23 +240,62 @@ class ParentProfileController extends GetxController {
   Future<void> confirmLogout(BuildContext context) async {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    PanaraConfirmDialog.show(
-      context,
-      title: 'Logout',
-      message: 'Are you sure you want to logout?',
-      confirmButtonText: 'Yes',
-      cancelButtonText: 'No',
-      panaraDialogType: PanaraDialogType.custom,
-      color: primaryColor,
-      onTapCancel: () {
-        Get.back();
-      },
-      onTapConfirm: () async {
-        Get.back();
-        await sessionController.clearSession();
-        if (!isClosed) {
-          Get.offAll(() => const ParentLoginPage());
-        }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return ModernDialog(
+          title: 'Confirm Logout',
+          icon: Icons.logout,
+          iconColor: Colors.orange,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.2),
+                    width: 1.5,
+                  ),
+                ),
+                child: const Text(
+                  'Are you sure you want to logout from your account?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                    height: 1.6,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ModernDialogButton(
+              label: 'Yes, Logout',
+              icon: Icons.exit_to_app,
+              backgroundColor: Colors.orange,
+              onPressed: () async {
+                Get.back();
+                await sessionController.clearSession();
+                if (!isClosed) {
+                  Get.offAll(() => const ParentLoginPage());
+                }
+              },
+            ),
+            ModernDialogButton(
+              label: 'Cancel',
+              icon: Icons.close,
+              backgroundColor: Colors.grey[600]!,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        );
       },
     );
   }

@@ -1,0 +1,8 @@
+Analyzing parent_home_page.dart...                              
+
+warning - This class (or a class that this class inherits from) is marked as '@immutable', but one or more of its instance fields aren't final: ParentHomePage._bannerTimer - trackify_vts\lib\parent_app\features\dashboard\presentation\pages\parent_home_page.dart:184:7 - must_be_immutable
+   info - Don't use 'BuildContext's across async gaps - trackify_vts\lib\parent_app\features\dashboard\presentation\pages\parent_home_page.dart:500:36 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - trackify_vts\lib\parent_app\features\dashboard\presentation\pages\parent_home_page.dart:531:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - trackify_vts\lib\parent_app\features\dashboard\presentation\pages\parent_home_page.dart:569:36 - use_build_context_synchronously
+
+4 issues found. (ran in 2.2s)
