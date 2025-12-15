@@ -11,9 +11,9 @@ class CacheService {
   async initialize() {
     try {
       this.client = redis.createClient({
-        host: process.env.REDIS_HOST || '127.0.0.1',
-        port: process.env.REDIS_PORT || 6379,
         socket: {
+          host: process.env.REDIS_HOST || '127.0.0.1',
+          port: process.env.REDIS_PORT || 6379,
           reconnectStrategy: (retries) => {
             if (retries > 10) {
               logger.loggerError('Redis reconnection failed after 10 attempts');
