@@ -36,7 +36,9 @@ class WebhookController {
           if (!parsed) {
             responses.push({
               status: 'error',
-              error: 'Invalid message format: requires message_type and tracker_id'
+              error_code: 400,
+              reason: 'Invalid message format: requires message_type and tracker_id',
+              timestamp: new Date().toISOString()
             });
             continue;
           }
@@ -48,7 +50,9 @@ class WebhookController {
               message_type,
               tracker_id,
               status: 'error',
-              error: 'Missing message_type or tracker_id'
+              error_code: 400,
+              reason: 'Missing message_type or tracker_id',
+              timestamp: new Date().toISOString()
             });
             continue;
           }
@@ -89,7 +93,9 @@ class WebhookController {
                 message_type,
                 tracker_id,
                 status: 'error',
-                error: 'Unknown message type'
+                error_code: 400,
+                reason: 'Unknown message type',
+                timestamp: new Date().toISOString()
               });
               continue;
           }
@@ -98,6 +104,9 @@ class WebhookController {
             message_type,
             tracker_id,
             status: 'success',
+            error_code: 0,
+            reason: 'Processed successfully',
+            timestamp: new Date().toISOString(),
             data: response
           });
         } catch (error) {
@@ -106,10 +115,15 @@ class WebhookController {
             message_type,
             tracker_id: message.tracker_id || 'unknown',
             status: 'error',
-            error: error.message
+            error_code: 500,
+            reason: error.message,
+            timestamp: new Date().toISOString()
           });
         }
       }
+
+      // Log the response sent to the client
+      logger.loggerInfo(`Webhook response sent: ${JSON.stringify(responses)}`);
 
       res.status(200).json({
         error: false,
