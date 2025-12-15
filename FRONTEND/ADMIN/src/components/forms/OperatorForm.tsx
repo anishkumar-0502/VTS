@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { operatorsAPI } from "../../services/api";
-import { useAuth } from "../../context/AuthContext";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Button from "../ui/button/Button";
@@ -22,8 +21,6 @@ interface OperatorFormProps {
 }
 
 export default function OperatorForm({ operator, onSuccess, onCancel }: OperatorFormProps) {
-  const { user } = useAuth();
-
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");

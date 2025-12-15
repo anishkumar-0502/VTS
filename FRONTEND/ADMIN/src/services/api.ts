@@ -238,6 +238,10 @@ export const gpsAPI = {
   // Toggle active/inactive status
   toggleStatus: (deviceId: string) =>
     api.put(`/superadmin/devices/${deviceId}/deactivate`),
+
+  // Delete device
+  delete: (deviceId: string) =>
+    api.delete(`/superadmin/devices/${deviceId}`),
 };
 
 export const gpsDevicesAPI = {
@@ -275,7 +279,7 @@ export const appUsersAPI = {
     api.get(`/app/users/${userId}`),
   update: (userId: string, data: any) =>
     api.put(`/app/users/${userId}`, data),
-  deactivate: (userId: string) =>
+  toggleStatus: (userId: string) =>
     api.put(`/app/users/${userId}/deactivate`, {}),
   getLiveLocation: (userId: string) =>
     api.get(`/app/users/${userId}/location/live`),

@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react"; 
+import { useEffect, useState } from "react"; 
 import Swal from "sweetalert2";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, Polyline } from "react-leaflet"; 
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet"; 
 import L from "leaflet";
 import OpenStreetRoute from "../../components/OpenStreetRoute";
 import PageShimmer from "../../components/common/PageShimmer";
@@ -24,15 +24,6 @@ const endIcon = new L.Icon({
 
 const stopIcon = new L.Icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const currentIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],

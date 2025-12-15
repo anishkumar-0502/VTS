@@ -27,7 +27,7 @@ export default function UsersFullTable({ onEdit, onDelete }: UsersFullTableProps
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await usersAPI.getAll();
+      const response = await usersAPI.list(1, 1000);
       if (response.success && response.data) {
         setUsers(response.data.users || []);
       } else {
