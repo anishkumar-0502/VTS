@@ -9,7 +9,6 @@ import 'driver_profile_details_page.dart';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import '../../../../../utilities/widgets/status_banner.dart';
-import '../../../../../parent_app/shared/widgets/shimmer_skeletons.dart';
 
 String _formatDateTime(DateTime date) {
   final day = date.day.toString().padLeft(2, '0');
@@ -49,7 +48,7 @@ class DriverProfilePage extends GetView<DriverProfileController> {
       if (controller.isLoading.value) {
         return const Scaffold(
           backgroundColor: Color(0xFFF8F8F8),
-          body: ProfilePageSkeleton(),
+          body: Center(child: CircularProgressIndicator()),
         );
       }
       final data = controller.profileData.value;

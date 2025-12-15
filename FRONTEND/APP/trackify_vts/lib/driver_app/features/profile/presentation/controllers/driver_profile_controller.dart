@@ -223,7 +223,7 @@ class DriverProfileController extends GetxController {
         );
       } else if (response.data != null) {
         try {
-          profileData.value = response.data as ProfileData?;
+          profileData.value = response.data;
           print('Profile data set: ${profileData.value?.name}');
           
           final profile = response.data!;
