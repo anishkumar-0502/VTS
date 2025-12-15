@@ -148,14 +148,11 @@ class WebhookController {
       // Log the response sent to the client
       logger.loggerInfo(`Webhook response sent: ${JSON.stringify(responses)}`);
 
-      // Return single object if one message, array if multiple
-      const responseBody = responses.length === 1 ? responses[0] : responses;
-
       res.status(200).json({
         error: false,
         message: 'Telemetry processed',
         timestamp: new Date().toISOString(),
-        response: responseBody
+        responses: responses
       });
     } catch (error) {
       next(error);
