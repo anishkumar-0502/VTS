@@ -39,21 +39,19 @@ class WebhookRouter {
           };
       }
 
-      // return {
-      //   messageType: 3,
-      //   messageId,
-      //   response: {
-      //     status: 'Accepted',
-      //     timestamp: new Date().toISOString(),
-      //     ...response
-      //   }
-      // };
-      return {
-        "status": "ok",
-        "message": "VTS frame received",
-        "OTA": "1",
-        "FWURL": "http://192.185.129.79:21:dhanush@outdidunified.com:Dhanush@2024:nwy_open_app_fota.pkt"
+      const successResponse = {
+        status: 'Accepted',
+        error_code: 0,
+        reason: 'Processed successfully',
+        timestamp: new Date().toISOString(),
+        data: response
       };
+
+      if (response && response.interval) {
+        successResponse.interval = response.interval;
+      }
+
+      return successResponse;
     } catch (error) {
       logger.loggerError(`Telemetry routing error: ${error.message}`);
       throw error;
