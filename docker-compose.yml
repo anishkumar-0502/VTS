@@ -16,6 +16,17 @@ services:
     volumes:
       - ./BACKEND/Log:/app/Log
 
+  redis:
+    image: redis:alpine
+    container_name: vts-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - appnet
+    volumes:
+      - redis_data:/data
+
   admin-frontend:
     container_name: vts-admin-frontend
     build:
@@ -33,3 +44,6 @@ services:
 networks:
   appnet:
     driver: bridge
+
+volumes:
+  redis_data:
