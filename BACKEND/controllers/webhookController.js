@@ -36,6 +36,9 @@ class WebhookController {
       const responses = [];
 
       for (const message of messageArray) {
+        let message_type = 'unknown';
+        let tracker_id = 'unknown';
+
         try {
           const parsed = WebhookController.parseMessage(message);
           
@@ -51,7 +54,9 @@ class WebhookController {
             continue;
           }
 
-          const { message_type, tracker_id, payload } = parsed;
+          message_type = parsed.message_type;
+          tracker_id = parsed.tracker_id;
+          const payload = parsed.payload;
 
           if (!message_type || !tracker_id) {
             const reason = 'Missing message_type or tracker_id';
@@ -148,12 +153,20 @@ class WebhookController {
       // Log the response sent to the client
       logger.loggerInfo(`Webhook response sent: ${JSON.stringify(responses)}`);
 
-      res.status(200).json({
+      const responseBody = {
         error: false,
         message: 'Telemetry processed',
         timestamp: new Date().toISOString(),
         responses: responses
-      });
+      };
+
+      const jsonResponse = JSON.stringify(responseBody);
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Length', Buffer.byteLength(jsonResponse));
+      res.setHeader('Connection', 'close');
+      
+      res.status(200).send(jsonResponse);
     } catch (error) {
       next(error);
     }
