@@ -12,18 +12,22 @@ class DriverLiveTrackingPage extends GetView<DriverLiveTrackingController> {
   @override
   Widget build(BuildContext context) {
     final Color primaryColor = Theme.of(context).colorScheme.primary;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double width = constraints.maxWidth;
-        final double horizontalPadding = width >= 1100
-            ? 64
-            : width >= 900
-                ? 48
-                : width >= 600
-                    ? 28
-                    : 16;
+    return Obx(() {
+      if (controller.isMapFullscreen.value) {
+        return _FullscreenMapView(controller: controller, primaryColor: primaryColor);
+      }
+      
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final double width = constraints.maxWidth;
+          final double horizontalPadding = width >= 1100
+              ? 64
+              : width >= 900
+                  ? 48
+                  : width >= 600
+                      ? 28
+                      : 16;
 
-        return Obx(() {
           return ListView(
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 20),
             children: [
@@ -105,6 +109,53 @@ class DriverLiveTrackingPage extends GetView<DriverLiveTrackingController> {
                         ),
                       ),
                       const SizedBox(height: 24),
+                      const Text('All Stops',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          children: controller.stops
+                              .asMap()
+                              .entries
+                              .map(
+                                (entry) => ListTile(
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  leading: Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: primaryColor.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '${entry.key + 1}',
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    entry.value,
+                                    style: const TextStyle(
+                                        fontSize: 15, fontWeight: FontWeight.w600),
+                                  ),
+                                  trailing: Icon(Icons.location_on, color: primaryColor),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       const Text('Timeline',
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 16),
@@ -155,9 +206,9 @@ class DriverLiveTrackingPage extends GetView<DriverLiveTrackingController> {
               ),
             ],
           );
-        });
-      },
-    );
+        },
+      );
+    });
   }
 }
 
@@ -300,6 +351,32 @@ class _LiveTrackingMap extends StatelessWidget {
                           style: const TextStyle(fontSize: 12, color: Colors.black54),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 20,
+                  top: 20,
+                  child: GestureDetector(
+                    onTap: controller.toggleMapFullscreen,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.fullscreen,
+                        color: primaryColor,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
@@ -464,5 +541,219 @@ class _MetricTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _FullscreenMapView extends StatelessWidget {
+  const _FullscreenMapView({required this.controller, required this.primaryColor});
+
+  final DriverLiveTrackingController controller;
+  final Color primaryColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1400),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.85,
+                      child: _FullscreenLiveTrackingMap(
+                        controller: controller,
+                        primaryColor: primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 20,
+            top: 20,
+            child: GestureDetector(
+              onTap: controller.toggleMapFullscreen,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.fullscreen_exit,
+                  color: primaryColor,
+                  size: 24,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FullscreenLiveTrackingMap extends StatelessWidget {
+  const _FullscreenLiveTrackingMap({required this.controller, required this.primaryColor});
+
+  final DriverLiveTrackingController controller;
+  final Color primaryColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final double mapWidth = MediaQuery.of(context).size.width;
+    final double mapHeight = MediaQuery.of(context).size.height;
+    
+    final points = [
+      Offset(mapWidth * 0.1, mapHeight * 0.78),
+      Offset(mapWidth * 0.35, mapHeight * 0.6),
+      Offset(mapWidth * 0.58, mapHeight * 0.38),
+      Offset(mapWidth * 0.82, mapHeight * 0.22),
+    ];
+    final Offset busOffset = _positionAlongPath(points, controller.routeProgress.value.clamp(0.0, 1.0));
+
+    return SizedBox(
+      width: mapWidth,
+      height: mapHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(
+            painter: _MapBackdropPainter(
+              primaryColor: primaryColor,
+              stops: points,
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.05),
+                    Colors.black.withOpacity(0.25),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 20,
+            right: 20,
+            top: 20,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.92),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(Icons.directions_bus, color: primaryColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bus 18 • Morning Route A',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'ETA ${controller.estimatedArrival.value}',
+                          style: const TextStyle(fontSize: 13, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      controller.tripStatus.value,
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            left: busOffset.dx - 18,
+            top: busOffset.dy - 24,
+            child: _BusMarker(color: primaryColor),
+          ),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LinearProgressIndicator(
+                    value: controller.routeProgress.value,
+                    backgroundColor: Colors.grey.shade300,
+                    color: Colors.greenAccent,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${(controller.routeProgress.value * 100).round()}% of route completed',
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Offset _positionAlongPath(List<Offset> points, double progress) {
+    if (points.length < 2) return Offset.zero;
+    final totalSegments = points.length - 1;
+    final scaled = progress * totalSegments;
+    final index = scaled.floor().clamp(0, totalSegments - 1);
+    final localT = scaled - index;
+    final start = points[index];
+    final end = points[index + 1];
+    return Offset.lerp(start, end, localT) ?? end;
   }
 }

@@ -8,4 +8,5 @@ class ParentProfileUrl {
   static String currentTrip(String childId) => '${trackify_vts.baseUrl}/parent/current-trip?childId=$childId';
   static String trackChild(String childId) => '${trackify_vts.baseUrl}/parent/track-child?childId=$childId';
   static String tripDetails(String tripId) => '${trackify_vts.baseUrl}/driver/trips/$tripId';
+  static String nextStop(String tripId, String childId) => '${trackify_vts.baseUrl}/parent/next-stop?tripId=$tripId&childId=$childId';
 }

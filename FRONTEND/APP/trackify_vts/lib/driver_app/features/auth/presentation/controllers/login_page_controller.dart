@@ -61,7 +61,7 @@ class DriverLoginPageController extends GetxController {
       try {
         final response = await _authRepository.login(email, password);
         if (!response.error) {
-          await _saveSession(response);
+          await _saveSession(response as GetLoginResponse);
           showStatusBanner(response.message, Colors.green, Icons.check_circle);
           Get.offAll(() => const DriverHomePage());
         } else {

@@ -8,11 +8,14 @@ import 'Sessionhandler/session_controller.dart';
 import 'features/profile/presentation/controllers/driver_profile_controller.dart';
 import 'features/splashscreen/presentation/pages/splash_screen_page.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   Get.put(SessionController(), permanent: true, tag: 'driver');
   Get.put(DriverLoginPageController(), permanent: true);
+  
   GoogleFonts.config.allowRuntimeFetching = false;
+
   runApp(const DriverApp());
 }
 

@@ -52,5 +52,8 @@
 	<string>This app needs your location to display routes on the map</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>This app needs your location to display routes on the map</string>
+	<!-- Phone Call Permissions -->
+	<key>NSPhoneNumberToDial</key>
+	<true/>
 </dict>
 </plist>

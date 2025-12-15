@@ -9,6 +9,10 @@ import 'detail_pages/parent_profile_vehicle_details_page.dart';
 import 'detail_pages/parent_profile_operator_details_page.dart';
 import 'detail_pages/parent_profile_edit_page.dart';
 import 'detail_pages/parent_profile_change_password_page.dart';
+import 'detail_pages/parent_profile_emergency_contact_page.dart';
+import '../../../../shared/index.dart';
+import 'package:trackify_vts/shared/widgets/modern_dialog.dart';
+import '../../../live-tracking/presentation/pages/live_tracking_children_page.dart';
 
 String _getInitials(String name) {
   final parts = name.trim().split(' ');
@@ -20,6 +24,32 @@ String _getInitials(String name) {
   return '';
 }
 
+class WaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 60);
+    path.quadraticBezierTo(
+      size.width * 0.25,
+      size.height,
+      size.width * 0.5,
+      size.height - 40,
+    );
+    path.quadraticBezierTo(
+      size.width * 0.75,
+      size.height - 80,
+      size.width,
+      size.height - 40,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(WaveClipper oldClipper) => false;
+}
+
 class ParentProfilePage extends GetView<ParentProfileController> {
   const ParentProfilePage({super.key});
 
@@ -28,54 +58,62 @@ class ParentProfilePage extends GetView<ParentProfileController> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
+    const primaryColor = Color(0xFF2764FF);
+    
     return Obx(() {
       print(
         'Building ParentProfilePage, isLoading: ${controller.isLoading.value}, data: ${controller.profileData.value?.name}',
       );
       if (controller.isLoading.value) {
         return const Scaffold(
-          backgroundColor: Color(0xFFF8F8F8),
-          body: Center(child: CircularProgressIndicator()),
+          backgroundColor: Colors.white,
+          body: ProfilePageSkeleton(),
         );
       }
       final data = controller.profileData.value;
       if (data == null) {
         return const Scaffold(
-          backgroundColor: Color(0xFFF8F8F8),
+          backgroundColor: Colors.white,
           body: Center(child: Text('No profile data available')),
         );
       }
       return Scaffold(
-        backgroundColor: const Color(0xFFF8F8F8),
+        backgroundColor: Colors.white,
         body: SingleChildScrollView(
           child: Column(
             children: [
-              _buildTopHeader(context, data, primaryColor),
-              _buildContentLabel(),
-              _buildSettingsList(context, data),
+              _buildProfileCardWithWave(context, data),
+              _buildMenuItems(context, data),
             ],
           ),
         ),
         floatingActionButton:
             data.sosContact != null
-                ? FloatingActionButton(
-                  onPressed:
-                      () => _showSOSDialog(
-                        context,
-                        data.sosContact!,
-                        primaryColor,
-                      ),
-                  backgroundColor: Colors.blue,
-                  child: Image.asset(
-                    'assets/icons/support.png',
-                    width: 26,
-                    height: 26,
-                    fit: BoxFit.contain,
-                    color:
-                        Colors
-                            .white, // remove this line if image already has color
+                ? GestureDetector(
+                  onTap: () => _showSOSDialog(
+                    context,
+                    data.sosContact!,
+                    primaryColor,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/icons/support.png',
+                      width: 24,
+                      height: 24,
+                      color: Colors.red[800],
+                    ),
                   ),
                 )
                 : null,
@@ -83,232 +121,255 @@ class ParentProfilePage extends GetView<ParentProfileController> {
     });
   }
 
-  Widget _buildTopHeader(
+  Widget _buildProfileCardWithWave(
     BuildContext context,
     ParentProfileData data,
-    Color primaryColor,
   ) {
-    return Container(
-      height: 280,
-      decoration: BoxDecoration(
-        color: primaryColor,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+    const primaryColor = Color(0xFF2764FF);
+    const accentColor = Color(0xFF1E4FB4);
+    
+    return Stack(
+      children: [
+        Container(
+          color: Colors.white,
+          height: 340,
         ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 50,
-            left: 20,
-            child: CircleAvatar(
-              backgroundColor: Colors.white,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Get.back(),
+        ClipPath(
+          clipper: WaveClipper(),
+          child: Container(
+            height: 340,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [primaryColor, accentColor],
               ),
             ),
           ),
-          Positioned(
-            top: 50,
-            right: 20,
-            child: CircleAvatar(
-              backgroundColor: Colors.white,
-              child: IconButton(
-                icon: const Icon(Icons.logout, color: Colors.black),
-                onPressed: () => controller.confirmLogout(context),
-              ),
+        ),
+        Positioned(
+          top: 40,
+          left: 12,
+          child: CircleAvatar(
+            backgroundColor: Colors.white.withValues(alpha: 0.9),
+            radius: 20,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black87),
+              iconSize: 20,
+              onPressed: () => Get.back(),
             ),
           ),
-          Positioned(
-            top: 80,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
+        ),
+        Positioned(
+          top: 70,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 48,
                     backgroundColor: Colors.white,
                     child: Text(
                       _getInitials(data.name),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: primaryColor,
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    data.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  data.name,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    data.email,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  data.email,
+                  style: const TextStyle(
+                    color: Color.fromARGB(255, 236, 234, 234),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
-              ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContentLabel() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'Profile Information',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[700],
-          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSettingsList(BuildContext context, ParentProfileData data) {
-    return Column(
-      children: [
-        _buildSettingItem(
-          context,
-          Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
-          'Personal Details',
-          'Name, email, and phone',
-          'personal',
-        ),
-
-        _buildSettingItem(
-          context,
-          Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
-          'Edit Profile',
-          'Update your details here',
-          'edit',
-        ),
-        _buildSettingItem(
-          context,
-          Icon(Icons.lock, color: Theme.of(context).colorScheme.primary),
-          'Change Password',
-          'Update your  password',
-          'password',
-        ),
-
-        if (data.vehicleDetails != null)
-          _buildSettingItem(
-            context,
-            Image.asset(
-              'assets/icons/bus.png',
-              width: 24,
-              height: 24,
-              fit: BoxFit.contain,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            'Vehicle Information',
-            data.vehicleDetails!.vehicleNumber,
-            'vehicle',
-          ),
-        if (data.operatorDetails != null)
-          _buildSettingItem(
-            context,
-            Icon(Icons.business, color: Theme.of(context).colorScheme.primary),
-            'Operator Details',
-            data.operatorDetails!.name,
-            'operator',
-          ),
-
       ],
     );
   }
 
-  Widget _buildSettingItem(
+  Widget _buildMenuItems(BuildContext context, ParentProfileData data) {
+    return Column(
+      children: [
+        _buildMenuItem(
+          context,
+          Icons.person_outline,
+          'My Profile',
+          'personal',
+          data,
+        ),
+        _buildMenuDivider(),
+        _buildMenuItem(
+          context,
+          Icons.edit_outlined,
+          'Edit Profile',
+          'edit',
+          data,
+        ),
+        _buildMenuDivider(),
+        _buildMenuItem(
+          context,
+          Icons.lock_outline,
+          'Change Password',
+          'password',
+          data,
+        ),
+        _buildMenuDivider(),
+        _buildMenuItem(
+          context,
+          Icons.phone_outlined,
+          'Emergency Contact',
+          'sos',
+          data,
+        ),
+        if (data.vehicleDetails != null) ...[
+          _buildMenuDivider(),
+          _buildMenuItem(
+            context,
+            Icons.directions_bus_outlined,
+            'Vehicle Information',
+            'vehicle',
+            data,
+          ),
+        ],
+        if (data.operatorDetails != null) ...[
+          _buildMenuDivider(),
+          _buildMenuItem(
+            context,
+            Icons.business_outlined,
+            'Operator Details',
+            'operator',
+            data,
+          ),
+        ],
+        _buildMenuDivider(),
+        _buildMenuItem(
+          context,
+          Icons.location_on_outlined,
+          'Track Child Location',
+          'track_child',
+          data,
+        ),
+        _buildMenuDivider(),
+        _buildLogoutButton(context),
+      ],
+    );
+  }
+
+  Widget _buildMenuItem(
     BuildContext context,
-    Widget iconWidget,
+    IconData icon,
     String title,
-    String subtitle,
     String section,
+    ParentProfileData data,
   ) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _navigateToDetailPage(context, section),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: iconWidget,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _navigateToDetailPage(context, section, data),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 18,
-                  color: Colors.grey[400],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  void _navigateToDetailPage(BuildContext context, String section) {
-    final data = controller.profileData.value;
-    if (data == null) return;
+  Widget _buildMenuDivider() {
+    return Divider(
+      height: 1,
+      color: Colors.grey[200],
+      indent: 20,
+      endIndent: 20,
+    );
+  }
 
+  Widget _buildLogoutButton(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => controller.confirmLogout(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              Icon(
+                Icons.power_settings_new,
+                size: 22,
+                color: Colors.red[600],
+              ),
+              const SizedBox(width: 20),
+              Text(
+                'Logout',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.red[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  void _navigateToDetailPage(
+    BuildContext context,
+    String section,
+    ParentProfileData data,
+  ) {
     switch (section) {
       case 'personal':
         Get.to(
@@ -353,6 +414,24 @@ class ParentProfilePage extends GetView<ParentProfileController> {
           duration: const Duration(milliseconds: 350),
         );
         break;
+
+      case 'sos':
+        if (data.sosContact != null) {
+          Get.to(
+            () => ParentProfileEmergencyContactPage(data: data),
+            transition: Transition.rightToLeft,
+            duration: const Duration(milliseconds: 350),
+          );
+        }
+        break;
+
+      case 'track_child':
+        Get.to(
+          () => const LiveTrackingChildrenPage(),
+          transition: Transition.rightToLeft,
+          duration: const Duration(milliseconds: 350),
+        );
+        break;
     }
   }
 
@@ -362,49 +441,101 @@ class ParentProfilePage extends GetView<ParentProfileController> {
     SOSContact sosContact,
     Color primaryColor,
   ) {
-    PanaraConfirmDialog.show(
-      context,
-      title: 'Emergency Contact',
-      message: '${sosContact.name}\n${sosContact.phoneNumber}',
-      confirmButtonText: 'Call',
-      cancelButtonText: 'Close',
-      panaraDialogType: PanaraDialogType.custom,
-      color: Colors.red,
-
-      onTapCancel: () {
-        Get.back(); // Close dialog
-      },
-
-      onTapConfirm: () async {
-        Get.back(); // Close dialog
-
-        final String phone = "+91 987654321";
-        final Uri uri = Uri(scheme: 'tel', path: phone);
-
-        print("Testing TEL URL...");
-        print("URI = $uri");
-
-        try {
-          final bool launched = await launchUrl(
-            uri,
-            mode: LaunchMode.externalApplication,
-          );
-
-          print("launchUrl result = $launched");
-
-          if (!launched) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Dialer unavailable on this device.'),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ModernDialog(
+          title: 'Emergency Contact',
+          assetIcon: 'assets/icons/support.png',
+          iconColor: Colors.red[800]!,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DialogContentRow(
+                label: 'Contact Name',
+                value: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const Icon(Icons.person, color: Colors.red, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      sosContact.name,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                isHighlighted: false,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
-            );
-          }
-        } catch (e) {
-          print("ERROR: $e");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Unable to open dialer. Phone: $phone')),
-          );
-        }
+              const SizedBox(height: 8),
+              DialogContentRow(
+                label: 'Phone Number',
+                value: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const Icon(Icons.phone, color: Colors.red, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      sosContact.phoneNumber.toString(),
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                isHighlighted: false,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ],
+          ),
+          actions: [
+            ModernDialogButton(
+              label: 'Call',
+              icon: Icons.call,
+              backgroundColor: Colors.red,
+              onPressed: () async {
+                Get.back();
+                final String phone = sosContact.phoneNumber.toString();
+                final Uri uri = Uri(scheme: 'tel', path: phone);
+
+                try {
+                  final bool launched = await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication,
+                  );
+
+                  if (!launched) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Dialer unavailable on this device.'),
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Unable to open dialer. Phone: $phone')),
+                    );
+                  }
+                }
+              },
+            ),
+            ModernDialogButton(
+              label: 'Close',
+              icon: Icons.close,
+              backgroundColor: Colors.grey[600]!,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        );
       },
     );
   }
