@@ -268,7 +268,8 @@ class TelemetryHandler {
       return {
         message: `GPS Tracker ${trackerId} validated successfully`,
         device_id: device.device_id,
-        tracker_id: trackerId
+        tracker_id: trackerId,
+        interval: 5000 // 5 seconds in milliseconds
       };
     } catch (error) {
       logger.loggerError(`Boot notification error: ${error.message}`);

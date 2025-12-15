@@ -59,7 +59,7 @@ app.use((req, res, next) => {
     const fullPath = req.originalUrl || req.url || '/';
     const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
     const userAgent = req.get('user-agent') || 'unknown';
-    const message = `${req.method} ${fullPath} | IP: ${clientIp} | Status: ${res.statusCode} | ${duration}ms | ${userAgent.substring(0, 50)}`;
+    const message = `${req.method} ${fullPath} | IP: ${clientIp} | Status: ${res.statusCode} | ${duration}ms | ${userAgent === 'unknown' ? 'No User-Agent' : userAgent.substring(0, 50)}`;
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       logger.loggerSuccess(message);
