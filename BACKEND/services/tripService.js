@@ -1193,7 +1193,7 @@ class TripService {
       const trip = new OnDemandTrip(tripPayload);
 
       await trip.save();
-      await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicle.vehicle_id), { current_status: 'en_route' });
+      await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicle.vehicle_id), { current_status: 'en_route', current_trip_id: trip.trip_id });
       logger.loggerInfo(`Trip started: ${trip._id}`);
       return trip;
     } catch (error) {
@@ -1671,7 +1671,7 @@ class TripService {
       );
 
       if (existingPlannedTrip) {
-        await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicle.vehicle_id), { current_status: 'en_route' });
+        await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicle.vehicle_id), { current_status: 'en_route', current_trip_id: existingPlannedTrip.trip_id });
         logger.loggerInfo(`Trip started from scheduled trip: ${existingPlannedTrip._id}`);
         return existingPlannedTrip;
       }
@@ -1694,7 +1694,7 @@ class TripService {
 
       const trip = new OnDemandTrip(tripPayload);
       await trip.save();
-      await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicle.vehicle_id), { current_status: 'en_route' });
+      await Vehicle.findOneAndUpdate(buildVehicleMatchFilter(vehicle.vehicle_id), { current_status: 'en_route', current_trip_id: trip.trip_id });
 
       logger.loggerInfo(`Trip started from scheduled trip: ${trip._id}`);
       return trip;

@@ -60,6 +60,20 @@ function LocationSelector({ onSelect }: { onSelect: (lat: number, lng: number) =
   return null;
 }
 
+// 🔁 Reverse Geocoding (LatLng → Address)
+async function getAddressFromLatLng(lat: number, lng: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+    );
+    const data = await res.json();
+    return data.display_name || "Address not found";
+  } catch (error) {
+    console.error("Reverse geocoding error:", error);
+    return "Unable to fetch address";
+  }
+}
+
 // ✅ Locate Me Button Component
 function LocateMeButton({ setCoords }: { setCoords: (coords: { lat: number; lng: number }) => void }) {
   const map = useMap();
@@ -79,10 +93,10 @@ function LocateMeButton({ setCoords }: { setCoords: (coords: { lat: number; lng:
         map.setView([latitude, longitude], 18);
 
         // Add marker + popup
-        L.marker([latitude, longitude])
-          .addTo(map)
-          .bindPopup("<b>You are here 🏠</b>")
-          .openPopup();
+        // L.marker([latitude, longitude])
+        //   .addTo(map)
+        //   .bindPopup("<b>You are here 🏠</b>")
+        //   .openPopup();
       },
       (err) => {
         Swal.fire("Error", "Unable to get your current location.", "error");
@@ -110,6 +124,9 @@ export default function ManageEndUsers() {
 
   const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickupAddress, setPickupAddress] = useState("");
+const [dropoffAddress, setDropoffAddress] = useState("");
+
 const [page, setPage] = useState(1);
 const [pageSize] = useState(10);
 const [hasMore, setHasMore] = useState(true);
@@ -206,13 +223,17 @@ const ActivateIcon = () => (
       pickup_location: {
         latitude: pickupCoords.lat,
         longitude: pickupCoords.lng,
-        address: formData.get("pickup_address") as string,
+        // address: formData.get("pickup_address") as string,
+        address: pickupAddress,
+
         name: formData.get("pickup_name") as string,
       },
       dropoff_location: {
         latitude: dropoffCoords.lat,
         longitude: dropoffCoords.lng,
-        address: formData.get("dropoff_address") as string,
+        // address: formData.get("dropoff_address") as string,
+        address: dropoffAddress,
+
         name: formData.get("dropoff_name") as string,
       },
     };
@@ -466,9 +487,9 @@ if (loading)
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
-
+                <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                 {/* Pickup Map */}
-                <div className="col-span-full mt-4 relative">
+                  <div className="relative">
                   <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
                     Select Pickup Location
                   </h4>
@@ -478,20 +499,43 @@ if (loading)
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         attribution='&copy; OSM'
                       />
-                      <LocationSelector onSelect={(lat, lng) => setPickupCoords({ lat, lng })} />
+                      {/* <LocationSelector onSelect={(lat, lng) => setPickupCoords({ lat, lng })} /> */}
+                      <LocationSelector
+  onSelect={async (lat, lng) => {
+    setPickupCoords({ lat, lng });
+    const address = await getAddressFromLatLng(lat, lng);
+    setPickupAddress(address);
+  }}
+/>
+
                       {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={markerIcon} />}
-                      <LocateMeButton setCoords={setPickupCoords} />
+                      {/* <LocateMeButton setCoords={setPickupCoords} /> */}
+                      <LocateMeButton
+  setCoords={async ({ lat, lng }) => {
+    setPickupCoords({ lat, lng });
+    const address = await getAddressFromLatLng(lat, lng);
+    setPickupAddress(address);
+  }}
+/>
+
                     </MapContainer>
                   </div>
-                  {pickupCoords && (
+                  {/* {pickupCoords && (
                     <p className="text-sm text-gray-500 mt-2">
                       Selected: {pickupCoords.lat.toFixed(5)}, {pickupCoords.lng.toFixed(5)}
                     </p>
-                  )}
+                  )} */}
+                  {pickupAddress && (
+  <p className="text-sm text-gray-600 mt-2">
+    📍 {pickupAddress}
+  </p>
+)}
+
                 </div>
 
+
                 {/* Dropoff Map */}
-                <div className="col-span-full mt-6 relative">
+                <div className="relative">
                   <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
                     Select Dropoff Location
                   </h4>
@@ -501,18 +545,40 @@ if (loading)
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         attribution='&copy; OSM'
                       />
-                      <LocationSelector onSelect={(lat, lng) => setDropoffCoords({ lat, lng })} />
+                      {/* <LocationSelector onSelect={(lat, lng) => setDropoffCoords({ lat, lng })} /> */}
+                      <LocationSelector
+  onSelect={async (lat, lng) => {
+    setDropoffCoords({ lat, lng });
+    const address = await getAddressFromLatLng(lat, lng);
+    setDropoffAddress(address);
+  }}
+/>
+
                       {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]} icon={markerIcon} />}
-                      <LocateMeButton setCoords={setDropoffCoords} />
+                      {/* <LocateMeButton setCoords={setDropoffCoords} /> */}
+                      <LocateMeButton
+  setCoords={async ({ lat, lng }) => {
+    setDropoffCoords({ lat, lng });
+    const address = await getAddressFromLatLng(lat, lng);
+    setDropoffAddress(address);
+  }}
+/>
+
                     </MapContainer>
                   </div>
-                  {dropoffCoords && (
+                  {/* {dropoffCoords && (
                     <p className="text-sm text-gray-500 mt-2">
                       Selected: {dropoffCoords.lat.toFixed(5)}, {dropoffCoords.lng.toFixed(5)}
                     </p>
-                  )}
-                </div>
+                  )} */}
+                  {dropoffAddress && (
+  <p className="text-sm text-gray-600 mt-2">
+    📍 {dropoffAddress}
+  </p>
+)}
 
+                </div>
+                </div>
                 {/* Pickup/Dropoff Details */}
                 {["pickup_name", "pickup_address", "dropoff_name", "dropoff_address"].map((field) => (
                   <div key={field}>
