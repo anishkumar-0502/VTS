@@ -111,68 +111,7 @@ const getDriverIdentifiers = async (userId) => {
 
 class DriverController {
   static async startTrip(req, res, next) {
-    try {
-      const { vehicle_id, route_name, start_location, route_points, selected_start_point, selected_end_point } = req.body;
-
-      if (!vehicle_id) {
-        throw new CustomError('Vehicle ID is required', 400);
-      }
-
-      const tripPayload = {
-        vehicle_id,
-        driver_id: req.user.user_id,
-        operator_id: req.user.operator_id,
-        route_name,
-        start_location
-      };
-
-      if (Array.isArray(route_points)) {
-        tripPayload.route_points = route_points;
-      }
-
-      if (selected_start_point) {
-        tripPayload.selected_start_point = selected_start_point;
-      }
-
-      if (selected_end_point) {
-        tripPayload.selected_end_point = selected_end_point;
-      }
-
-      const trip = await TripService.startTrip(tripPayload);
-
-      await Vehicle.findOneAndUpdate(
-        { vehicle_id: vehicle_id },
-        { current_trip_id: trip.trip_id },
-        { new: true }
-      );
-
-      if (global.socketManager) {
-        global.socketManager.emitToTrip(trip._id.toString(), 'trip_started', {
-          tripId: trip._id,
-          driverId: req.user.user_id,
-          vehicleId: vehicle_id,
-          routeName: route_name,
-          startLocation: start_location,
-          timestamp: new Date()
-        });
-        global.socketManager.emitToOperator(req.user.operator_id, 'trip_started', {
-          tripId: trip._id,
-          driverId: req.user.user_id,
-          vehicleId: vehicle_id,
-          routeName: route_name,
-          timestamp: new Date()
-        });
-      }
-
-      res.status(201).json({
-        error: false,
-        message: 'Trip started successfully',
-        data: trip
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
+}
 
   static async endTrip(req, res, next) {
     try {

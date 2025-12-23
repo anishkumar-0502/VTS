@@ -12,7 +12,7 @@ class CacheService {
     try {
       this.client = redis.createClient({
         socket: {
-          host: process.env.REDIS_HOST || '127.0.0.1',
+          host: process.env.REDIS_HOST || '192.168.0.43',
           port: process.env.REDIS_PORT || 6379,
           reconnectStrategy: (retries) => {
             if (retries > 10) {
