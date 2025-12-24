@@ -1,5 +1,5 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../utilities/shared_prefs_mock.dart';
 import '../core/core.dart';
 
 typedef FrameUpdateCallback = void Function(dynamic data);
@@ -51,7 +51,7 @@ FrameUpdateCallback? onFrameUpdate;
 
   Future<String> _getAuthToken() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferencesMock.getInstance();
       return prefs.getString('token') ?? '';
     } catch (e) {
       return '';

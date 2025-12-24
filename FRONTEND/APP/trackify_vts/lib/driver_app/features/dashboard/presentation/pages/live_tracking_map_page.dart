@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../../utilities/shared_prefs_mock.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -131,7 +131,7 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
 
   Future<String> _getAuthToken() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferencesMock.getInstance();
       return prefs.getString('token') ?? '';
     } catch (e) {
       return '';
@@ -278,7 +278,7 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
     }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferencesMock.getInstance();
       final token = prefs.getString('token') ?? '';
 
       print('🔗 Sending SOS to: ${trackify_vts.baseUrl}/driver/sos');

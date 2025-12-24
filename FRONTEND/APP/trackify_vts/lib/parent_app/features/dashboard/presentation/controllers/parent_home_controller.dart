@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../../utilities/shared_prefs_mock.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../Sessionhandler/session_controller.dart';

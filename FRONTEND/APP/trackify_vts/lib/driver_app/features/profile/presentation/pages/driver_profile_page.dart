@@ -7,7 +7,6 @@ import 'associated_operators_page.dart';
 import 'assigned_vehicle_page.dart';
 import 'driver_profile_details_page.dart';
 import 'dart:convert';
-import 'package:image_picker/image_picker.dart';
 import '../../../../../utilities/widgets/status_banner.dart';
 
 String _formatDateTime(DateTime date) {

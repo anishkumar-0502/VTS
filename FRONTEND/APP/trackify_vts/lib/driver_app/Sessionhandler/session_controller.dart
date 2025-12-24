@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../utilities/shared_prefs_mock.dart';
 
 class SessionController extends GetxController {
   var isLoggedIn = false.obs;
@@ -12,7 +12,7 @@ class SessionController extends GetxController {
   var emailId = ''.obs;
   final driverData = Rxn<Map<String, dynamic>>();
 
-  late SharedPreferences prefs; // Use late to ensure initialization
+  late SharedPreferencesMock prefs; // Use late to ensure initialization
   final Completer<void> _initCompleter = Completer<void>();
 
   SessionController() {
@@ -20,7 +20,7 @@ class SessionController extends GetxController {
   }
 
   Future<void> _initializePrefs() async {
-    prefs = await SharedPreferences.getInstance();
+    prefs = await SharedPreferencesMock.getInstance();
     _applySessionFromPrefs();
     if (!_initCompleter.isCompleted) {
       _initCompleter.complete();
