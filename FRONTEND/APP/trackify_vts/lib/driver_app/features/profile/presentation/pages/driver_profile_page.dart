@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:panara_dialogs/panara_dialogs.dart';
 import '../../domain/models/profile_model.dart';
 import '../controllers/driver_profile_controller.dart';
 import 'personal_details_page.dart';
@@ -617,29 +618,21 @@ class DriverProfilePage extends GetView<DriverProfileController> {
             ),
             child: TextButton.icon(
               onPressed: () {
-                showDialog(
-                  context: context,
-                  builder:
-                      (context) => AlertDialog(
-                        title: const Text('Logout'),
-                        content: const Text('Are you sure you want to logout?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              controller.logout();
-                            },
-                            child: const Text(
-                              'Logout',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ],
-                      ),
+                PanaraConfirmDialog.show(
+                  context,
+                  title: "Logout",
+                  message: "Are you sure you want to logout?",
+                  confirmButtonText: "Logout",
+                  cancelButtonText: "Cancel",
+                  onTapConfirm: () {
+                    Navigator.pop(context);
+                    controller.logout();
+                  },
+                  onTapCancel: () {
+                    Navigator.pop(context);
+                  },
+                  panaraDialogType: PanaraDialogType.error,
+                  barrierDismissible: false,
                 );
               },
               icon: Icon(Icons.logout, color: Colors.red.shade600),

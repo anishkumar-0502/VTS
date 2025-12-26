@@ -12,10 +12,10 @@ import '../../../profile/presentation/controllers/driver_profile_controller.dart
 import '../../../profile/presentation/pages/driver_profile_page.dart';
 import '../../../../Sessionhandler/session_controller.dart';
 import 'trip_details_page.dart';
+import 'driver_trip_history_page.dart';
 import 'live_tracking_map_page.dart';
 import 'package:trackify_vts/services/open_route_service.dart';
 import 'package:trackify_vts/core/core.dart';
-import 'package:geocoding/geocoding.dart';
 import 'trip_location_display.dart';
 
 String _getInitials(String name) {
@@ -68,7 +68,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
         return ListView(
           padding: EdgeInsets.symmetric(
             horizontal: horizontalPadding,
-            vertical: 20,
           ),
           children: [
             Center(
@@ -1374,7 +1373,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
       borderRadius: BorderRadius.circular(18),
       onTap: () => _showTripHistoryDetails(context, trip, primaryColor,  enableStopAction: false,  // ensures no stop button
       ),
-      child: Container(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
@@ -1438,6 +1439,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
             TripLocationDisplay(trip: trip, primaryColor: primaryColor),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1709,23 +1711,30 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
         ),
         child: Row(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: primaryColor.withValues(alpha: 0.3),
-                  width: 2,
-                ),
+            GestureDetector(
+              onTap: () => Get.to(
+                    () => DriverProfilePage(),
+                transition: Transition.rightToLeft,
+                duration: const Duration(milliseconds: 400),
               ),
-              child: CircleAvatar(
-                radius: 24,
-                backgroundColor: primaryColor.withValues(alpha: 0.15),
-                child: Text(
-                  _getInitials(driverName),
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: primaryColor.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: primaryColor.withValues(alpha: 0.15),
+                  child: Text(
+                    _getInitials(driverName),
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -2972,111 +2981,3 @@ class _GeoCoordinate {
   final int? order;
 }
 
-class DriverTripHistoryPage extends GetView<DriverDashboardController> {
-  const DriverTripHistoryPage({super.key});
-
-  @override
-  String? get tag => 'driver_dashboard';
-
-  @override
-  Widget build(BuildContext context) {
-    final Color primaryColor = Theme.of(context).colorScheme.primary;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Trip history'),
-        actions: [
-          IconButton(
-            onPressed: controller.fetchTripHistory,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: Obx(() {
-        if (controller.isLoadingTripHistory.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (controller.tripHistoryError.value.isNotEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.red.shade600),
-                const SizedBox(height: 16),
-                Text(
-                  controller.tripHistoryError.value,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red.shade700,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: controller.fetchTripHistory,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (controller.tripHistory.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.history, size: 42, color: primaryColor),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'No trips recorded yet',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Completed trips will appear here once synced. Pull down to refresh or check your recent assignments.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: controller.fetchTripHistory,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: controller.tripHistory.length,
-          itemBuilder: (context, index) {
-            final trip = controller.tripHistory[index];
-            return DriverDashboardPage._buildTripHistoryTile(
-              context,
-              trip,
-              primaryColor,
-            );
-          },
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-        );
-      }),
-    );
-  }
-}

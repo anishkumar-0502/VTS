@@ -33,7 +33,7 @@ class DriverLoginPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           SizedBox(
-                            height: size.height * 0.2,
+                            height: size.height * 0.1,
                             child: Image.asset('assets/logo/logo.png'),
                           ),
                           SizedBox(height: size.height * 0.03),

@@ -1,0 +1,457 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:get/get.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:trackify_vts/driver_app/Sessionhandler/session_controller.dart';
+import 'package:trackify_vts/driver_app/features/dashboard/domain/repositories/dashboard_repositories.dart';
+import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/repositories/scheduled_trips_repository.dart';
+import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/scheduled_trip_model.dart';
+import 'package:trackify_vts/services/open_route_service.dart';
+
+import 'package:trackify_vts/services/socket_io_service.dart';
+
+class DriverHomeMapController extends GetxController with GetTickerProviderStateMixin {
+  final DashboardRepositories _dashboardRepository = DashboardRepositories();
+  final ScheduledTripsRepository _scheduledRepository = ScheduledTripsRepository();
+  final SessionController _sessionController = Get.find<SessionController>(tag: 'driver');
+  final SocketIOService _socketIOService = SocketIOService();
+  
+  // OpenRouteService (now uses OSRM internally)
+  final OpenRouteService _openRouteService = OpenRouteService('5b3ce3597851110001cf6248c8230752528747209765870503076135');
+
+  final Rxn<ActiveTrip> activeTrip = Rxn<ActiveTrip>();
+  final RxList<ScheduledTrip> scheduledTrips = RxList<ScheduledTrip>();
+  final RxBool isLoading = false.obs;
+  final RxString error = ''.obs;
+
+  // Map related
+  late final MapController mapController;
+  final RxList<LatLng> routePolyline = RxList<LatLng>();
+  final RxList<RoutePoint> stops = RxList<RoutePoint>();
+  final Rxn<LatLng> startLocation = Rxn<LatLng>();
+  final Rxn<LatLng> endLocation = Rxn<LatLng>();
+  final Rxn<LatLng> vehicleLocation = Rxn<LatLng>();
+  final RxDouble vehicleHeading = 0.0.obs;
+  final RxString currentRouteName = ''.obs;
+  
+  // To track which trip we are showing
+  final RxnString showingTripId = RxnString();
+
+  @override
+  void onInit() {
+    super.onInit();
+    mapController = MapController();
+    loadData();
+    _socketIOService.initialize();
+    
+    // Listen for socket updates
+    _socketIOService.onFrameUpdate = (data) {
+      if (data is Map) {
+        final lat = data['latitude'];
+        final lng = data['longitude'];
+        final heading = data['heading'] ?? data['course'];
+        
+        // Check if this update belongs to our active vehicle
+        if (activeTrip.value != null) {
+          final assignedDeviceId = activeTrip.value!.vehicleId.assignedDeviceId;
+          final vehicleId = activeTrip.value!.vehicleId.vehicleId;
+          
+          final incomingDeviceId = data['gpsDeviceId'];
+          final incomingVehicleId = data['vehicleId'] ?? data['vehicle_id'];
+          
+          bool isMatch = false;
+          // Match by Device ID (preferred as per logs 'simulated-tracker-2')
+          if (assignedDeviceId.isNotEmpty && incomingDeviceId == assignedDeviceId) {
+            isMatch = true;
+          }
+          // Fallback match by Vehicle ID
+          else if (vehicleId.isNotEmpty && incomingVehicleId == vehicleId) {
+            isMatch = true;
+          }
+          
+          if (isMatch && lat != null && lng != null) {
+            vehicleLocation.value = LatLng((lat as num).toDouble(), (lng as num).toDouble());
+            if (heading != null) {
+              vehicleHeading.value = (heading as num).toDouble();
+            }
+            debugPrint('🚗 Vehicle updated: ${vehicleLocation.value}, Heading: ${vehicleHeading.value}');
+          }
+        }
+      }
+    };
+  }
+
+  @override
+  void onClose() {
+    _socketIOService.disconnect();
+    super.onClose();
+  }
+
+  void zoomIn() {
+    final currentZoom = mapController.camera.zoom;
+    // Zoom towards start location if available, otherwise current center
+    final target = startLocation.value ?? mapController.camera.center;
+    _animatedMapMove(target, currentZoom + 1);
+  }
+
+  void zoomOut() {
+    final currentZoom = mapController.camera.zoom;
+    // Zoom out from start location if available, otherwise current center
+    final target = startLocation.value ?? mapController.camera.center;
+    _animatedMapMove(target, currentZoom - 1);
+  }
+
+  void _animatedMapMove(LatLng destLocation, double destZoom) {
+    // Create some variables that will be used during the animation
+    final latTween = Tween<double>(
+        begin: mapController.camera.center.latitude, end: destLocation.latitude);
+    final lngTween = Tween<double>(
+        begin: mapController.camera.center.longitude, end: destLocation.longitude);
+    final zoomTween = Tween<double>(
+        begin: mapController.camera.zoom, end: destZoom);
+
+    // Create a animation controller that has a duration and a TickerProvider
+    final controller = AnimationController(
+        duration: const Duration(milliseconds: 500), vsync: this);
+    // The animation determines what path the animation will take. You can try different Curves values, although I found
+    // fastOutSlowIn to be my favorite.
+    final Animation<double> animation =
+    CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+
+    controller.addListener(() {
+      mapController.move(
+          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+          zoomTween.evaluate(animation));
+    });
+
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      } else if (status == AnimationStatus.dismissed) {
+        controller.dispose();
+      }
+    });
+
+    controller.forward();
+  }
+
+  Future<void> loadData() async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      
+      final token = _sessionController.token.value;
+      if (token.isEmpty) {
+        error.value = 'Authentication token not found';
+        return;
+      }
+
+      // 1. Fetch Active Trip
+      final activeResponse = await _scheduledRepository.getActiveTrip(token);
+      if (!activeResponse.error && activeResponse.data != null) {
+        activeTrip.value = activeResponse.data;
+      } else {
+        activeTrip.value = null;
+      }
+
+      // 2. Fetch Scheduled Trips (if no active trip or just to have them)
+      // We always fetch scheduled trips because if active is null, we show first scheduled
+      final scheduledResponse = await _dashboardRepository.gettodayscheduletrip(token);
+      if (!scheduledResponse.error && scheduledResponse.data != null) {
+        scheduledTrips.assignAll(scheduledResponse.data!);
+      }
+
+      _updateMapData();
+
+    } catch (e) {
+      error.value = 'Failed to load data: $e';
+      debugPrint('Error loading home map data: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _updateMapData() {
+    // Priority: Active Trip -> First Scheduled Trip
+    if (activeTrip.value != null) {
+      _displayActiveTrip(activeTrip.value!);
+    } else if (scheduledTrips.isNotEmpty) {
+      _displayScheduledTrip(scheduledTrips.first);
+    } else {
+      // No trips
+      _clearMap();
+    }
+  }
+
+  void _displayActiveTrip(ActiveTrip trip) {
+    showingTripId.value = trip.tripId;
+    currentRouteName.value = trip.routeName;
+    
+    // Set stops
+    final sortedStops = List<RoutePoint>.from(trip.routePoints);
+    sortedStops.sort((a, b) => a.order.compareTo(b.order));
+    stops.assignAll(sortedStops);
+    
+    // Start/End
+    if (sortedStops.isNotEmpty) {
+      // Assuming routePoints are ordered
+      // Or use startLocation from trip if available and reliable
+      // trip.startLocation is available
+      if (trip.startLocation.latitude != 0) {
+         startLocation.value = LatLng(trip.startLocation.latitude, trip.startLocation.longitude);
+      } else {
+         final first = sortedStops.first;
+         startLocation.value = LatLng(first.latitude, first.longitude);
+      }
+      
+      // End location
+      // ActiveTrip does not have an explicit endLocation field, so we rely on the last route point.
+      final lastPoint = sortedStops.last;
+      endLocation.value = LatLng(lastPoint.latitude, lastPoint.longitude);
+    }
+
+    _fetchRoutePolyline();
+  }
+
+  void _displayScheduledTrip(ScheduledTrip trip) {
+    showingTripId.value = trip.scheduledTripId;
+    currentRouteName.value = trip.routeName;
+
+    final sortedStops = List<RoutePoint>.from(trip.routePoints);
+    sortedStops.sort((a, b) => a.order.compareTo(b.order));
+    stops.assignAll(sortedStops);
+
+    if (trip.startLocation != null) {
+      startLocation.value = LatLng(trip.startLocation!.latitude, trip.startLocation!.longitude);
+    } else if (sortedStops.isNotEmpty) {
+      final first = sortedStops.first;
+      startLocation.value = LatLng(first.latitude, first.longitude);
+    }
+
+    if (trip.endLocation != null) {
+      endLocation.value = LatLng(trip.endLocation!.latitude, trip.endLocation!.longitude);
+    } else if (sortedStops.isNotEmpty) {
+      final last = sortedStops.last;
+      endLocation.value = LatLng(last.latitude, last.longitude);
+    }
+
+    _fetchRoutePolyline();
+  }
+
+  void _clearMap() {
+    showingTripId.value = null;
+    currentRouteName.value = '';
+    stops.clear();
+    routePolyline.clear();
+    startLocation.value = null;
+    endLocation.value = null;
+  }
+
+  Future<void> _fetchRoutePolyline() async {
+    if (stops.isEmpty && startLocation.value == null && endLocation.value == null) return;
+
+    try {
+      final points = <LatLng>[];
+      
+      // Add start
+      if (startLocation.value != null) {
+        points.add(startLocation.value!);
+      }
+      
+      // Add stops
+      // Filter out stops that are 0,0 or invalid if any
+      for (var stop in stops) {
+        if (stop.latitude != 0 && stop.longitude != 0) {
+           points.add(LatLng(stop.latitude, stop.longitude));
+        }
+      }
+      
+      // Add end
+      if (endLocation.value != null) {
+        points.add(endLocation.value!);
+      }
+
+      // Remove CONSECUTIVE duplicates only to preserve order (e.g. loops)
+      final cleanPoints = <LatLng>[];
+      if (points.isNotEmpty) {
+        cleanPoints.add(points.first);
+        for (int i = 1; i < points.length; i++) {
+           final p = points[i];
+           final prev = points[i-1];
+           // Simple equality check
+           if (p.latitude != prev.latitude || p.longitude != prev.longitude) {
+             cleanPoints.add(p);
+           }
+        }
+      }
+
+      if (cleanPoints.length < 2) return;
+
+      final polyline = await _openRouteService.getRouteThrough(cleanPoints);
+      
+      // Ensure visual connection to Start/End markers
+      // OSRM returns geometry starting/ending at snapped points on the road.
+      // We prepend/append the actual marker locations to close any visual gap.
+      if (polyline.isNotEmpty) {
+         if (startLocation.value != null) {
+            final start = startLocation.value!;
+            // If the first point isn't exactly the start point, prepend it
+            if (polyline.first.latitude != start.latitude || polyline.first.longitude != start.longitude) {
+               polyline.insert(0, start);
+            }
+         }
+         
+         if (endLocation.value != null) {
+            final end = endLocation.value!;
+            // If the last point isn't exactly the end point, append it
+            if (polyline.last.latitude != end.latitude || polyline.last.longitude != end.longitude) {
+               polyline.add(end);
+            }
+         }
+      }
+
+      routePolyline.assignAll(polyline);
+      
+    } catch (e) {
+      debugPrint('Error fetching route polyline: $e');
+      // Fallback: draw straight lines between points
+      final points = <LatLng>[];
+      if (startLocation.value != null) points.add(startLocation.value!);
+      for (var stop in stops) {
+        if (stop.latitude != 0 && stop.longitude != 0) {
+           points.add(LatLng(stop.latitude, stop.longitude));
+        }
+      }
+      if (endLocation.value != null) points.add(endLocation.value!);
+      
+      routePolyline.assignAll(points);
+    } finally {
+      // Fit bounds after route is updated
+      fitMapToBounds();
+    }
+  }
+
+  Future<void> startTrip(String tripId) async {
+    isLoading.value = true;
+    try {
+      final token = _sessionController.token.value;
+      if (token.isEmpty) return;
+
+      final response = await _scheduledRepository.startScheduledTrip(
+        token: token,
+        scheduledTripId: tripId,
+      );
+
+      if (response['error'] == false) {
+        // Refresh active trip to update UI
+        final activeResponse = await _scheduledRepository.getActiveTrip(token);
+        if (!activeResponse.error && activeResponse.data != null) {
+          activeTrip.value = activeResponse.data;
+          _displayActiveTrip(activeTrip.value!);
+          
+          // Emit socket event for live tracking
+          // The vehicle_id is needed for tracking
+          // Assuming activeTrip data has it or we can get it from driver profile
+          // But start trip response also has vehicle_id
+          final startData = response['data'];
+          if (startData != null && startData['vehicle_id'] != null) {
+            _socketIOService.emitTestFrame(startData['vehicle_id']); // Just to test connection
+            // Ideally backend handles live tracking emission, 
+            // but we might need to subscribe to our own vehicle if we want to see it moving on map?
+            // Or just start location updates service.
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error starting trip: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> stopTrip(String tripId) async {
+    isLoading.value = true;
+    try {
+      final token = _sessionController.token.value;
+      if (token.isEmpty) return;
+      
+      // Using dummy location data for now as per previous implementation logic
+      // In a real scenario, we'd get current location
+      final payload = {
+        'end_location': {
+          'latitude': 0.0,
+          'longitude': 0.0,
+          'address': 'Ended from Map'
+        },
+        'distance_traveled': 0.0
+      };
+
+      final response = await _scheduledRepository.endTrip(
+        token: token,
+        tripId: tripId,
+        body: payload
+      );
+
+      if (response['error'] == false) {
+        activeTrip.value = null;
+        // Refresh to show scheduled trips again
+        final scheduledResponse = await _dashboardRepository.gettodayscheduletrip(token);
+        if (!scheduledResponse.error && scheduledResponse.data != null) {
+          scheduledTrips.assignAll(scheduledResponse.data!);
+          if (scheduledTrips.isNotEmpty) {
+             _displayScheduledTrip(scheduledTrips.first);
+          } else {
+            _clearMap();
+          }
+        } else {
+          _clearMap();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error stopping trip: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void fitMapToBounds() {
+    // Collect all relevant points
+    final points = <LatLng>[];
+    if (startLocation.value != null) points.add(startLocation.value!);
+    if (endLocation.value != null) points.add(endLocation.value!);
+    for (var stop in stops) {
+       points.add(LatLng(stop.latitude, stop.longitude));
+    }
+    // Also include polyline points if available for better fit
+    if (routePolyline.isNotEmpty) {
+      points.addAll(routePolyline);
+    }
+
+    if (points.isEmpty) return;
+
+    try {
+      final bounds = LatLngBounds.fromPoints(points);
+      
+      // Animate camera to fit bounds
+      // We can't determine perfect zoom level without map dimensions, 
+      // but flutter_map's CameraFit handles this if map is laid out.
+      // Since we want animation, we might need to rely on mapController.fitCamera 
+      
+      // Wait, if map is not ready, this throws.
+      // We should wrap in a slight delay or check if map is ready.
+       Future.delayed(const Duration(milliseconds: 500), () {
+        try {
+           mapController.fitCamera(
+            CameraFit.bounds(
+              bounds: bounds,
+              padding: const EdgeInsets.all(50),
+            ),
+          );
+        } catch (_) {}
+      });
+
+    } catch (e) {
+      debugPrint('Error fitting map to bounds: $e');
+    }
+  }
+}
