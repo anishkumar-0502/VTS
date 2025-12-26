@@ -271,6 +271,21 @@ const sendTripLiveUpdateNotification = async (parentFcmTokens, studentName, trip
     const title = `Live Trip Update - ${studentName}`;
     const body = `Bus is en route. Current location: ${tripData.currentLocation?.address || 'On route'}`;
     
+    const routePointsData = Array.isArray(tripData.route_points) 
+      ? tripData.route_points.map(point => ({
+          stop_id: point.stop_id || '',
+          name: point.name || '',
+          latitude: point.latitude || 0,
+          longitude: point.longitude || 0,
+          landmark: point.landmark || '',
+          approximate_reach_time: point.approximate_reach_time || '',
+          geofence_radius_meters: point.geofence_radius_meters || 100,
+          stop_status: point.stop_status || null,
+          sequence: point.sequence || 0,
+          order: point.order || 0
+        }))
+      : [];
+    
     const data = {
       type: 'trip_live_update',
       studentName,
@@ -280,6 +295,7 @@ const sendTripLiveUpdateNotification = async (parentFcmTokens, studentName, trip
       vehicleNumber: tripData.vehicleNumber || 'N/A',
       distanceToNextStop: tripData.distanceToNextStop?.toString() || 'N/A',
       eta: tripData.eta || 'N/A',
+      route_points: JSON.stringify(routePointsData),
       timestamp: now.toISOString()
     };
 
