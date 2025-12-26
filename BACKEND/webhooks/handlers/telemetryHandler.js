@@ -222,6 +222,39 @@ class TelemetryHandler {
     }
   }
 
+  static async updateRoutePointStatus(scheduledTrip, latitude, longitude) {
+    try {
+      if (!scheduledTrip || !Array.isArray(scheduledTrip.route_points)) {
+        return;
+      }
+
+      const updates = [];
+      for (const point of scheduledTrip.route_points) {
+        if (!point.latitude || !point.longitude) continue;
+        if (point.stop_status === 'reached') continue;
+
+        const distance = calculateDistance(latitude, longitude, point.latitude, point.longitude);
+        const geofenceRadius = point.geofence_radius_meters || 100;
+
+        if (distance <= geofenceRadius && point.stop_status !== 'reached') {
+          updates.push({
+            updateOne: {
+              filter: { scheduled_trip_id: scheduledTrip.scheduled_trip_id, 'route_points.stop_id': point.stop_id },
+              update: { $set: { 'route_points.$.stop_status': 'reached' } }
+            }
+          });
+        }
+      }
+
+      if (updates.length > 0) {
+        await ScheduledTrip.bulkWrite(updates);
+        logger.loggerInfo(`Updated ${updates.length} route points to 'reached' status for trip ${scheduledTrip.scheduled_trip_id}`);
+      }
+    } catch (error) {
+      logger.loggerError(`Error updating route point status: ${error.message}`);
+    }
+  }
+
   static async ensureDevice(trackerId, payload = {}) {
     let device = await Device.findOne({
       $or: [
@@ -315,8 +348,7 @@ class TelemetryHandler {
           is_active: true,
           status: { $in: ['pending', 'in-progress'] }
         })
-        .select('scheduled_trip_id route_name start_location end_location route_points scheduled_start_time trip_period')
-        .lean();
+        .select('scheduled_trip_id route_name start_location end_location route_points scheduled_start_time trip_period');
 
         if (scheduledTrip) {
           routeData = {
@@ -328,6 +360,9 @@ class TelemetryHandler {
             scheduled_start_time: scheduledTrip.scheduled_start_time,
             trip_period: scheduledTrip.trip_period
           };
+
+          TelemetryHandler.updateRoutePointStatus(scheduledTrip, latitude, longitude)
+            .catch(err => logger.loggerError(`Failed to update route point status: ${err.message}`));
         }
       }
       const trackingRecord = await TrackingData.create({

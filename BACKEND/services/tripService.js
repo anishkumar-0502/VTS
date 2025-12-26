@@ -101,6 +101,10 @@ const normalizeRoutePointsPayload = (routePoints) => {
           ? normalized.delay_seconds
           : 0;
       normalized.arrival_notified = typeof normalized.arrival_notified === 'boolean' ? normalized.arrival_notified : false;
+      normalized.landmark = typeof normalized.landmark === 'string' ? normalized.landmark : null;
+      normalized.approximate_reach_time = typeof normalized.approximate_reach_time === 'string' ? normalized.approximate_reach_time : null;
+      const validStopStatusValues = ['pending', 'approaching', 'reached', 'departed', 'skipped', 'delayed'];
+      normalized.stop_status = validStopStatusValues.includes(normalized.stop_status) ? normalized.stop_status : null;
       if (normalized.latitude !== undefined && normalized.latitude !== null) {
         const parsedLatitude = Number(normalized.latitude);
         normalized.latitude = Number.isFinite(parsedLatitude) ? parsedLatitude : null;
