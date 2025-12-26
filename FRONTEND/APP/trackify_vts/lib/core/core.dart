@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 
 class trackify_vts {
   // Base URLs for environments
-  static const String prodBaseUrl = 'http://10.160.169.163:8080'; // Release
-  static const String devBaseUrl = 'http://10.160.169.163:8080'; // Development
-  static const String testingBaseUrl = 'http://10.160.169.163:8080'; // Testing
+  static const String prodBaseUrl = 'http://172.235.29.67:8787'; // Release
+  static const String devBaseUrl = 'http://172.235.29.67:8787'; // Development
+  static const String testingBaseUrl = 'http://172.235.29.67:8787'; // Testing
 
   // Socket URLs
-  static const String prodSocketUrl = 'http://10.160.169.163:8080';
-  static const String devSocketUrl = 'http://10.160.169.163:8080';
-  static const String testingSocketUrl = 'http://10.160.169.163:8080';
+  static const String prodSocketUrl = 'http://172.235.29.67:8787';
+  static const String devSocketUrl = 'http://172.235.29.67:8787';
+  static const String testingSocketUrl = 'http://172.235.29.67:8787';
 
   // Dynamic URLs based on environment
   static final String baseUrl = _getBaseUrl();

@@ -347,8 +347,10 @@ class DriverProfilePage extends GetView<DriverProfileController> {
         children: [
           // _buildInfoRow('Role', data.roleName),
           const SizedBox(height: 12),
-          _buildInfoRow('License Number', data.licenseNumber),
-          const SizedBox(height: 12),
+          if (data.licenseNumber.isNotEmpty) ...[
+            _buildInfoRow('License Number', data.licenseNumber),
+            const SizedBox(height: 12),
+          ],
           _buildInfoRow('Phone', data.phoneNumber.toString()),
           const SizedBox(height: 12),
           _buildInfoRow(
@@ -517,83 +519,145 @@ class DriverProfilePage extends GetView<DriverProfileController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        children: List.generate(settings.length, (index) {
-          final setting = settings[index];
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: ListTile(
-              leading: Icon(
-                setting['icon'] as IconData,
-                color: Colors.grey[600],
+        children: [
+          ...List.generate(settings.length, (index) {
+            final setting = settings[index];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
-              title: Text(
-                setting['title'] as String,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+              child: ListTile(
+                leading: Icon(
+                  setting['icon'] as IconData,
+                  color: Colors.grey[600],
                 ),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () {
-                switch (index) {
-                  case 0:
-                    Get.to(() => PersonalDetailsPage(data: data),transition: Transition.rightToLeft,   // Slide animation
-                      duration: const Duration(milliseconds: 350),  // Smooth speed
-                      curve: Curves.easeInOut, );
-                    break;
-                  case 1:
-                    _showChangePasswordDialog(context);
-                    break;
-                  case 2:
-                    Get.to(
-                      () => AssociatedOperatorsPage(
-                        operators: data.associatedOperators,
-
-                      ),
-                      transition: Transition.leftToRight,   // Slide animation
-                      duration: const Duration(milliseconds: 350),  // Smooth speed
-                      curve: Curves.easeInOut,
-                    );
-                    break;
-                  case 3:
-                    Get.to(
-                      () => AssignedVehiclePage(vehicle: data.assignedVehicle),
-                      transition: Transition.rightToLeft,   // Slide animation
-                      duration: const Duration(milliseconds: 350),  // Smooth speed
-                      curve: Curves.easeInOut,
-                    );
-                    break;
-                  case 4:
-                    if (data.driverProfile != null) {
+                title: Text(
+                  setting['title'] as String,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  switch (index) {
+                    case 0:
                       Get.to(
-                        () => DriverProfileDetailsPage(
-                          driverProfile: data.driverProfile!,
+                        () => PersonalDetailsPage(data: data),
+                        transition: Transition.rightToLeft, // Slide animation
+                        duration: const Duration(
+                          milliseconds: 350,
+                        ), // Smooth speed
+                        curve: Curves.easeInOut,
+                      );
+                      break;
+                    case 1:
+                      _showChangePasswordDialog(context);
+                      break;
+                    case 2:
+                      Get.to(
+                        () => AssociatedOperatorsPage(
+                          operators: data.associatedOperators,
                         ),
+                        transition: Transition.leftToRight, // Slide animation
+                        duration: const Duration(
+                          milliseconds: 350,
+                        ), // Smooth speed
+                        curve: Curves.easeInOut,
                       );
-                    } else {
-                      showStatusBanner(
-                        'Driver profile not available',
-                        Colors.redAccent,
-                        Icons.error_outline,
+                      break;
+                    case 3:
+                      Get.to(
+                        () => AssignedVehiclePage(
+                          vehicle: data.assignedVehicle,
+                        ),
+                        transition: Transition.rightToLeft, // Slide animation
+                        duration: const Duration(
+                          milliseconds: 350,
+                        ), // Smooth speed
+                        curve: Curves.easeInOut,
                       );
-                    }
-                    break;
-                }
-              },
+                      break;
+                    case 4:
+                      if (data.driverProfile != null) {
+                        Get.to(
+                          () => DriverProfileDetailsPage(
+                            driverProfile: data.driverProfile!,
+                          ),
+                        );
+                      } else {
+                        showStatusBanner(
+                          'Driver profile not available',
+                          Colors.redAccent,
+                          Icons.error_outline,
+                        );
+                      }
+                      break;
+                  }
+                },
+              ),
+            );
+          }),
+          const SizedBox(height: 5),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade100),
             ),
-          );
-        }),
+            child: TextButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder:
+                      (context) => AlertDialog(
+                        title: const Text('Logout'),
+                        content: const Text('Are you sure you want to logout?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              controller.logout();
+                            },
+                            child: const Text(
+                              'Logout',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                );
+              },
+              icon: Icon(Icons.logout, color: Colors.red.shade600),
+              label: Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.red.shade600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }

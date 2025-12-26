@@ -38,7 +38,6 @@ class _DriverHomePageState extends State<DriverHomePage> {
       builder: (context, constraints) {
         final bool isWide = constraints.maxWidth >= 900;
         return Obx(() {
-          final bool tripActive = controller.tripActive.value;
           final bool isOffline = controller.isOffline.value;
           final vehicleNumber = profileController.driverDetails['vehicleNumber'] ?? '';
           final hasVehicle =
@@ -360,14 +359,6 @@ class _DriverHomePageState extends State<DriverHomePage> {
               ),
             ),
             body: scaffoldBody,
-            // floatingActionButton: FloatingActionButton.extended(
-            //   onPressed: controller.toggleTrip,
-            //   backgroundColor: tripActive ? Colors.redAccent : primaryColor,
-            //   icon: Icon(
-            //     tripActive ? Icons.stop_circle : Icons.play_arrow_rounded,
-            //   ),
-            //   label: Text(tripActive ? 'End trip' : 'Start trip'),
-            // ),
           );
         });
       },

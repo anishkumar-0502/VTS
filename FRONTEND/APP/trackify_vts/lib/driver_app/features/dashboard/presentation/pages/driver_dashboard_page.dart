@@ -15,6 +15,8 @@ import 'trip_details_page.dart';
 import 'live_tracking_map_page.dart';
 import 'package:trackify_vts/services/open_route_service.dart';
 import 'package:trackify_vts/core/core.dart';
+import 'package:geocoding/geocoding.dart';
+import 'trip_location_display.dart';
 
 String _getInitials(String name) {
   final parts = name.trim().split(' ');
@@ -273,11 +275,15 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                       ), // optional smooth speed
                                     );
                                   },
-                                  child: Image.asset(
-                                    'assets/icons/fast-forward.png',
-                                    width: 15,
-                                    height: 15,
-                                    color: Colors.black, // optional tint color
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Image.asset(
+                                      'assets/icons/fast-forward.png',
+                                      width: 15,
+                                      height: 15,
+                                      color: Colors.black, // optional tint color
+                                    ),
                                   ),
                                 ),
                               ],
@@ -745,85 +751,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     );
     final stops = _extractStops(activeRoutePoints);
     final hasCoordinates = coordinates.isNotEmpty;
-
-    Widget infoChip(IconData icon, String text) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.95)),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    Widget summaryTile(String title, String value, IconData icon) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  color: Colors.white.withValues(alpha: 0.9),
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              value.isNotEmpty ? value : 'Not available',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return GestureDetector(
       onTap: () => _handleActiveTripTap(context, trip, primaryColor),
       child: Container(
@@ -897,7 +824,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 15),
 
             // --- HEADER ROW 2: LIVE BADGE + STATUS BADGE ---
             Row(
@@ -924,7 +851,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // --- MAP SECTION ---
             ClipRRect(
@@ -961,60 +888,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
 
-            // --- INFO CHIPS ---
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                infoChip(
-                  Icons.schedule,
-                  startLabel.isNotEmpty
-                      ? 'Started $startLabel'
-                      : 'Start time pending',
-                ),
-                infoChip(Icons.location_on, stopLabel),
-                infoChip(Icons.speed, speedLimitLabel),
-                if (trip.speedAlarmEnabled)
-                  infoChip(Icons.notifications_active, 'Speed alerts on'),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // --- SUMMARY SECTION ---
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 420;
-                final startLocationTile = summaryTile(
-                  'Start location',
-                  startAddress,
-                  Icons.near_me,
-                );
-                final vehicleTile = summaryTile(
-                  'Vehicle',
-                  vehicleNumber,
-                  Icons.directions_bus,
-                );
-                if (isWide) {
-                  return Row(
-                    children: [
-                      Expanded(child: startLocationTile),
-                      const SizedBox(width: 16),
-                      Expanded(child: vehicleTile),
-                    ],
-                  );
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    startLocationTile,
-                    const SizedBox(height: 12),
-                    vehicleTile,
-                  ],
-                );
-              },
-            ),
 
 
           ],
@@ -1197,7 +1071,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Tap to manage trip and view manifest',
+                    'Tap to manage trip and view ',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.7),
                       fontSize: 12,
@@ -1493,12 +1367,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
           : trip.createdAt?.toIso8601String() ?? '',
     );
     final statusColor = _statusColor(trip.status, primaryColor);
-    final locations =
-    [
-      startLocation,
-      endLocation,
-    ].where((value) => value.isNotEmpty).toList();
-    final locationLabel = locations.isEmpty ? '' : locations.join(' → ');
+
     final timeLabel = startLabel.isNotEmpty ? startLabel : 'Time unavailable';
 
     return InkWell(
@@ -1565,28 +1434,8 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 ),
               ],
             ),
-            if (locationLabel.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.route, size: 16, color: primaryColor),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      locationLabel,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade700,
-                        height: 1.4,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            const SizedBox(height: 6),
+            TripLocationDisplay(trip: trip, primaryColor: primaryColor),
           ],
         ),
       ),
@@ -1989,7 +1838,9 @@ class _TripHistoryDetailsPage extends StatelessWidget {
     final speedLimitLabel =
     trip.speedLimit > 0 ? '${trip.speedLimit} km/h' : 'Not set';
     final speedAlarmLabel = trip.speedAlarmEnabled ? 'Enabled' : 'Disabled';
-    final waypoints = trip.routePoints;
+    final waypoints = trip.routePoints.isNotEmpty
+        ? trip.routePoints
+        : (trip.vehicleId?.routePoints ?? []);
     final previewPoints =
     waypoints
         .where((point) => point.latitude != 0 || point.longitude != 0)
@@ -2110,88 +1961,11 @@ class _TripHistoryDetailsPage extends StatelessWidget {
             ],
             const SizedBox(height: 24),
             _buildInfoRow(Icons.directions_bus, 'Vehicle number', vehicleNumber),
-            if (scheduleId.isNotEmpty)
-            // _buildInfoRow(
-            //   Icons.assignment,
-            //   'Scheduled trip ID',
-            //   scheduleId,
-            // ),
-            // _buildInfoRow(Icons.person, 'Driver ID', trip.driverId),
-            // _buildInfoRow(Icons.badge, 'Operator ID', trip.operatorId),
-              _buildInfoRow(Icons.place, 'Start location', startLocation),
+            _buildInfoRow(Icons.place, 'Start location', startLocation),
+
             _buildInfoRow(Icons.flag, 'End location', endLocation),
-            if (updatedLabel.isNotEmpty)
-              _buildInfoRow(Icons.update, 'Last updated', updatedLabel),
-            if (createdLabel.isNotEmpty)
-              _buildInfoRow(Icons.calendar_today, 'Created on', createdLabel),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInsightCard(
-                    statusColor,
-                    'Speed limit',
-                    speedLimitLabel,
-                    'Alerts $speedAlarmLabel',
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Expanded(
-                //   child: _buildSummaryCard(
-                //     '$stopsCount stops · $passengersCount passengers',
-                //     '$violationsCount speed alerts · $deviationsCount deviations',
-                //   ),
-                // ),
-              ],
-            ),
-            // if (analyticsData != null) ...[
-            //   const SizedBox(height: 16),
-            //   Container(
-            //     padding: const EdgeInsets.all(16),
-            //     decoration: BoxDecoration(
-            //       color: Colors.grey.shade100,
-            //       borderRadius: BorderRadius.circular(18),
-            //     ),
-            //     child: Row(
-            //       children: [
-            //         _buildAnalyticsMetric(
-            //           Icons.speed,
-            //           'Speed alerts',
-            //           analyticsData.speedViolationsCount.toString(),
-            //         ),
-            //         const SizedBox(width: 16),
-            //         _buildAnalyticsMetric(
-            //           Icons.alt_route,
-            //           'Route deviations',
-            //           analyticsData.routeDeviationsCount.toString(),
-            //         ),
-            //       ],
-            //     ),
-            //   ),
-            //   const SizedBox(height: 12),
-            //   Container(
-            //     padding: const EdgeInsets.all(16),
-            //     decoration: BoxDecoration(
-            //       color: Colors.grey.shade100,
-            //       borderRadius: BorderRadius.circular(18),
-            //     ),
-            //     child: Row(
-            //       children: [
-            //         _buildAnalyticsMetric(
-            //           Icons.pin_drop,
-            //           'Total stops',
-            //           analyticsData.totalStops.toString(),
-            //         ),
-            //         const SizedBox(width: 16),
-            //         _buildAnalyticsMetric(
-            //           Icons.timeline,
-            //           'Tracking points',
-            //           analyticsData.trackingPoints.toString(),
-            //         ),
-            //       ],
-            //     ),
-            //   ),
-            // ],
+
+
             if (hasRoutePreview) ...[
               const SizedBox(height: 24),
               Text(
@@ -2227,7 +2001,7 @@ class _TripHistoryDetailsPage extends StatelessWidget {
             if (waypoints.isNotEmpty) ...[
               const SizedBox(height: 24),
               Text(
-                'Route path',
+                'Route Stops',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -2283,8 +2057,9 @@ class _TripHistoryDetailsPage extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}',
+                                SinglePointLocationDisplay(
+                                  latitude: point.latitude,
+                                  longitude: point.longitude,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey.shade600,
