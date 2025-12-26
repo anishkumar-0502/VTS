@@ -38,7 +38,7 @@ import DeviceManagement from "./pages/Management/DeviceManagement";
 import AssignDeviceToVehicle from "./pages/Management/AssignDevicetoVehicle";
 import AssignDriverToVehicle from "./pages/Management/AssignDrivertoVehicle";
 import ManageAllUsers from "./pages/Management/ManageAllUsers";
-import ManageEndUser from "./pages/Management/ManageEndUser";
+import ManageEndUser from "./pages/Management/ManageUser";
 import ManageTrips from "./pages/Management/ManageTrips";
 export default function App() {
   return (
@@ -121,16 +121,16 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
+            {/* <Route
   path="/manage-all-users"
   element={
     <ProtectedRoute permission="manage_users">
       <ManageAllUsers />
     </ProtectedRoute>
   }
-/>
+/> */}
 <Route
-  path="/manage-end-users"
+  path="/manage-users"
   element={
     <ProtectedRoute permission="manage_users">
       <ManageEndUser />

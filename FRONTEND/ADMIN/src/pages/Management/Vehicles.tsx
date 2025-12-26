@@ -163,6 +163,7 @@ const [limit] = useState(10);
 const [hasMoreDrivers, setHasMoreDrivers] = useState(true);
 const [hasMoreUsers, setHasMoreUsers] = useState(true);
 const [hasMoreDevices, setHasMoreDevices] = useState(true);
+const [formStep, setFormStep] = useState(1);
 
 
 
@@ -196,6 +197,7 @@ const [hasMoreDevices, setHasMoreDevices] = useState(true);
 };
 
 
+
   // Toggle icons for activate/deactivate
 const DeactivateIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -210,6 +212,27 @@ const ActivateIcon = () => (
     <circle cx="6" cy="12" r="5" fill="#ffffff" />
   </svg>
 );
+
+  const EyeIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M2 12C4.5 7 8 5 12 5s7.5 2 10 7c-2.5 5-6 7-10 7s-7.5-2-10-7Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+
+  const EditIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
 
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
   const [standingLocation, setStandingLocation] = useState<StandingLocation | null>(null);
@@ -354,21 +377,43 @@ const fetchDevices = async (reset = false) => {
 
   // ---------- Map Handlers ----------
   const defaultCenter: LatLngExpression = [28.6139, 77.209]; // New Delhi
+function StandingMapHandler() {
+  useMapEvents({
+    async click(e) {
+      const darkMode = document.documentElement.classList.contains("dark");
 
-  function StandingMapHandler() {
-    useMapEvents({
-      click(e) {
-        const name = prompt("Standing location name:", "Depot A") || "Depot A";
-        setStandingLocation({
-          name,
-          latitude: e.latlng.lat,
-          longitude: e.latlng.lng,
-          landmark: "",
-        });
-      },
-    });
-    return null;
-  }
+      const { value: locationName } = await Swal.fire({
+        title: "Standing Location",
+        input: "text",
+        inputPlaceholder: "Enter location name (e.g. Depot A)",
+        confirmButtonText: "Set Location",
+        showCancelButton: true,
+        background: darkMode ? "#020617" : "#ffffff",
+        color: darkMode ? "#e5e7eb" : "#111827",
+        confirmButtonColor: "#4f46e5",
+        customClass: {
+          popup: "rounded-xl shadow-lg",
+        },
+        inputValidator: (value) => {
+          if (!value) return "Location name is required";
+          return null;
+        },
+      });
+
+      if (!locationName) return;
+
+      setStandingLocation({
+        name: locationName,
+        latitude: e.latlng.lat,
+        longitude: e.latlng.lng,
+        landmark: "",
+      });
+    },
+  });
+
+  return null;
+}
+
 
   // ---------- Form ----------
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -387,55 +432,67 @@ const fetchDevices = async (reset = false) => {
     popupAnchor: [0, -30],
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
 
-    if (!form.vehicle_number.trim()) {
-      // Swal.fire("Warning", "Vehicle number is required", "warning");
-      showSuccess("Vehicle number is required");
-      return;
-    }
-    if (!standingLocation) {
-      // Swal.fire("Warning", "Please set standing location", "warning");
-      showSuccess("Please set standing location");
-      return;
-    }
+  if (formStep !== 3) {
+    console.warn("Submit blocked — not on step 3");
+    return;
+  }
 
-    const payload = {
-      ...form,
-      route_points: routePoints.map((p) => ({
-        name: p.name,
-        landmark: p.landmark || "—",
-        latitude: p.latitude,
-        longitude: p.longitude,
-        order: p.order,
-        arrival_time: p.arrival_time,
-      })),
-      standing_location: standingLocation,
-    };
+  if (!standingLocation) {
+    Swal.fire("Warning", "Please set standing location", "warning");
+    return;
+  }
 
-    try {
-      const url = editingVehicle
-        ? `${API_BASE_URL}/operator/vehicles/${editingVehicle.vehicle_id}/update`
-        : `${API_BASE_URL}/operator/vehicles/create`;
-      const method = editingVehicle ? "PUT" : "POST";
-
-      const res = await authFetch(url, { method, body: JSON.stringify(payload) });
-      const data = await res.json();
-
-      if (!data.error) {
-        // Swal.fire("Success", data.message || "Vehicle saved successfully", "success");
-        showSuccess("Vehicle saved successfully");
-        resetForm();
-        setShowForm(false);
-        fetchVehicles();
-      } else {
-        Swal.fire("Error", data.message || "Failed to save vehicle", "error");
-      }
-    } catch {
-      Swal.fire("Error", "Something went wrong", "error");
-    }
+  const payload = {
+    ...form,
+    route_points: routePoints.map((p) => ({
+      name: p.name,
+      landmark: p.landmark || "—",
+      latitude: p.latitude,
+      longitude: p.longitude,
+      order: p.order,
+      arrival_time: p.arrival_time,
+    })),
+    standing_location: standingLocation,
   };
+
+  try {
+    const url = editingVehicle
+      ? `${API_BASE_URL}/operator/vehicles/${editingVehicle.vehicle_id}/update`
+      : `${API_BASE_URL}/operator/vehicles/create`;
+
+    const method = editingVehicle ? "PUT" : "POST";
+
+    const res = await authFetch(url, {
+      method,
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!data.error) {
+      showSuccess(
+        editingVehicle
+          ? "Vehicle updated successfully"
+          : "Vehicle created successfully"
+      );
+
+      resetForm();
+      setFormStep(1);
+      setShowForm(false);
+      fetchVehicles(true);
+    } else {
+      Swal.fire("Error", data.message || "Failed to save vehicle", "error");
+    }
+  } catch {
+    Swal.fire("Error", "Something went wrong", "error");
+  }
+};
+
+
 
 const resetForm = () => {
 setForm({
@@ -586,76 +643,144 @@ const handleView = async (v: Vehicle) => {
         : `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:6px; font-size:11px; font-weight:600;">Inactive</span>`;
 
       // 🔹 SweetAlert popup with dark/light theme
-      Swal.fire({
-        showCloseButton: true,
-        showConfirmButton: false,
-        width: 520,
-        background: darkMode ? "#1f2937" : "#ffffff",
-        color: darkMode ? "#e5e7eb" : "#111827",
-        html: `
-          <div style="text-align:left; font-size:13px; line-height:1.5; color:${darkMode ? '#e5e7eb' : '#111827'};">
+   Swal.fire({
+  showCloseButton: false,
+  showConfirmButton: false,
+  width: 520,
+  padding: "0",
+  background: "transparent",
+  html: `
+  <div style="
+    border-radius:22px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 22px 60px rgba(0,0,0,.35);
+  ">
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:20px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
+    ">
 
-            <!-- Header -->
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
-              <div style="
-                width:45px; height:45px; border-radius:50%;
-                background:#4f46e533; display:flex; align-items:center; justify-content:center;
-                font-size:18px; font-weight:700; color:#4f46e5;">
-                ${d.vehicle_number.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div style="font-size:16px; font-weight:700; color:${darkMode ? '#e5e7eb' : '#111827'};">${d.vehicle_number}</div>
-                <div style="font-size:12px; color:${darkMode ? '#9ca3af' : '#6b7280'};">Vehicle Details</div>
-              </div>
-            </div>
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(520px at top left, rgba(99,102,241,.14), transparent 40%),
+          radial-gradient(420px at bottom right, rgba(34,211,238,.10), transparent 45%);
+      "></div>
 
-            <!-- Vehicle info -->
-            <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; margin-bottom:8px;">
-              <div><b>Type:</b> ${d.vehicle_type}</div>
-              <div><b>Status:</b> ${statusBadge}</div>
-              <div><b>Color:</b> ${d.color || "—"}</div>
-              <div><b>Capacity:</b> ${d.capacity || "—"}</div>
-              <div><b>Seating:</b> ${d.seating_capacity || "—"}</div>
-              <div><b>Reg. No:</b> ${d.registration_number || "—"}</div>
-              <div><b>Chassis:</b> ${d.chassis_number || "—"}</div>
-              <div><b>Speed:</b> ${d.speed?.toFixed(2) || 0} km/h</div>
-            </div>
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:16px 18px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:12px;
+      ">
+        <div style="
+          width:46px;height:46px;border-radius:14px;
+          background:rgba(255,255,255,.22);
+          display:flex;align-items:center;justify-content:center;
+          font-size:20px;font-weight:800;color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${d.vehicle_number.charAt(0).toUpperCase()}
+        </div>
 
-            <hr style="border:none; border-top:1px solid ${darkMode ? '#374151' : '#e5e7eb'}; margin:8px 0;" />
-
-            <!-- Driver + Standing Location -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-              <div>
-                <b>Driver Details:</b><br/>
-                ${driver}
-              </div>
-              <div>
-                <b>Standing Location:</b><br/>
-                ${stand}
-              </div>
-            </div>
-
-            <hr style="border:none; border-top:1px solid ${darkMode ? '#374151' : '#e5e7eb'}; margin:8px 0;" />
-
-
-            <hr style="border:none; border-top:1px solid ${darkMode ? '#374151' : '#e5e7eb'}; margin:8px 0;" />
-
-            <!-- Passengers -->
-            <b>Passengers:</b>
-            <table style="width:100%; border-collapse:collapse; margin-top:4px; font-size:12px;">
-              <thead>
-                <tr style="border-bottom:1px solid ${darkMode ? '#374151' : '#e5e7eb'};">
-                  <th align="left">#</th>
-                  <th align="left">Name</th>
-                  <th align="left">Pickup → Dropoff</th>
-                </tr>
-              </thead>
-              <tbody>${endUsers}</tbody>
-            </table>
+        <div>
+          <div style="font-size:17px;font-weight:700;color:white">
+            ${d.vehicle_number}
           </div>
-        `,
-        customClass: { popup: "rounded-xl shadow-lg !p-4" },
-      });
+          <div style="font-size:12px;color:rgba(255,255,255,.85)">
+            Vehicle
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTENT -->
+      <div style="position:relative;padding:18px;font-size:13px;color:${darkMode ? "#e5e7eb" : "#111827"}">
+
+        <!-- BASIC INFO -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><b>Type:</b> ${d.vehicle_type}</div>
+          <div><b>Status:</b> ${statusBadge}</div>
+          <div><b>Color:</b> ${d.color || "—"}</div>
+          <div><b>Capacity:</b> ${d.capacity || "—"}</div>
+          <div><b>Seating:</b> ${d.seating_capacity || "—"}</div>
+          <div><b>Reg. No:</b> ${d.registration_number || "—"}</div>
+          <div><b>Chassis:</b> ${d.chassis_number || "—"}</div>
+          <div><b>Speed:</b> ${d.speed?.toFixed(2) || 0} km/h</div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};margin:14px 0"/>
+
+        <!-- DRIVER + STANDING -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <b>Driver Details</b><br/>
+            ${driver}
+          </div>
+          <div>
+            <b>Standing Location</b><br/>
+            ${stand}
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};margin:14px 0"/>
+
+        <!-- PASSENGERS -->
+        <b>Passengers</b>
+        <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:12px">
+          <thead>
+            <tr style="border-bottom:1px solid ${darkMode ? "#374151" : "#e5e7eb"}">
+              <th align="left">#</th>
+              <th align="left">Name</th>
+              <th align="left">Pickup → Dropoff</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${endUsers}
+          </tbody>
+        </table>
+
+      </div>
+
+      <!-- ACTION -->
+      <div style="
+        display:flex;
+        justify-content:flex-end;
+        padding:14px 18px;
+        border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};
+      ">
+        <button id="closeVehicleBtn" style="
+          background:${darkMode ? "#374151" : "#e5e7eb"};
+          color:${darkMode ? "#e5e7eb" : "#111827"};
+          border:none;
+          border-radius:8px;
+          padding:6px 14px;
+          font-size:13px;
+          cursor:pointer;
+        ">Close</button>
+      </div>
+
+    </div>
+  </div>
+  `,
+  customClass: { popup: "shadow-none" },
+  didOpen: () => {
+    document
+      .getElementById("closeVehicleBtn")
+      ?.addEventListener("click", () => Swal.close());
+  },
+});
+
     } else {
       Swal.fire("Error", data.message || "Failed to load details", "error");
     }
@@ -683,37 +808,26 @@ const handleView = async (v: Vehicle) => {
     return null;
   };
 
-  const handleLocateMe = () => {
-    if (!navigator.geolocation) {
-      // Swal.fire("Error", "Geolocation is not supported by your browser", "error");
-      showSuccess("Geolocation is not supported by your browser");
-      return;
-    }
+const handleLocateMe = () => {
+  if (!navigator.geolocation) {
+    showSuccess("Geolocation is not supported by your browser");
+    return;
+  }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        Swal.close();
-        const { latitude, longitude } = position.coords;
-        const latlng: LatLngExpression = [latitude, longitude];
-        setCurrentLocation(latlng);
-
-        // ✅ set as standing location also (quietly)
-        setStandingLocation({
-          name: "Standing Location",
-          latitude,
-          longitude,
-          landmark: "",
-        });
-      },
-      (error) => {
-        Swal.close();
-        // Swal.fire("Error", "Unable to retrieve your location", "error");
-        showSuccess("Unable to retrieve your location");
-        console.error("Geolocation error:", error);
-      },
-      { enableHighAccuracy: true }
-    );
-  };
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      Swal.close();
+      const { latitude, longitude } = position.coords;
+      setCurrentLocation([latitude, longitude]); // ✅ ONLY this
+    },
+    (error) => {
+      Swal.close();
+      showSuccess("Unable to retrieve your location");
+      console.error("Geolocation error:", error);
+    },
+    { enableHighAccuracy: true }
+  );
+};
 
   const FlyToLocation = ({ location }: { location: LatLngExpression | null }) => {
     const map = useMap();
@@ -721,7 +835,7 @@ const handleView = async (v: Vehicle) => {
     useEffect(() => {
       if (location) {
         // 🏢 Zoom in close enough to see buildings (~18)
-        map.flyTo(location, 18, { animate: true, duration: 2 });
+        map.flyTo(location, 14, { animate: true, duration: 1.4 });
 
         // 🧭 Optional: Add a temporary popup showing “You are here”
         const popup = L.popup().setLatLng(location).setContent("<b>You are here!</b>").openOn(map);
@@ -764,81 +878,136 @@ const handleViewDevice = async (deviceId: string, vehicle?: Vehicle) => {
         </div>
       `;
 
-      Swal.fire({
-        showCloseButton: true,
-        showConfirmButton: false,
-        width: 480,
-        background: darkMode ? "#1f2937" : "#ffffff",
-        html: `
-          <div style="text-align:left;">
+    Swal.fire({
+  showCloseButton: true,
+  showConfirmButton: false,
+  width: 600,
+  padding: "0",
+  background: "transparent",
+  html: `
+  <!-- GRADIENT BORDER -->
+  <div style="
+    border-radius:26px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
 
-            <!-- Header -->
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-              <div style="
-                width:45px; height:45px; border-radius:50%;
-                background:#4f46e533; display:flex; align-items:center; justify-content:center;
-                font-size:18px; font-weight:700; color:#4f46e5;">
-                ${d.device_id.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div style="font-size:16px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
-                  ${d.device_id}
-                </div>
-                <div style="font-size:12px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
-                  Device Details
-                </div>
-              </div>
-            </div>
+    <!-- INNER CARD -->
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:24px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
+    ">
 
-            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(600px at top left, rgba(99,102,241,.15), transparent 40%),
+          radial-gradient(500px at bottom right, rgba(34,211,238,.12), transparent 45%);
+      "></div>
 
-            <!-- Device Info -->
-            ${infoRow("IMEI", d.imei)}
-            ${infoRow("Type", d.device_type)}
-            ${infoRow("Firmware", d.firmware_version)}
-            ${infoRow("SIM Number", d.sim_number)}
-            ${infoRow("Battery Level", d.battery_level != null ? d.battery_level + "%" : "—")}
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:20px 24px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:14px;
+      ">
+        <div style="
+          width:56px;height:56px;border-radius:16px;
+          background:rgba(255,255,255,.22);
+          display:flex;align-items:center;justify-content:center;
+          font-size:24px;font-weight:800;color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${d.device_id.charAt(0).toUpperCase()}
+        </div>
 
-            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+        <div>
+          <div style="font-size:20px;font-weight:800;color:white">
+            ${d.device_id}
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,.85)">
+            Device Profile
+          </div>
+        </div>
+      </div>
 
-            <!-- Assigned Vehicle -->
-            <div style="font-weight:600; margin-bottom:4px;">Assigned Vehicle</div>
-            ${infoRow("Number", vehicleInfo.vehicle_number || "Not Assigned")}
-            ${infoRow("Type", vehicleInfo.vehicle_type)}
-            ${infoRow("Capacity", vehicleInfo.capacity)}
-            ${infoRow("Status", vehicleInfo.current_status)}
+      <!-- CONTENT -->
+      <div style="position:relative; padding:24px; color:${darkMode ? "#e5e7eb" : "#111827"};">
 
-            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+        <!-- DEVICE INFO -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+          ${infoRow("IMEI", d.imei)}
+          ${infoRow("Type", d.device_type)}
+          ${infoRow("Firmware", d.firmware_version)}
+          ${infoRow("SIM Number", d.sim_number)}
+          ${infoRow(
+            "Battery Level",
+            d.battery_level != null ? d.battery_level + "%" : "—"
+          )}
+          <div>
+            <b>Status:</b>
+            ${
+              d.status
+                ? `<span style="margin-left:6px;background:#10b98122;color:#10b981;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">Active</span>`
+                : `<span style="margin-left:6px;background:#ef444422;color:#ef4444;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">Inactive</span>`
+            }
+          </div>
+          ${infoRow(
+            "Assigned Date",
+            d.assigned_date
+              ? new Date(d.assigned_date).toLocaleString()
+              : "—"
+          )}
+        </div>
 
-           <!-- Status -->
-<div style="
-  font-size:14px;
-  font-weight:500;
-  padding:4px 0;
-  color:${darkMode ? "#e5e7eb" : "#111827"};
-">
-  <b>Status :</b> ${
-    d.status
-      ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
-      : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
-  }
-</div>
+        <hr style="border:none;border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};margin:18px 0"/>
 
-<!-- Assigned Date -->
-<div style="
-  font-size:14px;
-  font-weight:500;
-  padding:4px 0;
-  color:${darkMode ? "#e5e7eb" : "#111827"};
-">
-  ${infoRow("Assigned Date", d.assigned_date ? new Date(d.assigned_date).toLocaleString() : "—")}
-</div>
+        <!-- ASSIGNED VEHICLE -->
+        <b style="font-size:15px">Assigned Vehicle</b>
 
-        `,
-        confirmButtonText: "Close",
-        confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
-        customClass: { popup: "rounded-xl shadow-lg !p-4" },
-      });
+        <table style="
+          width:100%;
+          border-collapse:collapse;
+          margin-top:12px;
+          font-size:14px;
+          border:1px solid ${darkMode ? "#4b5563" : "#ddd"};
+        ">
+          <thead>
+            <tr style="background:${darkMode ? "#1f2937" : "#f3f4f6"}">
+              <th style="padding:10px;text-align:left">Vehicle Number</th>
+              <th style="padding:10px;text-align:left">Type</th>
+              <th style="padding:10px;text-align:left">Capacity</th>
+              <th style="padding:10px;text-align:left">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:8px 10px">${vehicleInfo.vehicle_number || "Not Assigned"}</td>
+              <td style="padding:8px 10px">${vehicleInfo.vehicle_type || "—"}</td>
+              <td style="padding:8px 10px">${vehicleInfo.capacity || "—"}</td>
+              <td style="padding:8px 10px">${vehicleInfo.current_status || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+  </div>
+  `,
+  customClass: { popup: "shadow-none" }
+});
+
     } else {
       Swal.fire("Error", data.message || "Unable to fetch device", "error");
       
@@ -866,35 +1035,67 @@ const handleAssignDevice = async (vehicle: Vehicle) => {
 
   const darkMode = document.documentElement.classList.contains("dark");
 
-  const { value: device_id } = await Swal.fire({
-    title: `Assign Device to ${vehicle.vehicle_number}`,
-    input: "select",
-    inputLabel: "Select Device",
-    inputOptions,
-    inputPlaceholder: "Select a device",
-    showCancelButton: true,
-    confirmButtonText: "Assign",
-    cancelButtonText: "Cancel",
-    confirmButtonColor: darkMode ? "#4f46e5" : "#2563eb",
-    cancelButtonColor: darkMode ? "#374151" : "#d1d5db",
-    background: darkMode ? "#1f2937" : "#ffffff",
-    color: darkMode ? "#e5e7eb" : "#111827",
-    customClass: {
-      popup: "rounded-2xl",
-      input: darkMode
-        ? "bg-gray-700 text-white border-gray-600"
-        : "bg-white text-gray-900 border-gray-300",
-    },
-    didOpen: () => {
-      // Style the select element after popup opens
-      const selectEl = document.querySelector<HTMLSelectElement>('.swal2-select');
-      if (selectEl) {
-        selectEl.style.backgroundColor = darkMode ? "#374151" : "#ffffff";
-        selectEl.style.color = darkMode ? "#e5e7eb" : "#111827";
-        selectEl.style.border = darkMode ? "1px solid #4b5563" : "1px solid #d1d5db";
-      }
-    },
-  });
+const { value: device_id } = await Swal.fire({
+  title: "",
+  showCancelButton: true,
+  confirmButtonText: "Assign Device",
+  cancelButtonText: "Cancel",
+  width: 460,
+  background: darkMode ? "#020617" : "#ffffff",
+  color: darkMode ? "#e5e7eb" : "#111827",
+  customClass: { popup: "rounded-2xl shadow-xl" },
+
+  html: `
+   <div style="
+    padding:22px 24px;
+    text-align:left;
+    font-family:Inter,system-ui,sans-serif;
+  ">
+      <h3 style="
+        font-size:18px;
+        font-weight:700;
+        margin-bottom:6px;
+        color:${darkMode ? "#e5e7eb" : "#111827"};
+      ">
+        Assign Device
+      </h3>
+
+      <p style="
+        font-size:13px;
+        color:${darkMode ? "#9ca3af" : "#6b7280"};
+        margin-bottom:14px;
+      ">
+        Select an unassigned device for <b>${vehicle.vehicle_number}</b>
+      </p>
+
+     <select id="device-select" class="swal2-select" style="
+  width:90%;
+  height:52px;
+  padding:0 16px;
+  font-size:16px;
+        border-radius:10px;
+        border:1px solid ${darkMode ? "#374151" : "#d1d5db"};
+        background:${darkMode ? "#020617" : "#ffffff"};
+        color:${darkMode ? "#e5e7eb" : "#111827"};
+      ">
+        <option value="">Choose Device</option>
+        ${Object.entries(inputOptions)
+          .map(([id, label]) => `<option value="${id}">${label}</option>`)
+          .join("")}
+      </select>
+    </div>
+  `,
+  preConfirm: () => {
+    const val = (document.getElementById("device-select") as HTMLSelectElement)
+      ?.value;
+    if (!val) {
+      Swal.showValidationMessage("Please select a device");
+      return;
+    }
+    return val;
+  },
+});
+
 
   if (!device_id) return;
 
@@ -907,8 +1108,8 @@ const handleAssignDevice = async (vehicle: Vehicle) => {
     const data = await res.json();
     if (!data.error) {
       showSuccess(data.message || "Device assigned");
-      fetchVehicles();
-      fetchDevices(); // Refresh devices list
+      fetchVehicles(true);
+      fetchDevices(true); // Refresh devices list
     } else {
       Swal.fire("Error", data.message || "Failed to assign device", "error");
     }
@@ -957,79 +1158,131 @@ const handleViewDriver = async (driverId: string, vehicle?: Vehicle) => {
         </div>
       `;
 
-      Swal.fire({
-        showCloseButton: true,
-        showConfirmButton: false,
-        width: 480,
-        background: darkMode ? "#1f2937" : "#ffffff",
-        html: `
-          <div style="text-align:left;">
+     Swal.fire({
+  showCloseButton: true,
+  showConfirmButton: false,
+  width: 600,
+  padding: "0",
+  background: "transparent",
+  html: `
+  <!-- GRADIENT BORDER -->
+  <div style="
+    border-radius:26px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
 
-            <!-- Header -->
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-              <div style="
-                width:45px; height:45px; border-radius:50%;
-                background:#4f46e533; display:flex; align-items:center; justify-content:center;
-                font-size:18px; font-weight:700; color:#4f46e5;">
-                ${(d.name || profile.name || "D").charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div style="font-size:16px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
-                  ${d.name || profile.name || "—"}
-                </div>
-                <div style="font-size:12px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
-                  Driver Details
-                </div>
-              </div>
-            </div>
+    <!-- INNER CARD -->
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:24px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
+    ">
 
-            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(600px at top left, rgba(99,102,241,.15), transparent 40%),
+          radial-gradient(500px at bottom right, rgba(34,211,238,.12), transparent 45%);
+      "></div>
 
-            <!-- Contact Info -->
-            ${infoRow("Email", d.email || profile.email)}
-            ${infoRow("Phone", d.phone_number || profile.phone_number)}
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:20px 24px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:14px;
+      ">
+        <div style="
+          width:56px;height:56px;border-radius:16px;
+          background:rgba(255,255,255,.22);
+          display:flex;align-items:center;justify-content:center;
+          font-size:24px;font-weight:800;color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${(d.name || profile.name || "D").charAt(0).toUpperCase()}
+        </div>
 
-            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+        <div>
+          <div style="font-size:20px;font-weight:800;color:white">
+            ${d.name || profile.name || "—"}
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,.85)">
+            Driver Profile
+          </div>
+        </div>
+      </div>
 
-            <!-- License Info -->
-            ${infoRow("License No", d.license_number || profile.license_number)}
-            ${infoRow(
-              "Expiry",
-              d.license_expiry
-                ? new Date(d.license_expiry).toLocaleDateString()
-                : profile.license_expiry
-                ? new Date(profile.license_expiry).toLocaleDateString()
-                : "—"
-            )}
+      <!-- CONTENT -->
+      <div style="position:relative; padding:24px; color:${darkMode ? "#e5e7eb" : "#111827"};">
 
-            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+        <!-- BASIC INFO -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+          ${infoRow("Email", d.email || profile.email)}
+          ${infoRow("Phone", d.phone_number || profile.phone_number)}
+          ${infoRow("License No", d.license_number || profile.license_number)}
+          ${infoRow(
+            "License Expiry",
+            d.license_expiry
+              ? new Date(d.license_expiry).toLocaleDateString()
+              : profile.license_expiry
+              ? new Date(profile.license_expiry).toLocaleDateString()
+              : "—"
+          )}
+          <div>
+            <b>Status:</b>
+            ${
+              d.status
+                ? `<span style="margin-left:6px;background:#10b98122;color:#10b981;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">Active</span>`
+                : `<span style="margin-left:6px;background:#ef444422;color:#ef4444;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">Inactive</span>`
+            }
+          </div>
+        </div>
 
-            <!-- Assigned Vehicle -->
-            <div style="font-weight:600; margin-bottom:4px;">Vehicle Info</div>
-            ${infoRow("Number", vehicleInfo.vehicle_number || "Not Assigned")}
-            ${infoRow("Type", vehicleInfo.vehicle_type)}
-            ${infoRow("Capacity", vehicleInfo.capacity)}
+        <hr style="border:none;border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};margin:18px 0"/>
 
-            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+        <!-- ASSIGNED VEHICLE -->
+        <b style="font-size:15px">Assigned Vehicle</b>
 
-            <!-- Status -->
-           <div style="
-  font-size:14px;
-  font-weight:500;
-  padding:4px 0;
-  color:${darkMode ? "#e5e7eb" : "#111827"};
-">
-  <b>Status :</b> ${
-    d.status
-      ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
-      : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
-  }
-</div>
-        `,
-        confirmButtonText: "Close",
-        confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
-        customClass: { popup: "rounded-xl shadow-lg !p-4" },
-      });
+        <table style="
+          width:100%;
+          border-collapse:collapse;
+          margin-top:12px;
+          font-size:14px;
+          border:1px solid ${darkMode ? "#4b5563" : "#ddd"};
+        ">
+          <thead>
+            <tr style="background:${darkMode ? "#1f2937" : "#f3f4f6"}">
+              <th style="padding:10px;text-align:left">Vehicle Number</th>
+              <th style="padding:10px;text-align:left">Type</th>
+              <th style="padding:10px;text-align:left">Capacity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:8px 10px">${vehicleInfo.vehicle_number || "Not Assigned"}</td>
+              <td style="padding:8px 10px">${vehicleInfo.vehicle_type || "—"}</td>
+              <td style="padding:8px 10px">${vehicleInfo.capacity || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+  </div>
+  `,
+  customClass: { popup: "shadow-none" }
+});
+
     } else {
       Swal.fire("Error", data.message || "Unable to fetch driver", "error");
     }
@@ -1045,10 +1298,25 @@ const handleViewDriver = async (driverId: string, vehicle?: Vehicle) => {
 const handleAssignDriver = async (vehicle: Vehicle) => {
   const unassignedDrivers = drivers.filter(d => !d.assigned_vehicle_id);
   if (unassignedDrivers.length === 0) {
-    // Swal.fire("Info", "No unassigned drivers available", "info");
-    showSuccess("No unassigned drivers available");
-    return;
-  }
+  Swal.fire({
+    icon: "info",
+    title: "No Available Drivers",
+    text: "All drivers are already assigned to vehicles.",
+    confirmButtonText: "OK",
+    confirmButtonColor: "#4f46e5",
+    background: document.documentElement.classList.contains("dark")
+      ? "#1f2937"
+      : "#ffffff",
+    color: document.documentElement.classList.contains("dark")
+      ? "#e5e7eb"
+      : "#111827",
+    customClass: {
+      popup: "rounded-xl shadow-lg",
+    },
+  });
+  return;
+}
+
 
   const inputOptions: Record<string, string> = {};
   unassignedDrivers.forEach(d => {
@@ -1057,26 +1325,58 @@ const handleAssignDriver = async (vehicle: Vehicle) => {
 
   const darkMode = document.documentElement.classList.contains("dark");
 
-  const { value: driver_id } = await Swal.fire({
-    title: `Assign Driver to ${vehicle.vehicle_number}`,
-    input: "select",
-    inputLabel: "Select Driver",
-    inputOptions,
-    inputPlaceholder: "Select a driver",
-    showCancelButton: true,
-    confirmButtonText: "Assign",
-    cancelButtonText: "Cancel",
-    confirmButtonColor: darkMode ? "#4f46e5" : "#2563eb",
-    cancelButtonColor: darkMode ? "#374151" : "#d1d5db",
-    background: darkMode ? "#1f2937" : "#ffffff",
-    color: darkMode ? "#e5e7eb" : "#111827",
-    customClass: {
-      popup: "rounded-2xl",
-      input: darkMode
-        ? "bg-gray-700 text-white border-gray-600"
-        : "bg-white text-gray-900 border-gray-300",
-    },
-  });
+const { value: driver_id } = await Swal.fire({
+  title: "",
+  showCancelButton: true,
+  confirmButtonText: "Assign Driver",
+  cancelButtonText: "Cancel",
+  width: 460,
+  background: darkMode ? "#020617" : "#ffffff",
+  color: darkMode ? "#e5e7eb" : "#111827",
+  customClass: { popup: "rounded-2xl shadow-xl" },
+
+  html: `
+     <div style="
+    padding:22px 24px;
+    text-align:left;
+    font-family:Inter,system-ui,sans-serif;
+  ">
+      <h3 style="font-size:18px;font-weight:700;margin-bottom:6px">
+        Assign Driver
+      </h3>
+
+      <p style="font-size:13px;color:${darkMode ? "#9ca3af" : "#6b7280"};margin-bottom:14px">
+        Choose a driver for <b>${vehicle.vehicle_number}</b>
+      </p>
+
+      <select id="driver-select" class="swal2-select" style="
+        width:90%;
+        height:52px;
+padding:0 16px;
+font-size:16px;
+        border-radius:10px;
+        border:1px solid ${darkMode ? "#374151" : "#d1d5db"};
+        background:${darkMode ? "#020617" : "#ffffff"};
+        color:${darkMode ? "#e5e7eb" : "#111827"};
+      ">
+        <option value="">Select Driver</option>
+        ${Object.entries(inputOptions)
+          .map(([id, name]) => `<option value="${id}">${name}</option>`)
+          .join("")}
+      </select>
+    </div>
+  `,
+  preConfirm: () => {
+    const val = (document.getElementById("driver-select") as HTMLSelectElement)
+      ?.value;
+    if (!val) {
+      Swal.showValidationMessage("Please select a driver");
+      return;
+    }
+    return val;
+  },
+});
+
 
   if (!driver_id) return;
 
@@ -1090,8 +1390,8 @@ const handleAssignDriver = async (vehicle: Vehicle) => {
     if (!data.error) {
       // Swal.fire("Success", data.message || "Driver assigned", "success");
       showSuccess(data.message || "Driver assigned");
-      fetchVehicles();
-      fetchDrivers(); // Refresh drivers list
+      fetchVehicles(true);
+      fetchDrivers(true); // Refresh drivers list
     } else {
       Swal.fire("Error", data.message || "Failed to assign driver", "error");
     }
@@ -1104,161 +1404,213 @@ const handleAssignDriver = async (vehicle: Vehicle) => {
 
 
   // Passenger view (assumes this endpoint exists; change if needed)
-  const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
-    if (!passengerId) {
-      // Swal.fire("Info", "No passenger id provided", "info");
-      showSuccess("No passenger id provided");
-      return;
-    }
+const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
+  if (!passengerId) {
+    showSuccess("No passenger id provided");
+    return;
+  }
 
-    try {
-      const res = await authFetch(`${API_BASE_URL}/operator/end-users/${passengerId}/view`);
-      const data = await res.json();
+  try {
+    const res = await authFetch(
+      `${API_BASE_URL}/operator/end-users/${passengerId}/view`
+    );
+    const data = await res.json();
 
-      if (!data.error && data.data) {
-        const p = data.data;
-        const profile = p.end_user_profile || {};
-        const sos = profile.sos_contact || {};
-        const pickup = profile.pickup_location || {};
-        const dropoff = profile.dropoff_location || {};
-        const vehicleInfo = p.assigned_vehicle || vehicle;
+    if (!data.error && data.data) {
+      const p = data.data;
+      const profile = p.end_user_profile || {};
+      const sos = profile.sos_contact || {};
+      const pickup = profile.pickup_location || {};
+      const dropoff = profile.dropoff_location || {};
+      const vehicleInfo = p.assigned_vehicle || vehicle;
 
-        const darkMode = document.documentElement.classList.contains("dark");
+      const darkMode = document.documentElement.classList.contains("dark");
 
-        const infoRow = (label: string, value: string | number | null | undefined) => `
+      const formatVal = (val: any) =>
+        val === null || val === undefined || val === "" || val === "—"
+          ? "N/A"
+          : val;
+
+      const infoRow = (label: string, value: any) =>
+        `<div style="padding:6px 0;font-size:14px;color:${
+          darkMode ? "#e5e7eb" : "#111827"
+        }"><b>${label}:</b> ${formatVal(value)}</div>`;
+
+      await Swal.fire({
+        showCloseButton: false,
+        showConfirmButton: false,
+        showCancelButton: false,
+        width: 500,
+        padding: "0",
+        background: "transparent",
+        html: `
+        <div style="
+          border-radius:22px;
+          padding:2px;
+          background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+          box-shadow:0 22px 60px rgba(0,0,0,.35);
+        ">
           <div style="
-            font-size:14px;
-            font-weight:500;
-            padding:4px 0;
-            color:${darkMode ? "#e5e7eb" : "#111827"};
+            background:${darkMode ? "#020617" : "#ffffff"};
+            border-radius:20px;
+            overflow:hidden;
+            font-family:Inter,system-ui,sans-serif;
+            position:relative;
+            text-align:left;
           ">
-            <b>${label} :</b> ${value ?? "—"}
-          </div>
-        `;
 
-        Swal.fire({
-          showCloseButton: true,
-          showCancelButton: !!vehicle,
-          cancelButtonText: "Unassign",
-          confirmButtonText: "Close",
-          confirmButtonColor: darkMode ? "#6366f1" : "#4f46e5",
-          width: 480,
-          background: darkMode ? "#1f2937" : "#ffffff",
-          customClass: { popup: "rounded-xl shadow-lg !p-4" },
-          html: `
-            <div style="text-align:left;">
+            <!-- SOFT GLOW -->
+            <div style="
+              position:absolute;
+              inset:0;
+              pointer-events:none;
+              background:
+                radial-gradient(520px at top left, rgba(99,102,241,.14), transparent 40%),
+                radial-gradient(420px at bottom right, rgba(34,211,238,.10), transparent 45%);
+            "></div>
 
-              <!-- Header -->
-              <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                <div style="
-                  width:45px; height:45px; border-radius:50%;
-                  background:#4f46e533; display:flex; align-items:center; justify-content:center;
-                  font-size:18px; font-weight:700; color:#4f46e5;">
-                  ${p.name?.charAt(0).toUpperCase() || "P"}
-                </div>
-                <div>
-                  <div style="font-size:16px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
-                    ${p.name || "—"}
-                  </div>
-                  <div style="font-size:12px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
-                    Passenger Details
-                  </div>
-                </div>
+            <!-- HEADER -->
+            <div style="
+              position:relative;
+              padding:16px 18px;
+              background:linear-gradient(135deg,#4f46e5,#6366f1);
+              display:flex;
+              align-items:center;
+              gap:12px;
+            ">
+              <div style="
+                width:46px;height:46px;border-radius:14px;
+                background:rgba(255,255,255,.22);
+                display:flex;align-items:center;justify-content:center;
+                font-size:20px;font-weight:800;color:white;
+                box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+              ">
+                ${(p.name || "?").charAt(0).toUpperCase()}
               </div>
 
-              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+              <div>
+                <div style="font-size:17px;font-weight:700;color:white">
+                  ${p.name || "—"}
+                </div>
+                <div style="font-size:12px;color:rgba(255,255,255,.85)">
+                  Passenger
+                </div>
+              </div>
+            </div>
 
-              <!-- Contact Info -->
+            <!-- CONTENT -->
+            <div style="position:relative;padding:18px;font-size:13px">
               ${infoRow("Email", p.email)}
               ${infoRow("Phone", p.phone_number)}
-
-              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
-
-              <!-- SOS & Locations -->
-              ${infoRow("SOS Contact", `${sos.name || "—"} (${sos.phone_number || "—"})`)}
-              ${infoRow("Pickup", `${pickup.name || "—"} (${pickup.address || "—"})`)}
-              ${infoRow("Dropoff", `${dropoff.name || "—"} (${dropoff.address || "—"})`)}
-
-              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
-
-              <!-- Assigned Vehicle & Driver -->
+              ${infoRow(
+                "SOS Contact",
+                `${sos.name || "—"} (${sos.phone_number || "—"})`
+              )}
+              ${infoRow(
+                "Pickup Location",
+                pickup.name
+                  ? `${pickup.name} (${pickup.address || "—"})`
+                  : "—"
+              )}
+              ${infoRow(
+                "Dropoff Location",
+                dropoff.name
+                  ? `${dropoff.name} (${dropoff.address || "—"})`
+                  : "—"
+              )}
               ${infoRow("Assigned Vehicle", vehicleInfo?.vehicle_number)}
               ${infoRow("Assigned Driver", vehicleInfo?.driver?.name)}
+              ${infoRow(
+                "Status",
+                p.status
+                  ? `<span style="background:#10b98122;color:#10b981;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">Active</span>`
+                  : `<span style="background:#ef444422;color:#ef4444;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">Inactive</span>`
+              )}
+            </div>
 
-              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:8px 0;" />
+            <!-- ACTIONS -->
+            <div style="
+              display:flex;
+              justify-content:flex-end;
+              gap:10px;
+              padding:14px 18px;
+              border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};
+            ">
+              ${
+                vehicle
+                  ? `<button id="unassignBtn" style="
+                      background:#ef4444;
+                      color:white;
+                      border:none;
+                      border-radius:8px;
+                      padding:6px 14px;
+                      font-size:13px;
+                      cursor:pointer;
+                    ">Unassign</button>`
+                  : ""
+              }
 
-              <div style="
-    font-size:14px;
-    font-weight:500;
-    padding:4px 0;
-    color:${darkMode ? "#e5e7eb" : "#111827"};
-  ">
-    <b>Status :</b> ${
-      p.status
-        ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
-        : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
+              <button id="closeBtn" style="
+                background:${darkMode ? "#374151" : "#e5e7eb"};
+                color:${darkMode ? "#e5e7eb" : "#111827"};
+                border:none;
+                border-radius:8px;
+                padding:6px 14px;
+                font-size:13px;
+                cursor:pointer;
+              ">Close</button>
+            </div>
+
+          </div>
+        </div>
+        `,
+        customClass: { popup: "shadow-none" },
+        didOpen: () => {
+          document
+            .getElementById("closeBtn")
+            ?.addEventListener("click", () => Swal.close());
+
+          document
+            .getElementById("unassignBtn")
+            ?.addEventListener("click", async () => {
+              const confirm = await Swal.fire({
+                title: "Confirm Unassign",
+                text: `Unassign ${p.name} from ${vehicle?.vehicle_number}?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Unassign",
+                confirmButtonColor: "#d33",
+              });
+
+              if (confirm.isConfirmed && vehicle) {
+                const payload = {
+                  end_user_id: passengerId,
+                  vehicle_id: vehicle.vehicle_id,
+                };
+
+                const res = await authFetch(
+                  `${API_BASE_URL}/operator/assignments/unassign-end-user-from-vehicle`,
+                  { method: "POST", body: JSON.stringify(payload) }
+                );
+
+                const d = await res.json();
+                if (!d.error) {
+                  showSuccess(d.message || "Unassigned successfully");
+                  fetchVehicles(true);
+                  fetchEndUsers(true);
+                  Swal.close();
+                }
+              }
+            });
+        },
+      });
     }
-  </div>
-          `,
-        }).then(async (resSwal) => {
-       if (resSwal.dismiss === Swal.DismissReason.cancel && vehicle) {
-  const confirm = await Swal.fire({
-    title: "Confirm Unassign",
-    text: `Unassign ${p.name || passengerId} from ${vehicle.vehicle_number}?`,
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText: "Unassign",
-    confirmButtonColor: "#d33",
-
-     background: darkMode ? "#1f2937" : "#ffffff",      
-  color: darkMode ? "#f3f4f6" : "#1f2937",            
-
-  customClass: {
-    popup: darkMode
-      ? "rounded-xl shadow-lg border border-gray-700"
-      : "rounded-xl shadow-lg border border-gray-200",
-    title: "text-lg font-semibold",
-    htmlContainer: "text-sm",
-  },
-  });
-
-  if (confirm.isConfirmed) {
-    try {
-      const payload = {
-        end_user_id: passengerId,
-        vehicle_id: vehicle.vehicle_id,
-      };
-
-      const res = await authFetch(
-        `${API_BASE_URL}/operator/assignments/unassign-end-user-from-vehicle`,
-        { method: "POST", body: JSON.stringify(payload) }
-      );
-
-      const d = await res.json();
-
-      if (!d.error) {
-        // Replace Swal success with your custom toast
-        showSuccess(d.message || "Unassigned successfully");
-        fetchVehicles();
-      } else {
-        Swal.fire("Error", d.message || "Failed to unassign", "error");
-      }
-    } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Unable to unassign passenger", "error");
-    }
+  } catch (err) {
+    console.error(err);
+    Swal.fire("Error", "Unable to fetch passenger", "error");
   }
-}
+};
 
-        });
-      } else {
-        Swal.fire("Error", data.message || "Unable to fetch passenger", "error");
-      }
-    } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Unable to fetch passenger", "error");
-    }
-  };
 
 
 
@@ -1287,79 +1639,109 @@ const availablePassengers = Array.from(
   }
 
   // Step 2: Open Swal only when passengers exist
-  const { value: selectedPassengers } = await Swal.fire({
-    title: `Assign Passengers to ${vehicle.vehicle_number}`,
-    html: `
-      <div id="passengers-container" style="display:flex; flex-direction:column; gap:8px;">
-        <select id="passenger-0" class="swal2-select" style="
-          background: ${darkMode ? "#1f2937" : "#fff"};
-          color: ${darkMode ? "#e5e7eb" : "#111827"};
-          border: 1px solid ${darkMode ? "#374151" : "#d1d5db"};
-          padding: 6px 8px;
-          border-radius: 6px;
+const { value: selectedPassengers } = await Swal.fire({
+  title: "",
+  width: 520,
+  showCancelButton: true,
+  confirmButtonText: "Assign Passengers",
+  cancelButtonText: "Cancel",
+  background: darkMode ? "#020617" : "#ffffff",
+  color: darkMode ? "#e5e7eb" : "#111827",
+  customClass: { popup: "rounded-2xl shadow-xl" },
+
+  html: `
+     <div style="
+    padding:22px 24px;
+    text-align:left;
+    font-family:Inter,system-ui,sans-serif;
+  ">
+      <h3 style="font-size:18px;font-weight:700;margin-bottom:6px">
+        Assign Passengers
+      </h3>
+
+      <p style="font-size:13px;color:${darkMode ? "#9ca3af" : "#6b7280"};margin-bottom:14px">
+        Select one or more passengers for <b>${vehicle.vehicle_number}</b>
+      </p>
+
+      <div id="passengers-container" style="display:flex;flex-direction:column;gap:10px">
+        <select class="passenger-select" style="
+          width:90%;
+          height:52px;
+padding:0 16px;
+font-size:16px;
+          border-radius:10px;
+          border:1px solid ${darkMode ? "#374151" : "#d1d5db"};
+          background:${darkMode ? "#020617" : "#ffffff"};
+          color:${darkMode ? "#e5e7eb" : "#111827"};
         ">
           <option value="">Select Passenger</option>
           ${availablePassengers
-            .map(u => `<option value="${u.end_user_profile?.end_user_id}">${u.name}</option>`)
-            .join('')}
+            .map(
+              (u) =>
+                `<option value="${u.end_user_profile?.end_user_id}">${u.name}</option>`
+            )
+            .join("")}
         </select>
       </div>
 
-      <button id="add-passenger" type="button" class="swal2-styled" style="
-        margin-top: 10px;
-        background: ${darkMode ? "#4f46e5" : "#2563eb"};
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        padding: 6px 12px;
-        cursor: pointer;
-      ">Add Another</button>
-    `,
-    showCancelButton: true,
-    confirmButtonText: 'Assign',
-    cancelButtonText: 'Cancel',
-    confirmButtonColor: darkMode ? "#4f46e5" : "#2563eb",
-    cancelButtonColor: darkMode ? "#374151" : "#d1d5db",
-    background: darkMode ? "#1f2937" : "#ffffff",
-    color: darkMode ? "#e5e7eb" : "#111827",
-    customClass: { popup: "rounded-2xl !p-6" },
+      <button id="add-passenger" type="button" style="
+        margin-top:12px;
+        font-size:13px;
+        background:${darkMode ? "#4f46e5" : "#2563eb"};
+        color:white;
+        padding:6px 14px;
+        border-radius:8px;
+        border:none;
+        cursor:pointer;
+      ">
+        + Add another passenger
+      </button>
+    </div>
+  `,
 
-    didOpen: () => {
-      let count = 1;
-      document.getElementById("add-passenger")?.addEventListener("click", () => {
-        const container = document.getElementById("passengers-container");
+  didOpen: () => {
+    document.getElementById("add-passenger")?.addEventListener("click", () => {
+      const container = document.getElementById("passengers-container");
+      if (!container) return;
 
-        if (container) {
-          const select = document.createElement("select");
-          select.id = `passenger-${count}`;
-          select.className = "swal2-select";
-          select.style.background = darkMode ? "#1f2937" : "#fff";
-          select.style.color = darkMode ? "#e5e7eb" : "#111827";
-          select.style.border = darkMode ? "1px solid #374151" : "1px solid #d1d5db";
-          select.style.padding = "6px 8px";
-          select.style.borderRadius = "6px";
+      const select = document.createElement("select");
+      select.className = "passenger-select";
+      select.style.cssText = `
+        width:90%;
+        height:52px;
+padding:0 16px;
+font-size:16px;
+        border-radius:10px;
+        border:1px solid ${darkMode ? "#374151" : "#d1d5db"};
+        background:${darkMode ? "#020617" : "#ffffff"};
+        color:${darkMode ? "#e5e7eb" : "#111827"};
+      `;
+      select.innerHTML = `
+        <option value="">Select Passenger</option>
+        ${availablePassengers
+          .map(
+            (u) =>
+              `<option value="${u.end_user_profile?.end_user_id}">${u.name}</option>`
+          )
+          .join("")}
+      `;
+      container.appendChild(select);
+    });
+  },
 
-          select.innerHTML = `
-            <option value="">Select Passenger</option>
-            ${availablePassengers
-              .map(u => `<option value="${u.end_user_profile?.end_user_id}">${u.name}</option>`)
-              .join("")}
-          `;
+  preConfirm: () => {
+    const selects = document.querySelectorAll(".passenger-select");
+    const values = Array.from(selects)
+      .map((s) => (s as HTMLSelectElement).value)
+      .filter(Boolean);
+    if (values.length === 0) {
+      Swal.showValidationMessage("Select at least one passenger");
+      return;
+    }
+    return [...new Set(values)];
+  },
+});
 
-          container.appendChild(select);
-        }
-        count++;
-      });
-    },
-
-    preConfirm: () => {
-      const selects = document.querySelectorAll("#passengers-container select");
-      return Array.from(selects)
-        .map((s) => (s as HTMLSelectElement).value)
-        .filter((v) => v)
-        .filter((v, i, arr) => arr.indexOf(v) === i); // unique
-    },
-  });
 
   if (!selectedPassengers || selectedPassengers.length === 0) return;
 
@@ -1376,8 +1758,9 @@ const availablePassengers = Array.from(
     }
 
     showSuccess("Passengers assigned successfully");
-    fetchVehicles();
-    fetchEndUsers();
+    fetchVehicles(true);
+    fetchEndUsers(true);
+
   } catch (err) {
     console.error(err);
     const message = err instanceof Error ? err.message : "Unable to assign passengers";
@@ -1401,322 +1784,512 @@ if (loading)
       <div className="bg-white dark:bg-gray-900 shadow border border-gray-200 dark:border-gray-800 p-6 rounded-lg max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Manage Vehicles</h2>
-          <Button
-            size="sm"
-            onClick={() => {
-              resetForm();
-              setShowForm(true);
-            }}
-          >
-            Add Vehicle
-          </Button>
+          {!showForm && (
+            <Button
+  size="sm"
+  onClick={() => {
+    resetForm();
+    setFormStep(1);
+    setEditingVehicle(null);
+    setCurrentLocation(null);
+    setStandingLocation(null);
+    setShowForm(true);
+  }}
+>
+  Add Vehicle
+</Button>
+
+)}
         </div>
 
-        {showForm && (
-          <form onSubmit={handleSubmit} className="space-y-4 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg mb-6">
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                name="vehicle_number"
-                value={form.vehicle_number}
-                onChange={handleChange}
-                placeholder="vehicle number"
-                className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
-              />
+      {showForm && (
+  <div className="mb-6 bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+<form
+  onSubmit={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (formStep === 3) {
+      handleSubmit(e);
+    }
+  }}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+    }
+  }}
+  className="space-y-6"
+>
 
-              <select
-                name="vehicle_type"
-                value={form.vehicle_type || ""}
-                onChange={handleChange}
-                className="border border-gray-300 p-2 rounded text-sm text-gray-700 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
-              >
-                <option value="" disabled hidden>
-                  select vehicle type
-                </option>
-                <option value="bus">Bus</option>
-                <option value="van">Van</option>
-                <option value="car">Car</option>
-              </select>
 
-              {/* <input
-                name="route_name"
-                value={form.route_name}
-                onChange={handleChange}
-                placeholder="route name"
-                className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              /> */}
-
-              <input
-                name="capacity"
-                type="number"
-                value={form.capacity === 0 ? "" : form.capacity}
-                onChange={handleChange}
-                placeholder="capasity"
-                className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-
-              <input
-                name="registration_number"
-                value={form.registration_number}
-                onChange={handleChange}
-                placeholder="registration number"
-                className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-
-              <input
-                name="chassis_number"
-                value={form.chassis_number}
-                onChange={handleChange}
-                placeholder="chassis number"
-                className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-
-              <input
-                name="color"
-                value={form.color}
-                onChange={handleChange}
-                placeholder="color"
-                className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-
-              <input
-                name="seating_capacity"
-                type="number"
-                value={form.seating_capacity === 0 ? "" : form.seating_capacity}
-                onChange={handleChange}
-                placeholder="seating capasity"
-                className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-              <input
-               name="landmark"
-               value={form.landmark}
-               onChange={handleChange}
-               placeholder="Landmark"
-               className="border border-gray-300 p-2 rounded text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-               />
-               </div>
-            {/* 🗺️ Map Section with Stops */}
-            <div className="relative h-[400px] border rounded-lg overflow-hidden mb-4">
-              {/* 📍 Locate Me Button */}
-              <button
-                type="button"
-                onClick={handleLocateMe}
-                className="absolute z-[999] top-3 right-3 bg-white shadow-lg p-2 rounded-full hover:bg-gray-100 transition"
-                title="Show My Location"
-              >
-                <LocateFixed className="text-blue-600" />
-              </button>
-
-              <MapContainer center={currentLocation || [12.9716, 77.5946]} zoom={7} style={{ height: "100%", width: "100%" }}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-                {/* Smooth Fly Animation */}
-                <FlyToLocation location={currentLocation} />
-              
-                {/* 📍 Standing Location Marker */}
-                {currentLocation && (
-                  <Marker position={currentLocation} icon={standingIcon}>
-                    <Popup>
-                      <strong>Standing Location</strong>
-                      <br />
-                      Lat: {(currentLocation as [number, number])[0].toFixed(4)}
-                      <br />
-                      Lng: {(currentLocation as [number, number])[1].toFixed(4)}
-                    </Popup>
-                  </Marker>
-                )}
-              </MapContainer>
-            </div>
-            <p className="text-sm text-gray-500 italic text-center mb-4">🗺️ Click on Current location Icon on the map for fetching the Standing Location.</p>
-           
-
-            <div className="flex justify-end gap-2 mt-4">
-              <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">{editingVehicle ? "Update" : "Create"}</Button>
-            </div>
-          </form>
+  {/* ---------------- STEP INDICATOR ---------------- */}
+  <div className="flex items-center justify-center gap-4 mb-6">
+    {[1, 2, 3].map((step) => (
+      <div key={step} className="flex items-center gap-2">
+        <div
+          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
+          ${formStep >= step
+            ? "bg-indigo-600 text-white"
+            : "bg-gray-200 dark:bg-gray-700 text-gray-500"}`}
+        >
+          {step}
+        </div>
+        {step < 3 && (
+          <div
+            className={`w-10 h-0.5
+            ${formStep > step
+              ? "bg-indigo-600"
+              : "bg-gray-200 dark:bg-gray-700"}`}
+          />
         )}
+      </div>
+    ))}
+  </div>
+
+  {/* ---------------- STEP 1 : VEHICLE DETAILS ---------------- */}
+  {formStep === 1 && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in">
+
+      <div>
+        <label className="form-label">Vehicle Number</label>
+        <input
+          name="vehicle_number"
+          value={form.vehicle_number}
+          onChange={handleChange}
+          required
+          placeholder="TN 09 AB 1234"
+          className="vehicle-input"
+        />
+      </div>
+
+      <div>
+        <label className="form-label">Vehicle Type</label>
+        <select
+          name="vehicle_type"
+          value={form.vehicle_type}
+          onChange={handleChange}
+          className="vehicle-input"
+        >
+          <option value="bus">Bus</option>
+          <option value="van">Van</option>
+          <option value="car">Car</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="form-label">Color</label>
+        <input
+          name="color"
+          value={form.color}
+          onChange={handleChange}
+          placeholder="Red / Blue"
+          className="vehicle-input"
+        />
+      </div>
+
+      <div>
+        <label className="form-label">Seating Capacity</label>
+        <input
+          name="seating_capacity"
+          type="number"
+          value={form.seating_capacity || ""}
+          onChange={handleChange}
+          placeholder="e.g. 40"
+          className="vehicle-input"
+        />
+      </div>
+
+      <div>
+        <label className="form-label">Total Capacity</label>
+        <input
+          name="capacity"
+          type="number"
+          value={form.capacity || ""}
+          onChange={handleChange}
+          placeholder="e.g. 50"
+          className="vehicle-input"
+        />
+      </div>
+
+    </div>
+  )}
+
+  {/* ---------------- STEP 2 : REGISTRATION DETAILS ---------------- */}
+  {formStep === 2 && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in">
+
+      <div>
+        <label className="form-label">Registration Number</label>
+        <input
+          name="registration_number"
+          value={form.registration_number}
+          onChange={handleChange}
+          placeholder="TN09AB1234"
+          className="vehicle-input"
+        />
+      </div>
+
+      <div>
+        <label className="form-label">Chassis Number</label>
+        <input
+          name="chassis_number"
+          value={form.chassis_number}
+          onChange={handleChange}
+          placeholder="CHS-XXXX-1234"
+          className="vehicle-input"
+        />
+      </div>
+
+      <div className="md:col-span-2">
+        <label className="form-label">Landmark</label>
+        <input
+          name="landmark"
+          value={form.landmark}
+          onChange={handleChange}
+          placeholder="Near Bus Depot"
+          className="vehicle-input"
+        />
+      </div>
+
+    </div>
+  )}
+
+  {/* ---------------- STEP 3 : STANDING LOCATION ---------------- */}
+  {formStep === 3 && (
+    <div className="space-y-4 animate-in fade-in">
+
+      <div className="relative h-[400px] border rounded-xl overflow-hidden">
+
+        <button
+          type="button"
+          onClick={handleLocateMe}
+          className="absolute z-[999] top-3 right-3 bg-white dark:bg-gray-800 p-2 rounded-full shadow"
+          title="Locate Me"
+        >
+          <LocateFixed className="text-indigo-600" />
+        </button>
+
+        <MapContainer
+          center={currentLocation || [12.9716, 77.5946]}
+          zoom={7}
+          className="h-full w-full"
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <FlyToLocation location={currentLocation} />
+            <StandingMapHandler />
+            {standingLocation && (
+  <Marker
+    position={[
+      standingLocation.latitude,
+      standingLocation.longitude,
+    ]}
+    icon={standingIcon}
+  >
+    <Popup>
+      <div style={{ fontSize: "13px" }}>
+        <b>{standingLocation.name}</b>
+        <br />
+        {standingLocation.latitude.toFixed(4)},{" "}
+        {standingLocation.longitude.toFixed(4)}
+      </div>
+    </Popup>
+  </Marker>
+)}
+
+          {currentLocation && (
+            <Marker position={currentLocation} icon={standingIcon}>
+              <Popup>
+                <strong>Standing Location</strong>
+                <br />
+                {currentLocation[0].toFixed(4)}, {currentLocation[1].toFixed(4)}
+              </Popup>
+            </Marker>
+          )}
+        </MapContainer>
+      </div>
+
+      {/* <p className="text-sm text-center text-gray-500 italic">
+        Click 📍 to automatically set the standing location
+      </p> */}
+      <p className="text-sm text-center text-gray-500 italic">
+  Click 📍 to locate yourself, then click on the map to set standing location
+</p>
+
+    </div>
+  )}
+
+  {/* ---------------- NAVIGATION BUTTONS ---------------- */}
+<div className="flex justify-between items-center pt-5 border-t dark:border-gray-700">
+  <Button
+    variant="outline"
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (formStep === 1) setShowForm(false);
+      else setFormStep(formStep - 1);
+    }}
+  >
+    {formStep === 1 ? "Cancel" : "Back"}
+  </Button>
+
+{formStep < 3 ? (
+  <Button
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setFormStep((prev) => prev + 1);
+    }}
+  >
+    Next
+  </Button>
+) : (
+  <Button 
+    type="submit"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSubmit(e as any);
+    }}
+  >
+    {editingVehicle ? "Update Vehicle" : "Create Vehicle"}
+  </Button>
+)}
+
+</div>
+
+
+</form>
+
+  </div>
+)}
+
 
         {/* ---------- VEHICLE TABLE ---------- */}
-      <div className="overflow-x-auto no-scrollbar">
-           <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                {[
-                  "Vehicle No",
-                  "Type",
-                  // "Route",
-                  "Color",
-                  "Seating",
-                  "Assigned Device",
-                  "Assigned Driver",
-                  "Assigned Passengers",
-                  "Status",
-                  "Actions",
-                ].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={10} className="text-center py-4">
-                    Loading...
-                  </td>
-                </tr>
-              ) : vehicles.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="text-center py-4">
-                    No vehicles found
-                  </td>
-                </tr>
-              ) : (
-                vehicles.map((v) => {
-                  // defensive assignment detection
-                  const deviceId =
-                    // prefer assigned_device_id, fallback to assigned_device.device_id or assigned_device._id
-                    (v as any).assigned_device_id || (v as any).assigned_device?.device_id || (v as any).assigned_device?._id || null;
-                  const driverId = (v as any).assigned_driver_id || (v as any).assigned_driver?._id || null;
-const assignedPassengers = Array.from(
-  new Map(
-    endUsers
-      .filter(u => u.end_user_profile?.assigned_vehicle_id === v.vehicle_id)
-      .map(u => [u.end_user_profile?.end_user_id, u]) // unique by passenger ID
-  ).values()
-);
-
-                  return (
-                    <tr key={v._id} className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                      <td className="px-3 py-2 whitespace-nowrap">{v.vehicle_number}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{v.vehicle_type}</td>
-                      {/* <td className="px-3 py-2 whitespace-nowrap">{v.route_name}</td> */}
-                      <td className="px-3 py-2 whitespace-nowrap">{v.color}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{v.seating_capacity ?? "—"}</td>
-
-                      {/* Assigned Device */}
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {deviceId ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleViewDevice(deviceId, v)}
-                               className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-                              View
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAssignDevice(v)}
-                               className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
-                            >
-                              Assign
-                            </button>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Assigned Driver */}
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {driverId ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleViewDriver(driverId, v)}
-                                className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-                              View
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAssignDriver(v)}
-                              className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
-                            >
-                              Assign
-                            </button>
-                          </div>
-                        )}
-                      </td>
-
-
-                      {/* Assigned Passengers */}
-               <td className="px-3 py-2 whitespace-nowrap">
-  <div className="flex justify-between items-center">
-     {/* Right side — Assign button */}
-    <div>
-      <button
-        onClick={() => handleAssignPassengers(v)}
-        className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+        {!showForm && (
+              <div className="max-h-[calc(100vh-180px)] overflow-y-auto overflow-x-auto no-scrollbar">
+  <table className="min-w-full text-sm">
+    {/* ===== HEADER ===== */}
+<thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+  <tr className="border-b border-gray-200 dark:border-gray-700">
+    {[
+      "Vehicle No",
+      "Type",
+      "Color",
+      "Seating",
+      "Assigned Device",
+      "Assigned Driver",
+      "Assigned Passengers",
+      "Status",
+      "Actions",
+    ].map((h) => (
+      <th
+        key={h}
+        className="px-4 py-3 text-left text-sm font-semibold
+        text-gray-700 dark:text-gray-200 whitespace-nowrap"
       >
-        Assign
-      </button>
-    </div>
-    {/* Left side — View buttons */}
-    <div className="flex gap-2">
-      {assignedPassengers.length > 0 &&
-        assignedPassengers.map((p) => (
-          <button
-            key={p._id}
-            onClick={() =>
-              handleViewPassenger(p.end_user_profile?.end_user_id!, v)
-            }
-            className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-          >
-            View
-          </button>
-        ))}
+        {h}
+      </th>
+    ))}
+  </tr>
+</thead>
+
+
+
+    {/* ===== BODY ===== */}
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+      {loading ? (
+        <tr>
+          <td colSpan={10} className="py-6 text-center text-gray-500">
+            Loading...
+          </td>
+        </tr>
+      ) : vehicles.length === 0 ? (
+        <tr>
+          <td colSpan={10} className="py-10 text-center text-gray-500 italic">
+            No vehicles found
+          </td>
+        </tr>
+      ) : (
+        vehicles.map((v) => {
+          const deviceId =
+            (v as any).assigned_device_id ||
+            (v as any).assigned_device?.device_id ||
+            (v as any).assigned_device?._id ||
+            null;
+
+          const driverId =
+            (v as any).assigned_driver_id ||
+            (v as any).assigned_driver?._id ||
+            null;
+
+          const assignedPassengers = Array.from(
+            new Map(
+              endUsers
+                .filter(
+                  (u) =>
+                    u.end_user_profile?.assigned_vehicle_id === v.vehicle_id
+                )
+                .map((u) => [u.end_user_profile?.end_user_id, u])
+            ).values()
+          );
+
+          return (
+            <tr
+              key={v._id}
+              className="transition hover:bg-gray-50 dark:hover:bg-gray-800/60
+              text-gray-700 dark:text-gray-300"
+            >
+              <td className="px-3 py-2 font-medium whitespace-nowrap">
+                {v.vehicle_number}
+              </td>
+
+              <td className="px-3 py-2 whitespace-nowrap">
+                {v.vehicle_type}
+              </td>
+
+              <td className="px-3 py-2 whitespace-nowrap">
+                {v.color}
+              </td>
+
+              <td className="px-3 py-2 whitespace-nowrap">
+                {v.seating_capacity ?? "—"}
+              </td>
+
+              {/* Assigned Device */}
+              <td className="px-3 py-2 whitespace-nowrap">
+                {deviceId ? (
+                  <button
+                    onClick={() => handleViewDevice(deviceId, v)}
+                    className="text-xs px-3 py-1 rounded-md
+                    bg-gray-100 text-gray-700 hover:bg-gray-200
+                    dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
+                  >
+                    View
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleAssignDevice(v)}
+                    className="text-xs px-3 py-1 rounded-md
+                    bg-green-100 text-green-700 hover:bg-green-200
+                    dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800 transition"
+                  >
+                    Assign
+                  </button>
+                )}
+              </td>
+
+              {/* Assigned Driver */}
+              <td className="px-3 py-2 whitespace-nowrap">
+                {driverId ? (
+                  <button
+                    onClick={() => handleViewDriver(driverId, v)}
+                    className="text-xs px-3 py-1 rounded-md
+                    bg-gray-100 text-gray-700 hover:bg-gray-200
+                    dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
+                  >
+                    View
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleAssignDriver(v)}
+                    className="text-xs px-3 py-1 rounded-md
+                    bg-green-100 text-green-700 hover:bg-green-200
+                    dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800 transition"
+                  >
+                    Assign
+                  </button>
+                )}
+              </td>
+
+              {/* Assigned Passengers */}
+           <td className="px-3 py-2 whitespace-nowrap">
+  <div className="flex items-center gap-2">
+    {/* Assign button — first */}
+    <button
+      onClick={() => handleAssignPassengers(v)}
+      className="text-xs px-3 py-1 rounded-md
+      bg-blue-100 text-blue-700 hover:bg-blue-200
+      dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800 transition"
+    >
+      Assign
+    </button>
+
+    {/* View icons — next, left to right */}
+    <div className="flex items-center gap-1">
+      {assignedPassengers.map((p) => (
+        <button
+          key={p._id}
+          onClick={() =>
+            handleViewPassenger(
+              p.end_user_profile?.end_user_id!,
+              v
+            )
+          }
+          className="p-1 rounded-md text-gray-600 dark:text-gray-300
+          hover:bg-blue-50 hover:text-blue-600
+          dark:hover:bg-blue-900/40 transition"
+        >
+          <EyeIcon />
+        </button>
+      ))}
     </div>
   </div>
 </td>
 
 
 
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <span
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              v.status
-                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-            }`}
-          >
-                          {v.status ? "Active" : "Inactive"}
-                        </span>
-                      </td>
+              {/* Status */}
+              <td className="px-3 py-2 whitespace-nowrap">
+                <span
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                    v.status
+                      ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                      : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                  }`}
+                >
+                  {v.status ? "Active" : "Inactive"}
+                </span>
+              </td>
 
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <div className="flex gap-2">
-                           <button
-                            onClick={() => handleToggleStatus(v)}
-                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition"
-            >
-                            {v.status ? <DeactivateIcon /> : <ActivateIcon />}
-                          </button>
-                          <button onClick={() => handleView(v)}   className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-                            View
-                          </button>
-                          <button onClick={() => handleEdit(v)}  className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
-            >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-         
+              {/* Actions */}
+              <td className="px-3 py-2 whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleStatus(v)}
+                    className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                  >
+                    {v.status ? <DeactivateIcon /> : <ActivateIcon />}
+                  </button>
 
-        </div>
+                  <button
+                    onClick={() => handleView(v)}
+                    className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                    hover:bg-blue-50 hover:text-blue-600
+                    dark:hover:bg-blue-900/40 transition"
+                  >
+                    <EyeIcon />
+                  </button>
+
+                  <button
+                    onClick={() => handleEdit(v)}
+                    className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                    hover:bg-indigo-50 hover:text-indigo-600
+                    dark:hover:bg-indigo-900/40 transition"
+                  >
+                    <EditIcon />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })
+      )}
+    </tbody>
+  </table>
+</div>
+
+        )}
       </div>
     </>
   );

@@ -59,6 +59,16 @@ const ActivateIcon = () => (
   </svg>
 );
 
+const EditIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+  </svg>
+);
+
 const showSuccess = (message: string) => {
   const dark = document.documentElement.classList.contains("dark");
 
@@ -237,12 +247,14 @@ if (loading)
         <div className="bg-white rounded-lg border border-gray-200 shadow p-6 dark:bg-gray-900 dark:border-gray-800 max-w-6xl mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-title-md font-semibold text-gray-900 dark:text-gray-100">Roles</h2>
+             {!showForm && (
             <button
               onClick={handleCreate}
               className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
             >
               + Add Role
             </button>
+             )}
           </div>
 
           {showForm && (
@@ -311,88 +323,128 @@ if (loading)
               </div>
             </div>
           )}
+{!showForm && (
+  <div className="relative w-full overflow-hidden">
+    <div
+      className="max-h-[400px] overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg"
+      onScroll={(e) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+        if (
+          scrollTop + clientHeight >= scrollHeight - 20 &&
+          rolePage < roleTotalPages &&
+          !loadingMoreRoles
+        ) {
+          fetchRoles(rolePage + 1);
+        }
+      }}
+    >
+      <table className="w-full text-sm">
+        {/* HEADER */}
+        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+          <tr className="text-gray-600 dark:text-gray-300">
+            <th className="px-4 py-3 text-left font-semibold">Role</th>
+            <th className="px-4 py-3 text-left font-semibold">Description</th>
+            <th className="px-4 py-3 text-center font-semibold">Status</th>
+            <th className="px-4 py-3 text-right font-semibold">Actions</th>
+          </tr>
+        </thead>
 
-<div className="w-full overflow-x-auto">
-  <div
-    id="roles-table-scroll"
-    className="max-h-[400px] overflow-y-auto scroll-smooth border border-gray-200 dark:border-gray-700 rounded-lg"
-    onScroll={(e) => {
-      const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-      if (scrollTop + clientHeight >= scrollHeight - 20 && rolePage < roleTotalPages && !loadingMoreRoles) {
-        fetchRoles(rolePage + 1);
-      }
-    }}
-  >
-    <table className="min-w-[800px] w-full border-collapse">
-      <thead>
-        <tr className="sticky top-0 bg-gray-100 dark:bg-gray-800 z-20 border-b border-gray-200 dark:border-gray-700">
-          {["Name", "Description", "Status", "Actions"].map((h) => (
-            <th
-              key={h}
-              className="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap"
-            >
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
+        {/* BODY */}
+        <tbody>
+          {roles.length > 0 ? (
+            roles.map((role, idx) => (
+              <tr
+                key={role.role_id}
+                className={`
+                  border-t dark:border-gray-700
+                  ${idx % 2 === 0
+                    ? "bg-white dark:bg-gray-900"
+                    : "bg-gray-50 dark:bg-gray-800"}
+                  hover:bg-blue-50/50 dark:hover:bg-gray-700 transition
+                `}
+              >
+                {/* ROLE NAME */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-full bg-indigo-500 text-white
+                      flex items-center justify-center font-semibold"
+                    >
+                      {role.role_name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {role.role_name}
+                      </p>
+                    </div>
+                  </div>
+                </td>
 
-      <tbody className="bg-white dark:bg-gray-900">
-        {roles.length > 0 ? (
-          roles.map((role) => (
-            <tr
-              key={role.role_id}
-              className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              <td className="px-3 py-2 whitespace-nowrap">{role.role_name}</td>
-              <td className="px-3 py-2 whitespace-nowrap">{role.description}</td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    role.status
-                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                      : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                  }`}
-                >
-                  {role.status ? "Active" : "Inactive"}
-                </span>
-              </td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                <div className="flex items-center gap-2">
-                  <button
-                    title={role.status ? "Deactivate Role" : "Activate Role"}
-                    onClick={() => handleToggleStatus(role)}
-                    className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                {/* DESCRIPTION */}
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                  {role.description || "—"}
+                </td>
+
+                {/* STATUS */}
+                <td className="px-4 py-3 text-center">
+                  <span
+                    className={`text-xs font-medium px-2 py-1 rounded
+                      ${
+                        role.status
+                          ? "text-green-700 bg-green-100 dark:bg-green-900/40 dark:text-green-400"
+                          : "text-red-700 bg-red-100 dark:bg-red-900/40 dark:text-red-400"
+                      }`}
                   >
-                    {role.status ? <DeactivateIcon /> : <ActivateIcon />}
-                  </button>
-                  <button
-                    onClick={() => handleEdit(role)}
-                    className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 font-normal dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
-                  >
-                    Edit
-                  </button>
-                </div>
+                    {role.status ? "Active" : "Inactive"}
+                  </span>
+                </td>
+
+                {/* ACTIONS */}
+                <td className="px-4 py-3">
+                  <div className="flex justify-end gap-2">
+                    <button
+                      title="Toggle Status"
+                      onClick={() => handleToggleStatus(role)}
+                      className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
+                    >
+                      {role.status ? <DeactivateIcon /> : <ActivateIcon />}
+                    </button>
+
+                    <button
+                      title="Edit Role"
+                      onClick={() => handleEdit(role)}
+                      className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                      hover:bg-indigo-50 hover:text-indigo-600
+                      dark:hover:bg-indigo-900/40 transition"
+                    >
+                      <EditIcon />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td
+                colSpan={4}
+                className="text-center py-8 text-gray-500 dark:text-gray-400"
+              >
+                No roles found
               </td>
             </tr>
-          ))
-        ) : (
-          <tr>
-            <td colSpan={4} className="text-center py-6 text-gray-500 dark:text-gray-400">
-              No roles found.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+          )}
+        </tbody>
+      </table>
 
-    {loadingMoreRoles && (
-      <div className="text-center py-2 text-gray-500 dark:text-gray-400">
-        Loading more roles...
-      </div>
-    )}
+      {loadingMoreRoles && (
+        <div className="text-center py-2 text-gray-500 dark:text-gray-400">
+          Loading more roles...
+        </div>
+      )}
+    </div>
   </div>
-</div>
+)}
+
 
 
         </div>

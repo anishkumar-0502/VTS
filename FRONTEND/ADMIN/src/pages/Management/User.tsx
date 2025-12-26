@@ -115,6 +115,210 @@ useEffect(() => {
   }, [page]);
 
   // VIEW user details (SweetAlert modal)
+// const handleView = async (userId: string) => {
+//   try {
+//     const res = await usersAPI.view(userId);
+
+//     if (res.status !== 200 || !res.data)
+//       throw new Error(res.message || "Failed to load user");
+
+//     const u = res.data;
+//     const darkMode = document.documentElement.classList.contains("dark");
+
+//     const infoRow = (label: string, value: any) =>
+//       `<div style="padding:6px 0; font-size:14px; color:${
+//         darkMode ? "#e5e7eb" : "#111827"
+//       }"><b>${label}:</b> ${value ?? "—"}</div>`;
+
+//     const getRoleName = (rid?: number) => {
+//       switch (rid) {
+//         case 1: return "Super Admin";
+//         case 2: return "Operator";
+//         case 3: return "Driver";
+//         case 4: return "Parent/Guardian";
+//         default: return "Unknown";
+//       }
+//     };
+
+//     // ------- EXTRA DETAILS BASED ON ROLE -------
+//     const operatorDetails =
+//       u.role_id === 2
+//         ? `
+//           ${infoRow("Organization", u.operator?.company_name)}
+//           ${infoRow("City", u.operator?.city)}
+//           ${infoRow("State", u.operator?.state)}
+//           ${infoRow("Country", u.operator?.country)}
+//         `
+//         : "";
+
+//     const driverDetails =
+//       u.role_id === 3
+//         ? infoRow("Assigned Vehicle", u.driver_profile?.vehicle_id ?? "Not Assigned")
+//         : "";
+
+//     const parentDetails =
+//       u.role_id === 4
+//         ? infoRow("Linked Student", u.end_user_profile ?? "Not Linked")
+//         : "";
+
+//     // Swal.fire({
+//     //   showCloseButton: true,
+//     //   showConfirmButton: false,
+//     //   width: 520,
+//     //   padding: "20px",
+//     //   html: `
+//     //     <div style="text-align:left">
+
+//     //       <!-- Header -->
+//     //       <div style="display:flex; gap:12px; align-items:center; padding-bottom:12px">
+//     //         <div style="width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#4f46e520;color:#4f46e5;font-weight:700">
+//     //           ${(u.name || "?").charAt(0).toUpperCase()}
+//     //         </div>
+//     //         <div>
+//     //           <div style="font-weight:700;font-size:18px;color:${darkMode ? "#e5e7eb" : "#111827"}">${u.name}</div>
+//     //           <div style="font-size:13px;color:${darkMode ? "#9ca3af" : "#6b7280"}">${getRoleName(u.role_id)}</div>
+//     //         </div>
+//     //       </div>
+
+//     //       <hr style="border:none;border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:10px 0" />
+
+//     //       <!-- General Info -->
+//     //       ${infoRow("Email", u.email)}
+//     //       ${infoRow("Phone", u.phone_number)}
+
+//     //       <!-- Role-Based Details -->
+//     //       ${operatorDetails}
+//     //       ${driverDetails}
+//     //       ${parentDetails}
+
+//     //       ${infoRow("Status", u.status 
+//     //         ? '<span style="color:#10b981">Active</span>' 
+//     //         : '<span style="color:#ef4444">Inactive</span>')}
+
+//     //       <hr style="margin:12px 0; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}" />
+
+//     //       <!-- System Metadata -->
+//     //       ${infoRow("Created At", new Date(u.createdAt).toLocaleString())}
+//     //       ${infoRow("Last Updated", new Date(u.updatedAt).toLocaleString())}
+//     //     </div>
+//     //   `,
+//     //   customClass: { popup: "card-popup" },
+//     // });
+
+
+// Swal.fire({
+//   showCloseButton: true,
+//   showConfirmButton: false,
+//   width: 560,
+//   padding: "0",
+//   background: "transparent",
+//   html: `
+//   <!-- GRADIENT BORDER -->
+//   <div style="
+//     border-radius:22px;
+//     padding:2px;
+//     background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+//     box-shadow:0 22px 60px rgba(0,0,0,.35);
+//   ">
+
+//     <!-- INNER CARD -->
+//     <div style="
+//       background:${darkMode ? "#020617" : "#ffffff"};
+//       border-radius:20px;
+//       overflow:hidden;
+//       font-family:Inter,system-ui,sans-serif;
+//       position:relative;
+//       text-align:left;
+//     ">
+
+//       <!-- SOFT GLOW -->
+//       <div style="
+//         position:absolute;
+//         inset:0;
+//         pointer-events:none;
+//         background:
+//           radial-gradient(520px at top left, rgba(99,102,241,.14), transparent 40%),
+//           radial-gradient(420px at bottom right, rgba(34,211,238,.10), transparent 45%);
+//       "></div>
+
+//       <!-- HEADER -->
+//       <div style="
+//         position:relative;
+//         padding:16px 18px;
+//         background:linear-gradient(135deg,#4f46e5,#6366f1);
+//         display:flex;
+//         align-items:center;
+//         gap:12px;
+//       ">
+//         <div style="
+//           width:46px;height:46px;border-radius:14px;
+//           background:rgba(255,255,255,.22);
+//           display:flex;align-items:center;justify-content:center;
+//           font-size:20px;font-weight:800;color:white;
+//           box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+//         ">
+//           ${(u.name || "?").charAt(0).toUpperCase()}
+//         </div>
+
+//         <div>
+//           <div style="font-size:17px;font-weight:700;color:white">
+//             ${u.name}
+//           </div>
+//           <div style="font-size:12px;color:rgba(255,255,255,.85)">
+//             ${getRoleName(u.role_id)}
+//           </div>
+//         </div>
+//       </div>
+
+//       <!-- CONTENT -->
+//       <div style="
+//         position:relative;
+//         padding:18px;
+//         color:${darkMode ? "#e5e7eb" : "#111827"};
+//         font-size:13px
+//       ">
+
+//         ${infoRow("Email", u.email)}
+//         ${infoRow("Phone", u.phone_number)}
+
+//         ${operatorDetails}
+//         ${driverDetails}
+//         ${parentDetails}
+
+//         ${infoRow(
+//           "Status",
+//           u.status
+//             ? `<span style="background:#10b98122;color:#10b981;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">Active</span>`
+//             : `<span style="background:#ef444422;color:#ef4444;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">Inactive</span>`
+//         )}
+
+//         <hr style="
+//           border:none;
+//           border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};
+//           margin:14px 0
+//         "/>
+
+//         ${infoRow("Created At", new Date(u.createdAt).toLocaleString())}
+//         ${infoRow("Last Updated", new Date(u.updatedAt).toLocaleString())}
+
+//       </div>
+//     </div>
+//   </div>
+//   `,
+//   customClass: { popup: "shadow-none" },
+// });
+
+
+
+//   } catch (err: any) {
+//     Swal.fire({
+//       icon: "error",
+//       title: "Error",
+//       text: err?.message || "Failed to fetch user",
+//     });
+//   }
+// };
+
 const handleView = async (userId: string) => {
   try {
     const res = await usersAPI.view(userId);
@@ -125,10 +329,18 @@ const handleView = async (userId: string) => {
     const u = res.data;
     const darkMode = document.documentElement.classList.contains("dark");
 
+    // 1. IMPROVED HELPER: Checks for null, undefined, empty strings, or the "—" character
+    const formatVal = (val: any) => {
+      if (val === null || val === undefined || val === "" || val === "—") {
+        return "N/A";
+      }
+      return val;
+    };
+
     const infoRow = (label: string, value: any) =>
       `<div style="padding:6px 0; font-size:14px; color:${
         darkMode ? "#e5e7eb" : "#111827"
-      }"><b>${label}:</b> ${value ?? "—"}</div>`;
+      }"><b>${label}:</b> ${formatVal(value)}</div>`;
 
     const getRoleName = (rid?: number) => {
       switch (rid) {
@@ -140,7 +352,7 @@ const handleView = async (userId: string) => {
       }
     };
 
-    // ------- EXTRA DETAILS BASED ON ROLE -------
+    // 2. UPDATED DETAILS: Use formatVal for nested properties
     const operatorDetails =
       u.role_id === 2
         ? `
@@ -153,56 +365,60 @@ const handleView = async (userId: string) => {
 
     const driverDetails =
       u.role_id === 3
-        ? infoRow("Assigned Vehicle", u.driver_profile?.vehicle_id ?? "Not Assigned")
+        ? infoRow("Assigned Vehicle", u.driver_profile?.vehicle_id)
         : "";
 
     const parentDetails =
       u.role_id === 4
-        ? infoRow("Linked Student", u.end_user_profile ?? "Not Linked")
+        ? infoRow("Linked Student", u.end_user_profile)
         : "";
 
     Swal.fire({
       showCloseButton: true,
       showConfirmButton: false,
-      width: 520,
-      padding: "20px",
+      width: 560,
+      padding: "0",
+      background: "transparent",
       html: `
-        <div style="text-align:left">
+      <div style="border-radius:22px; padding:2px; background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5); box-shadow:0 22px 60px rgba(0,0,0,.35);">
+        <div style="background:${darkMode ? "#020617" : "#ffffff"}; border-radius:20px; overflow:hidden; font-family:Inter,system-ui,sans-serif; position:relative; text-align:left;">
+          
+          <div style="position:absolute; inset:0; pointer-events:none; background: radial-gradient(520px at top left, rgba(99,102,241,.14), transparent 40%), radial-gradient(420px at bottom right, rgba(34,211,238,.10), transparent 45%);"></div>
 
-          <!-- Header -->
-          <div style="display:flex; gap:12px; align-items:center; padding-bottom:12px">
-            <div style="width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#4f46e520;color:#4f46e5;font-weight:700">
+          <div style="position:relative; padding:16px 18px; background:linear-gradient(135deg,#4f46e5,#6366f1); display:flex; align-items:center; gap:12px;">
+            <div style="width:46px;height:46px;border-radius:14px; background:rgba(255,255,255,.22); display:flex;align-items:center;justify-content:center; font-size:20px;font-weight:800;color:white; box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);">
               ${(u.name || "?").charAt(0).toUpperCase()}
             </div>
             <div>
-              <div style="font-weight:700;font-size:18px;color:${darkMode ? "#e5e7eb" : "#111827"}">${u.name}</div>
-              <div style="font-size:13px;color:${darkMode ? "#9ca3af" : "#6b7280"}">${getRoleName(u.role_id)}</div>
+              <div style="font-size:17px;font-weight:700;color:white">${u.name}</div>
+              <div style="font-size:12px;color:rgba(255,255,255,.85)">${getRoleName(u.role_id)}</div>
             </div>
           </div>
 
-          <hr style="border:none;border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:10px 0" />
+          <div style="position:relative; padding:18px; color:${darkMode ? "#e5e7eb" : "#111827"}; font-size:13px">
+            ${infoRow("Email", u.email)}
+            ${infoRow("Phone", u.phone_number)}
 
-          <!-- General Info -->
-          ${infoRow("Email", u.email)}
-          ${infoRow("Phone", u.phone_number)}
+            ${operatorDetails}
+            ${driverDetails}
+            ${parentDetails}
 
-          <!-- Role-Based Details -->
-          ${operatorDetails}
-          ${driverDetails}
-          ${parentDetails}
+            ${infoRow(
+              "Status",
+              u.status
+                ? `<span style="background:#10b98122;color:#10b981;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">Active</span>`
+                : `<span style="background:#ef444422;color:#ef4444;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">Inactive</span>`
+            )}
 
-          ${infoRow("Status", u.status 
-            ? '<span style="color:#10b981">Active</span>' 
-            : '<span style="color:#ef4444">Inactive</span>')}
+            <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:14px 0"/>
 
-          <hr style="margin:12px 0; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}" />
-
-          <!-- System Metadata -->
-          ${infoRow("Created At", new Date(u.createdAt).toLocaleString())}
-          ${infoRow("Last Updated", new Date(u.updatedAt).toLocaleString())}
+            ${infoRow("Created At", u.createdAt ? new Date(u.createdAt).toLocaleString() : "N/A")}
+            ${infoRow("Last Updated", u.updatedAt ? new Date(u.updatedAt).toLocaleString() : "N/A")}
+          </div>
         </div>
+      </div>
       `,
-      customClass: { popup: "card-popup" },
+      customClass: { popup: "shadow-none" },
     });
 
   } catch (err: any) {
@@ -309,26 +525,37 @@ const handleView = async (userId: string) => {
         <PageBreadCrumb pageTitle="User Management" />
 
         <div className="bg-white rounded-lg border border-gray-200 shadow p-6 dark:bg-gray-900 dark:border-gray-800 max-w-6xl mx-auto overflow-x-hidden">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Manage Users</h2>
+        <div className="flex items-center justify-between px-5 py-4 mb-6">
+  {/* Title */}
+  <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+    Manage Users
+  </h2>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-700 dark:text-gray-300">Role</label>
-                <select value={selectedRole} onChange={(e) => setSelectedRole(Number(e.target.value))}
-                  className="border px-3 py-1 rounded-md dark:bg-gray-800 dark:text-white">
-                  <option value={1}>Superadmin</option>
-                  <option value={2}>Operator</option>
-                  <option value={3}>Driver</option>
-                  <option value={4}>Parent/Guardian</option>
-                </select>
-              </div>
+  {/* Role Filter */}
+  <div className="relative">
+    <select
+      value={selectedRole}
+      onChange={(e) => setSelectedRole(Number(e.target.value))}
+      className="appearance-none rounded-full px-4 py-2 pr-8
+                 text-sm font-medium
+                 bg-indigo-50 dark:bg-gray-800
+                 text-indigo-700 dark:text-indigo-300
+                 border border-indigo-200 dark:border-gray-700
+                 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+    >
+      <option value={1}>Superadmin</option>
+      <option value={2}>Operator</option>
+      <option value={3}>Driver</option>
+      <option value={4}>Parent / Guardian</option>
+    </select>
 
-              {/* <Button size="sm" onClick={() => openEditForm()} disabled={showForm}>
-                + Add User
-              </Button> */}
-            </div>
-          </div>
+    {/* Dropdown Icon */}
+    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500">
+      ▼
+    </span>
+  </div>
+</div>
+
 
           {/* FORM */}
       {/* FORM */}
@@ -399,18 +626,19 @@ const handleView = async (userId: string) => {
 
 
           {/* TABLE */}
-          <div className="w-full overflow-x-auto">
-            <UsersTable
-              users={users}
-              onToggleStatus={handleToggleStatus}
-              onView={handleView}
-              onEdit={(u) => openEditForm(u)}
-              ActivateIcon={ActivateIcon}
-              DeactivateIcon={DeactivateIcon}
-            />
-            {/* {loading && <div className="py-4 text-center text-gray-600">Loading more users...</div>}
-            {!hasMore && <div className="py-4 text-center text-gray-500">No more users to load.</div>} */}
-          </div>
+{!showForm && (
+  <div className="w-full overflow-x-auto">
+    <UsersTable
+      users={users}
+      onToggleStatus={handleToggleStatus}
+      onView={handleView}
+      onEdit={(u) => openEditForm(u)}
+      ActivateIcon={ActivateIcon}
+      DeactivateIcon={DeactivateIcon}
+    />
+  </div>
+)}
+
         </div>
       </div>
     </>

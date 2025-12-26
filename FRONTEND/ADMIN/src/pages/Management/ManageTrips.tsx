@@ -49,17 +49,26 @@ const ActivateIcon = () => (
   </svg>
 );
 
-// const EnterFullscreenIcon = () => (
-//   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-//     <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3m-18 0v3a2 2 0 0 0 2 2h3"/>
-//   </svg>
-// );
+  const EyeIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M2 12C4.5 7 8 5 12 5s7.5 2 10 7c-2.5 5-6 7-10 7s-7.5-2-10-7Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
 
-// const ExitFullscreenIcon = () => (
-//   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-//     <path d="M15 3h3a2 2 0 0 1 2 2v3M9 3H6a2 2 0 0 0-2 2v3m1 13V15a2 2 0 0 1 2-2h3M19 13h-3a2 2 0 0 0-2 2v3"/>
-//   </svg>
-// );
+  const EditIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
 
 type RoutePoint = {
   name: string;
@@ -68,6 +77,8 @@ type RoutePoint = {
   sequence: number;
   dwell_target_seconds?: number;
   sla_arrival_buffer_seconds?: number;
+    approximate_reach_time?: string; // e.g. "08:15"
+  landmark?: string;
 };
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.50:8787";
@@ -222,6 +233,10 @@ if (!isStartSelected || !isEndSelected) {
           title: `Add Stop ${seq}`,
           html: `
             <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name">
+              <input id="swal-landmark" class="swal2-input" placeholder="Nearby Landmark">
+
+    <input id="swal-reach-time" type="time" class="swal2-input"
+           placeholder="Approximate Reach Time">
             <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" value="150">
             <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" value="240">
           `,
@@ -229,6 +244,8 @@ if (!isStartSelected || !isEndSelected) {
           confirmButtonText: "Add Stop",
           preConfirm: () => {
             const name = (document.getElementById("swal-stop-name") as HTMLInputElement)?.value;
+               const landmark = (document.getElementById("swal-landmark") as HTMLInputElement)?.value;
+    const reachTime = (document.getElementById("swal-reach-time") as HTMLInputElement)?.value;
             const dwell = Number((document.getElementById("swal-dwell") as HTMLInputElement)?.value || 150);
             const sla = Number((document.getElementById("swal-sla") as HTMLInputElement)?.value || 240);
 
@@ -236,11 +253,11 @@ if (!isStartSelected || !isEndSelected) {
               Swal.showValidationMessage("Stop name is required");
               return null;
             }
-            return { name, dwell, sla };
+            return { name, landmark, reachTime, dwell, sla };
           },
         }).then((result) => {
           if (result.isConfirmed && result.value) {
-            const { name, dwell, sla } = result.value;
+            const { name, landmark, reachTime,  dwell, sla } = result.value;
             setRoutePoints((prev) => 
                 [...prev,
                   {
@@ -250,6 +267,8 @@ if (!isStartSelected || !isEndSelected) {
                     sequence: seq,
                     dwell_target_seconds: dwell,
                     sla_arrival_buffer_seconds: sla,
+                    approximate_reach_time: reachTime || "",
+        landmark: landmark || "",
                   },
                 ].sort((a, b) => a.sequence - b.sequence) // Maintain sort order
             );
@@ -266,38 +285,6 @@ interface FullscreenToggleProps {
   isFullscreen: boolean;
   setIsFullscreen: React.Dispatch<React.SetStateAction<boolean>>;
 }
-
-// function FullscreenToggle({ isFullscreen, setIsFullscreen }: FullscreenToggleProps) {
-//   // ✅ IMPORTANT: Access the map instance
-//   const map = useMap(); 
-
-//   const toggle = () => {
-//     setIsFullscreen((prev) => !prev);
-
-//     // ✅ Crucial for Leaflet: Wait for the DOM to update, then force map resize
-//     // This fixes the 'map.invalidateSize is not a function' if the component is mounted correctly.
-//     // The previous error was due to the component being outside MapContainer's children.
-//     setTimeout(() => {
-//       map.invalidateSize(); 
-//       map.setView(map.getCenter(), map.getZoom());
-//     }, 10);
-//   };
-
-//   return (
-//     <button
-//       type="button"
-//       onClick={toggle}
-//       // ✅ UPDATED: Improved z-index/positioning relative to the map pane
-//       className="absolute bottom-4 right-4 z-[1000] bg-white dark:bg-gray-800 rounded-full shadow-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
-//       title={isFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
-//     >
-//       {/* ✅ Use the new icon components */}
-//       {isFullscreen ? <ExitFullscreenIcon /> : <EnterFullscreenIcon />} 
-//     </button>
-//   );
-// }
-
-
 
 
 export default function ManageTrips() {
@@ -353,6 +340,8 @@ const [hasMoreDrivers, setHasMoreDrivers] = useState(true);
 // Pagination state for trips
 const [tripPage, setTripPage] = useState(1);
 const [hasMoreTrips, setHasMoreTrips] = useState(true);
+
+const [formStep, setFormStep] = useState(1);
 
 const pageSize = 10;
 const [loadingMore, setLoadingMore] = useState(false);
@@ -488,6 +477,9 @@ route_points: (routePoints || []).map((stop, index) => ({
     sequence: index + 1,
     dwell_target_seconds: stop.dwell_target_seconds || 150,
     sla_arrival_buffer_seconds: stop.sla_arrival_buffer_seconds || 240,
+      approximate_reach_time: stop.approximate_reach_time || null,
+  landmark: stop.landmark || null,
+
   })),
 };
 
@@ -542,6 +534,7 @@ route_points: (routePoints || []).map((stop, index) => ({
   });
   setRoutePoints([]); 
   setEditingTripId(null);
+  setFormStep(1);
 };
 
 // ✅ Stop removal function
@@ -620,80 +613,168 @@ const handleView = async (trip: Trip) => {
     ">${t.status === "in-progress" ? "In Progress" : t.status}</span>`;
 
     // SweetAlert Trip View
-    Swal.fire({
-      showCloseButton: true,
-      showConfirmButton: false,
-      width: 550,
-      padding: "20px",
-      html: `
-        <div style="text-align:left;">
+ Swal.fire({
+  showCloseButton: true,
+  showConfirmButton: false,
+  width: 620,
+  padding: "0",
+  background: "transparent",
+  html: `
+  <div style="
+    border-radius:26px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:24px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
+    ">
 
-          <div style="display:flex; align-items:center; gap:15px; padding-bottom:15px;">
-            <div style="
-              width:55px; height:55px; border-radius:50%;
-              background:#4f46e533; display:flex;
-              align-items:center; justify-content:center;
-              font-size:22px; font-weight:700; color:#4f46e5;
-            ">
-              ${t.route_name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div style="font-size:20px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
-                ${t.route_name}
-              </div>
-              <div style="font-size:13px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
-                Trip Period: ${t.trip_period}
-              </div>
-            </div>
-          </div>
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(600px at top left, rgba(99,102,241,.15), transparent 40%),
+          radial-gradient(500px at bottom right, rgba(34,211,238,.12), transparent 45%);
+      "></div>
 
-          <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:12px 0;" />
-
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${infoRow("Driver", driverName)}
-            ${infoRow("Vehicle", vehicleNumber)}
-            ${infoRow("Start Time", t.scheduled_start_time)}
-            ${infoRow("Repeat Days", repeatDaysStr)}
-            <div style="font-size:14px; font-weight:500; padding:4px 0; color:${darkMode ? "#e5e7eb" : "#111827"};">
-              <b>Status :</b> ${statusBadge}
-            </div>
-          </div>
-
-          <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:14px 0;" />
-
-         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:14px; color:${darkMode ? "#e5e7eb" : "#374151"};">
-  <div>
-    <b>Start Location:</b>
-    <p>${t.start_location.address}</p>
-    <p style="font-size:12px;">Lat: ${t.start_location.latitude.toFixed(4)}, Lng: ${t.start_location.longitude.toFixed(4)}</p>
-  </div>
-  <div>
-    <b>End Location:</b>
-    <p>${t.end_location.address}</p>
-    <p style="font-size:12px;">Lat: ${t.end_location.latitude.toFixed(4)}, Lng: ${t.end_location.longitude.toFixed(4)}</p>
-  </div>
-</div>
-
-<hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:14px 0;" />
-
-<div style="font-size:14px; color:${darkMode ? "#e5e7eb" : "#374151"};">
-  <b>Route Stops:</b>
-  <ul style="margin-top:4px; padding-left:18px;">
-    ${(t.route_points || [])
-      .sort((a: RoutePoint, b: RoutePoint) => a.sequence - b.sequence) // Ensure correct sequence order
-      .map(
-        (stop: any) =>
-          `<li><b>${stop.name}</b> (Seq: ${stop.sequence}, Lat: ${stop.latitude.toFixed(4)}, Lng: ${stop.longitude.toFixed(4)})</li>`
-      )
-      .join("")}
-  </ul>
-</div>
-
-
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:20px 24px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:14px;
+      ">
+        <div style="
+          width:56px;
+          height:56px;
+          border-radius:16px;
+          background:rgba(255,255,255,.22);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:24px;
+          font-weight:800;
+          color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${t.route_name.charAt(0).toUpperCase()}
         </div>
-      `,
-      customClass: { popup: "card-popup" },
-    });
+
+        <div>
+          <div style="font-size:20px; font-weight:800; color:white;">
+            ${t.route_name}
+          </div>
+          <div style="font-size:13px; color:rgba(255,255,255,.85);">
+            Trip Period: ${t.trip_period}
+          </div>
+        </div>
+      </div>
+
+      <!-- BODY -->
+      <div style="
+        position:relative;
+        padding:24px;
+        color:${darkMode ? "#e5e7eb" : "#111827"};
+      ">
+
+        <!-- BASIC INFO -->
+        <div style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:12px;
+          font-size:14px;
+        ">
+          <div><b>Driver:</b> ${driverName}</div>
+          <div><b>Vehicle:</b> ${vehicleNumber}</div>
+          <div><b>Start Time:</b> ${t.scheduled_start_time}</div>
+          <div><b>Repeat Days:</b> ${repeatDaysStr}</div>
+          <div>
+            <b>Status:</b>
+            <span style="margin-left:6px;">${statusBadge}</span>
+          </div>
+        </div>
+
+        <hr style="
+          border:none;
+          border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};
+          margin:18px 0;
+        "/>
+
+        <!-- LOCATIONS -->
+        <div style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:16px;
+          font-size:14px;
+        ">
+          <div>
+            <b>Start Location</b>
+            <p style="margin:4px 0; color:${darkMode ? "#9ca3af" : "#4b5563"}">
+              ${t.start_location.address}
+            </p>
+            <p style="font-size:12px;">
+              Lat: ${t.start_location.latitude.toFixed(4)},
+              Lng: ${t.start_location.longitude.toFixed(4)}
+            </p>
+          </div>
+
+          <div>
+            <b>End Location</b>
+            <p style="margin:4px 0; color:${darkMode ? "#9ca3af" : "#4b5563"}">
+              ${t.end_location.address}
+            </p>
+            <p style="font-size:12px;">
+              Lat: ${t.end_location.latitude.toFixed(4)},
+              Lng: ${t.end_location.longitude.toFixed(4)}
+            </p>
+          </div>
+        </div>
+
+        <hr style="
+          border:none;
+          border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};
+          margin:18px 0;
+        "/>
+
+        <!-- ROUTE STOPS -->
+        <div style="font-size:14px;">
+          <b>Route Stops</b>
+          <ul style="margin-top:6px; padding-left:18px; line-height:1.6;">
+            ${(t.route_points || [])
+              .sort((a: RoutePoint, b: RoutePoint) => a.sequence - b.sequence)
+              .map(
+                (stop: any) => `
+                  <li>
+                    <b>${stop.name}</b>
+                    <span style="color:${darkMode ? "#9ca3af" : "#6b7280"}">
+                      (Seq: ${stop.sequence},
+                      Lat: ${stop.latitude.toFixed(4)},
+                      Lng: ${stop.longitude.toFixed(4)})
+                    </span>
+                  </li>
+                `
+              )
+              .join("")}
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  `,
+  customClass: { popup: "shadow-none" },
+});
+
 
   } catch (err) {
     console.error("Error fetching trip:", err);
@@ -725,6 +806,7 @@ const handleEdit = async (trip: Trip) => {
     setStartLocation(fullTrip.start_location);
     setEndLocation(fullTrip.end_location);
     setEditingTripId(fullTrip.scheduled_trip_id);
+    setFormStep(1);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
     setScheduledStartTime(fullTrip.scheduled_start_time || "06:00");
@@ -822,6 +904,64 @@ useEffect(() => {
   };
 }, [isStartMapFullscreen, isEndMapFullscreen, isFullscreen]);
 
+const handleNext = (e: React.MouseEvent) => {
+  e.preventDefault();
+ if (formStep === 1) {
+  if (!routeName.trim()) {
+    Swal.fire("Error", "Route Name is required", "error");
+    return;
+  }
+
+  if (routeName.length > 50) {
+    Swal.fire(
+      "Error",
+      "Route Name must not exceed 50 characters",
+      "error"
+    );
+    return;
+  }
+
+  if (!driverId) {
+    Swal.fire("Error", "Please select a driver", "error");
+    return;
+  }
+
+  if (!vehicleId) {
+    Swal.fire("Error", "Please select a vehicle", "error");
+    return;
+  }
+
+  if (!scheduledStartTime) {
+    Swal.fire("Error", "Scheduled Start Time is required", "error");
+    return;
+  }
+}
+
+  
+  if (formStep === 2) {
+    if (Object.values(repeatDays).every(day => day === false)) {
+      Swal.fire("Error", "At least one repeat day must be selected.", "error");
+      return;
+    }
+  }
+
+  if (formStep === 3) {
+    if (startLocation.latitude === 0 || startLocation.longitude === 0) {
+      Swal.fire("Error", "Please select a start location on the map", "error");
+      return;
+    }
+  }
+
+  if (formStep === 4) {
+    if (endLocation.latitude === 0 || endLocation.longitude === 0) {
+      Swal.fire("Error", "Please select an end location on the map", "error");
+      return;
+    }
+  }
+
+  setFormStep(p => p + 1);
+};
+
 
 if (loading)
   return (
@@ -855,382 +995,452 @@ if (loading)
               {editingTripId ? "Edit Trip" : "Create Trip"}
             </h3>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-             <div>
-  <label className="block mb-1 font-medium">Route Name</label>
-  <input
-    type="text"
-    value={routeName}
-    onChange={(e) => setRouteName(e.target.value)}
-    className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-    required
-  />
-</div>
-
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               <div>
-  <label className="block mb-1 font-medium">Driver</label>
- <select
-  value={driverId}
-  onChange={(e) => setDriverId(e.target.value)}
-  className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-  required
->
-  <option value="">Select Driver</option>
-  {drivers.map((d) => (
-    <option key={d._id} value={d.driver_id}>
-      {d.name}
-    </option>
-  ))}
-</select>
-
-</div>
-
-               <div>
-  <label className="block mb-1 font-medium">Vehicle</label>
-<select
-  value={vehicleId}
-  onChange={(e) => setVehicleId(e.target.value)}
-  className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-  required
->
-  <option value="">Select Vehicle</option>
-  {vehicles.map((v) => (
-    <option key={v._id} value={v.vehicle_id}>
-      {v.vehicle_number}
-    </option>
-  ))}
-</select>
-
-</div>
-
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-  {/* Scheduled Start Time */}
-  <div>
-    <label className="block mb-1 font-medium">Scheduled Start Time</label>
-    <input
-      type="time"
-      value={scheduledStartTime}
-      onChange={(e) => setScheduledStartTime(e.target.value)}
-      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-      required
-    />
-  </div>
-
-  {/* Trip Period */}
-  <div>
-    <label className="block mb-1 font-medium">Trip Period</label>
-    <select
-      value={tripPeriod}
-      onChange={(e) => setTripPeriod(e.target.value)}
-      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-      required
-    >
-      <option value="morning">Morning</option>
-      <option value="afternoon">Afternoon</option>
-      <option value="evening">Evening</option>
-    </select>
-  </div>
-</div>
-<div>
-  <label className="block mb-1 font-medium">Trip Type</label>
-  <select
-    value={tripType}
-    onChange={(e) => setTripType(e.target.value as "pickup" | "drop")}
-      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-  >
-    <option value="pickup">Pickup</option>
-    <option value="drop">Drop</option>
-  </select>
-</div>
-
-
-
-{/* Repeat Days */}
-<div>
-  <label className="block mb-2 font-medium">Repeat Days (at least one day required)</label>
-  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-    {Object.keys(repeatDays).map((day) => (
-      <label
-        key={day}
-        className="flex items-center gap-2 text-gray-800 dark:text-gray-200"
-      >
-        <input
-          type="checkbox"
-          checked={repeatDays[day as keyof typeof repeatDays]}
-          onChange={(e) =>
-            setRepeatDays((prev) => ({
-              ...prev,
-              [day]: e.target.checked,
-            }))
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* Step Indicator */}
+             <div className="flex items-center justify-center gap-4 mb-6">
+  {[1, 2, 3, 4, 5].map((step) => (
+    <div key={step} className="flex items-center gap-2">
+      
+      {/* STEP CIRCLE */}
+      <div
+        className={`
+          w-8 h-8 rounded-full flex items-center justify-center
+          text-xs font-bold transition-all duration-300
+          ${
+            formStep >= step
+              ? "bg-indigo-600 text-white"
+              : "bg-gray-200 dark:bg-gray-700 text-gray-500"
           }
-          className="accent-blue-600"
-        />
-        {day}
-      </label>
-    ))}
-  </div>
-</div>
-
-
-              {/* Maps */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Start Map - SIMPLIFIED BLOCK */}  
-                <div className="relative">
-                  <label className="block mb-2 font-medium">Start Location (Click Map to Pin)</label>
-                  {/* The previous complex conditional map was replaced by a simpler map */}
-                  <div className={`${isStartMapFullscreen ? "fixed inset-0 z-[3000]" : "h-80"} relative border rounded-lg`}>
-                    <MapContainer
-                      // Center on start location if set, else default
-                      center={[startLocation.latitude || 20.5937, startLocation.longitude || 78.9629]} 
-                      zoom={startLocation.latitude !== 0 ? 14 : 5}
-                      className="h-full w-full rounded border border-gray-300 dark:border-gray-700"
-                    >
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                      {/* Use LocationMarker to set location on click */}
-                      <LocationMarker setLocation={setStartLocation} /> 
-                      
-                      {startLocation.latitude !== 0 && (
-                        <Marker position={[startLocation.latitude, startLocation.longitude]} icon={startIcon}>
-                          <Popup>Start Location</Popup>
-                        </Marker>
-                      )}
-
-                      <LocateMeButton
-                        setCoords={(coords) => setStartLocation({ ...startLocation, ...coords, address: startLocation.address || 'User Location' })}
-                      />
-                      {/* ✅ NEW Fullscreen Toggle for Start Map */}
-                      {/* <FullscreenToggle isFullscreen={isStartMapFullscreen} setIsFullscreen={setIsStartMapFullscreen} /> */}
-                    </MapContainer>
-                  </div>
-                </div>
-
-                {/* End Map */}
-                <div className="relative">
-                  <label className="block mb-2 font-medium">End Location (Click Map to Pin)</label>
-                  {/* ✅ UPDATED: End Map Fullscreen Logic */}
-                  <div className={`${isEndMapFullscreen ? "fixed inset-0 z-[3000]" : "h-80"} relative border rounded-lg`}>
-                    <MapContainer
-                      // Center on end location if set, else default
-                      center={[endLocation.latitude || 20.5937, endLocation.longitude || 78.9629]}
-                      zoom={endLocation.latitude !== 0 ? 14 : 5}
-                      className="h-full w-full rounded border border-gray-300 dark:border-gray-700"
-                    >
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                      <LocationMarker setLocation={setEndLocation} />
-                      {endLocation.latitude !== 0 && (
-                   <Marker
-  position={[endLocation.latitude, endLocation.longitude]}
-  icon={endIcon}
->
-  <Popup>End Location</Popup>
-</Marker>
-                      )}
-                      <LocateMeButton
-                        setCoords={(coords) => setEndLocation({ ...endLocation, ...coords, address: endLocation.address || 'User Location' })}
-                      />
-                       {/* ✅ Fullscreen Toggle for End Map (Already correctly inside) */}
-                       {/* <FullscreenToggle isFullscreen={isEndMapFullscreen} setIsFullscreen={setIsEndMapFullscreen} /> */}
-                    </MapContainer>
-                  </div>
-                </div>
-              </div>
-{/* Start & End Location Address Inputs */}
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-  <div>
-    <label className="block mb-1 font-medium">Start Location Address</label>
-    <input
-      type="text"
-      value={startLocation.address}
-      onChange={(e) =>
-        setStartLocation((prev) => ({ ...prev, address: e.target.value }))
-      }
-      placeholder="Enter start address"
-      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-    />
-    <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">Lat: {startLocation.latitude.toFixed(4)}, Lng: {startLocation.longitude.toFixed(4)}</p>
-  </div>
-  <div>
-    <label className="block mb-1 font-medium">End Location Address</label>
-    <input
-      type="text"
-      value={endLocation.address}
-      onChange={(e) =>
-        setEndLocation((prev) => ({ ...prev, address: e.target.value }))
-      }
-      placeholder="Enter end address"
-      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-    />
-     <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">Lat: {endLocation.latitude.toFixed(4)}, Lng: {endLocation.longitude.toFixed(4)}</p>
-  </div>
-</div>
-
-{/* Stops Map (Main Route Map) */}
-<div className="relative mt-4">
-  <label className="block mb-2 font-medium">Add Route Stops (Click Map)</label>
-  <div className={`${isFullscreen ? "fixed inset-0 z-[3000]" : "h-[400px]"} relative border rounded-lg`}>
-    
-    {/* 🛑 REMOVED: FullscreenToggle was here, outside MapContainer */}
-
-    <MapContainer
-      // Center on Start Location if available, otherwise default
-      center={[startLocation.latitude || 20.5937, startLocation.longitude || 78.9629]} 
-      zoom={startLocation.latitude !== 0 ? 12 : 5} // Zoom in if start point is set
-      className="h-full w-full rounded border border-gray-300 dark:border-gray-700"
-    >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-      {/* ✅ MOVED: FullscreenToggle is now a child of MapContainer (Fixes the error) */}
-      {/* {showForm && (
-        <FullscreenToggle isFullscreen={isFullscreen} setIsFullscreen={setIsFullscreen} />
-      )} */}
-      
-      {/* 🚀 START & END MARKERS */}  
-      {startLocation.latitude !== 0 && startLocation.longitude !== 0 && (
-        <Marker
-          position={[startLocation.latitude, startLocation.longitude]}
-          icon={startIcon}
-        >
-          <Popup>Start Location: {startLocation.address || 'Source'}</Popup>
-        </Marker>
-      )}
-
-      {endLocation.latitude !== 0 && endLocation.longitude !== 0 && (
-        <Marker
-          position={[endLocation.latitude, endLocation.longitude]}
-          icon={endIcon}
-        >
-          <Popup>End Location: {endLocation.address || 'Destination'}</Popup>
-        </Marker>
-      )}
-
-      
-     {/* 🛑 INTERMEDIATE STOP MARKERS (Blue Icon) */}
-{routePoints.map((stop, index) => (
-  <Marker
-    key={index}
-    position={[stop.latitude, stop.longitude]}
-    icon={stopIcon}
-  >
-    <Popup>
-      <div>
-        <strong>Stop {stop.sequence}: {stop.name}</strong>
-        <p className="text-xs mt-1">Lat: {stop.latitude.toFixed(4)}, Lng: {stop.longitude.toFixed(4)}</p>
-        <button
-          className="text-red-500 hover:text-red-700 text-xs mt-1"
-          onClick={() => handleDeleteStop(index)}
-        >
-          Remove Stop
-        </button>
+        `}
+      >
+        {step}
       </div>
-    </Popup>
-  </Marker>
-))}
 
-{/* ✅ THE EXACT ROUTE LINE: OpenStreetRoute component */}
-{/* This component calculates and draws the road-following path */}
-{startLocation.latitude !== 0 && endLocation.latitude !== 0 && (
-  <OpenStreetRoute
-    startLocation={startLocation}
-    endLocation={endLocation}
-    stops={routePoints}
-  />
-)}
-      {/* Add new stops on click */}
-      <StopMarker
-        routePoints={routePoints}
-        setRoutePoints={setRoutePoints}
-        startLocation={startLocation}
-        endLocation={endLocation}
-      />
-      
-      {/* Show all stops as markers */}
-      {routePoints.map((stop) => (
-        <Marker key={stop.sequence} position={[stop.latitude, stop.longitude]} icon={stopIcon}> 
-          <Popup>{stop.name} (Stop {stop.sequence})</Popup>
-        </Marker>
-      ))}
-
-      <LocateMeButton
-        setCoords={() => {}}
-      />
-    </MapContainer>
-  </div>
+      {/* CONNECTOR LINE */}
+      {step < 5 && (
+        <div
+          className={`
+            w-10 h-0.5 transition-all duration-300
+            ${
+              formStep > step
+                ? "bg-indigo-600"
+                : "bg-gray-200 dark:bg-gray-700"
+            }
+          `}
+        />
+      )}
+    </div>
+  ))}
 </div>
-{/* Stops List */}
-{routePoints.length > 0 && (
-  <div className="mt-4 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-300 dark:border-gray-700">
-    <h4 className="font-semibold mb-2 text-gray-800 dark:text-white">Added Stops</h4>
-    <ul className="space-y-2">
-      {routePoints.sort((a, b) => a.sequence - b.sequence).map((stop, index) => (
-        <li
-          key={stop.sequence}
-          className="flex items-center justify-between bg-white dark:bg-gray-700 px-3 py-2 rounded shadow-sm"
-        >
-          <div>
-            <p className="font-medium text-gray-800 dark:text-gray-200">{stop.name} (Seq: {stop.sequence})</p>
-            <p className="text-sm text-gray-500 dark:text-gray-300">
-              Lat: {stop.latitude.toFixed(4)}, Lng: {stop.longitude.toFixed(4)}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-300">
-              Dwell: {stop.dwell_target_seconds}s, SLA Buffer: {stop.sla_arrival_buffer_seconds}s
-            </p>
-          </div>
-          {/* Stop Removal Button */}
-          <button
-            type="button"
-            onClick={() => handleDeleteStop(index)}
-            className="text-red-500 hover:text-red-700 p-1 rounded transition-colors"
-            title="Remove Stop"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </li>
-      ))}
-    </ul>
-  </div>
+
+              
+
+              {/* STEP 1 */}
+              {formStep === 1 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block mb-1 font-medium">Route Name</label>
+                   <input
+  type="text"
+  value={routeName}
+  onChange={(e) => {
+    if (e.target.value.length <= 50) {
+      setRouteName(e.target.value);
+    }
+  }}
+  maxLength={50}
+  className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+  required
+/>
+<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+  {routeName.length}/50 characters
+</p>
+
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 font-medium">Driver</label>
+                    <select
+                      value={driverId}
+                      onChange={(e) => setDriverId(e.target.value)}
+                      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+                      required
+                    >
+                      <option value="">Select Driver</option>
+                      {drivers.map((d) => (
+                        <option key={d._id} value={d.driver_id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 font-medium">Vehicle</label>
+                    <select
+                      value={vehicleId}
+                      onChange={(e) => setVehicleId(e.target.value)}
+                      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+                      required
+                    >
+                      <option value="">Select Vehicle</option>
+                      {vehicles.map((v) => (
+                        <option key={v._id} value={v.vehicle_id}>
+                          {v.vehicle_number}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 font-medium">Scheduled Start Time</label>
+                    <input
+                      type="time"
+                      value={scheduledStartTime}
+                      onChange={(e) => setScheduledStartTime(e.target.value)}
+                      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2 */}
+              {formStep === 2 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block mb-1 font-medium">Trip Period</label>
+                      <select
+                        value={tripPeriod}
+                        onChange={(e) => setTripPeriod(e.target.value)}
+                        className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+                        required
+                      >
+                        <option value="morning">Morning</option>
+                        <option value="afternoon">Afternoon</option>
+                        <option value="evening">Evening</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-medium">Trip Type</label>
+                      <select
+                        value={tripType}
+                        onChange={(e) => setTripType(e.target.value as "pickup" | "drop")}
+                        className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="pickup">Pickup</option>
+                        <option value="drop">Drop</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 font-medium">Repeat Days (at least one day required)</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {Object.keys(repeatDays).map((day) => (
+                        <label
+                          key={day}
+                          className="flex items-center gap-2 text-gray-800 dark:text-gray-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={repeatDays[day as keyof typeof repeatDays]}
+                            onChange={(e) =>
+                              setRepeatDays((prev) => ({
+                                ...prev,
+                                [day]: e.target.checked,
+                              }))
+                            }
+                            className="accent-blue-600"
+                          />
+                          {day}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3 */}
+              {formStep === 3 && (
+                <div className="space-y-4">
+                  {/* Start Location Map & Address */}
+                  <div>
+                    <label className="block mb-2 font-medium">Start Location (Click Map to Pin)</label>
+                    <div className={`${isStartMapFullscreen ? "fixed inset-0 z-[3000]" : "h-80"} relative border rounded-lg mb-4`}>
+                      <MapContainer
+                        center={[startLocation.latitude || 20.5937, startLocation.longitude || 78.9629]} 
+                        zoom={startLocation.latitude !== 0 ? 14 : 5}
+                        className="h-full w-full rounded border border-gray-300 dark:border-gray-700"
+                      >
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <LocationMarker setLocation={setStartLocation} /> 
+                        
+                        {startLocation.latitude !== 0 && (
+                          <Marker position={[startLocation.latitude, startLocation.longitude]} icon={startIcon}>
+                            <Popup>Start Location</Popup>
+                          </Marker>
+                        )}
+
+                        <LocateMeButton
+                          setCoords={(coords) => setStartLocation({ ...startLocation, ...coords, address: startLocation.address || 'User Location' })}
+                        />
+                      </MapContainer>
+                    </div>
+
+                    <label className="block mb-1 font-medium">Start Location Address</label>
+                    <input
+                      type="text"
+                      value={startLocation.address}
+                      onChange={(e) =>
+                        setStartLocation((prev) => ({ ...prev, address: e.target.value }))
+                      }
+                      placeholder="Enter start address"
+                      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">Lat: {startLocation.latitude.toFixed(4)}, Lng: {startLocation.longitude.toFixed(4)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4 */}
+              {formStep === 4 && (
+                <div className="space-y-4">
+                  {/* End Location Map & Address */}
+                  <div>
+                    <label className="block mb-2 font-medium">End Location (Click Map to Pin)</label>
+                    <div className={`${isEndMapFullscreen ? "fixed inset-0 z-[3000]" : "h-80"} relative border rounded-lg mb-4`}>
+                      <MapContainer
+                        center={[endLocation.latitude || 20.5937, endLocation.longitude || 78.9629]}
+                        zoom={endLocation.latitude !== 0 ? 14 : 5}
+                        className="h-full w-full rounded border border-gray-300 dark:border-gray-700"
+                      >
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <LocationMarker setLocation={setEndLocation} />
+                        {endLocation.latitude !== 0 && (
+                          <Marker
+                            position={[endLocation.latitude, endLocation.longitude]}
+                            icon={endIcon}
+                          >
+                            <Popup>End Location</Popup>
+                          </Marker>
+                        )}
+                        <LocateMeButton
+                          setCoords={(coords) => setEndLocation({ ...endLocation, ...coords, address: endLocation.address || 'User Location' })}
+                        />
+                      </MapContainer>
+                    </div>
+
+                    <label className="block mb-1 font-medium">End Location Address</label>
+                    <input
+                      type="text"
+                      value={endLocation.address}
+                      onChange={(e) =>
+                        setEndLocation((prev) => ({ ...prev, address: e.target.value }))
+                      }
+                      placeholder="Enter end address"
+                      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+                    />
+                     <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">Lat: {endLocation.latitude.toFixed(4)}, Lng: {endLocation.longitude.toFixed(4)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 5 */}
+              {formStep === 5 && (
+                <div className="space-y-4">
+                  {/* Route Stops */}
+                  <div className="relative mt-4">
+                    <label className="block mb-2 font-medium">Add Route Stops (Click Map)</label>
+                    <div className={`${isFullscreen ? "fixed inset-0 z-[3000]" : "h-[400px]"} relative border rounded-lg`}>
+                      <MapContainer
+                        center={[startLocation.latitude || 20.5937, startLocation.longitude || 78.9629]} 
+                        zoom={startLocation.latitude !== 0 ? 12 : 5} 
+                        className="h-full w-full rounded border border-gray-300 dark:border-gray-700"
+                      >
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        
+                        {startLocation.latitude !== 0 && startLocation.longitude !== 0 && (
+                          <Marker
+                            position={[startLocation.latitude, startLocation.longitude]}
+                            icon={startIcon}
+                          >
+                            <Popup>Start Location: {startLocation.address || 'Source'}</Popup>
+                          </Marker>
+                        )}
+
+                        {endLocation.latitude !== 0 && endLocation.longitude !== 0 && (
+                          <Marker
+                            position={[endLocation.latitude, endLocation.longitude]}
+                            icon={endIcon}
+                          >
+                            <Popup>End Location: {endLocation.address || 'Destination'}</Popup>
+                          </Marker>
+                        )}
+
+                        {routePoints.map((stop, index) => (
+                          <Marker
+                            key={index}
+                            position={[stop.latitude, stop.longitude]}
+                            icon={stopIcon}
+                          >
+                            <Popup>
+                              <div>
+                                <strong>Stop {stop.sequence}: {stop.name}</strong>
+                                <p className="text-xs mt-1">Lat: {stop.latitude.toFixed(4)}, Lng: {stop.longitude.toFixed(4)}</p>
+                                <button
+                                  className="text-red-500 hover:text-red-700 text-xs mt-1"
+                                  onClick={() => handleDeleteStop(index)}
+                                >
+                                  Remove Stop
+                                </button>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        ))}
+
+                        {startLocation.latitude !== 0 && endLocation.latitude !== 0 && (
+                          <OpenStreetRoute
+                            startLocation={startLocation}
+                            endLocation={endLocation}
+                            stops={routePoints}
+                          />
+                        )}
+                        
+                        <StopMarker
+                          routePoints={routePoints}
+                          setRoutePoints={setRoutePoints}
+                          startLocation={startLocation}
+                          endLocation={endLocation}
+                        />
+                        
+                        <LocateMeButton
+                          setCoords={() => {}}
+                        />
+                      </MapContainer>
+                    </div>
+                  </div>
+
+                  {/* Stops List */}
+                  {routePoints.length > 0 && (
+                    <div className="mt-4 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-300 dark:border-gray-700">
+                      <h4 className="font-semibold mb-2 text-gray-800 dark:text-white">Added Stops</h4>
+                      <ul className="space-y-2">
+                        {routePoints.sort((a, b) => a.sequence - b.sequence).map((stop, index) => (
+                          <li
+                            key={stop.sequence}
+                            className="flex items-center justify-between bg-white dark:bg-gray-700 px-3 py-2 rounded shadow-sm"
+                          >
+                            <div>
+                              <p className="font-medium text-gray-800 dark:text-gray-200">{stop.name} (Seq: {stop.sequence})</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-300">
+                                Lat: {stop.latitude.toFixed(4)}, Lng: {stop.longitude.toFixed(4)}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-300">
+                                Dwell: {stop.dwell_target_seconds}s, SLA Buffer: {stop.sla_arrival_buffer_seconds}s
+                              </p>
+                              {stop.landmark && (
+  <p className="text-sm text-gray-500 dark:text-gray-300">
+    Landmark: {stop.landmark}
+  </p>
 )}
 
+{stop.approximate_reach_time && (
+  <p className="text-sm text-gray-500 dark:text-gray-300">
+    Reach Time: {stop.approximate_reach_time}
+  </p>
+)}
 
-              <div className="flex gap-3">
-                <Button type="submit">{editingTripId ? "Update Trip" : "Create Trip"}</Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                  Cancel
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStop(index)}
+                              className="text-red-500 hover:text-red-700 p-1 rounded transition-colors"
+                              title="Remove Stop"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* NAVIGATION */}
+              <div className="flex justify-between items-center mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={formStep === 1}
+                  onClick={(e) => { e?.preventDefault(); setFormStep(p => p - 1); }}
+                >
+                  Back
                 </Button>
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e?.preventDefault(); setShowForm(false); }}
+                  >
+                    Cancel
+                  </Button>
+
+                  {formStep < 5 ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleNext}
+                    >
+                      Next
+                    </Button>
+                  ) : (
+                    <Button size="sm" type="submit">
+                      {editingTripId ? "Update Trip" : "Create Trip"}
+                    </Button>
+                  )}
+                </div>
               </div>
             </form>
           </div>
         )}
 
         {/* Trip Table */}
-<div className="overflow-x-auto no-scrollbar">
-  <table className="min-w-full ">
-    <thead>
-      <tr className="border-b border-gray-200 dark:border-gray-700 whitespace-nowrap">
+        {!showForm &&(
+          <div className="max-h-[calc(100vh-180px)] overflow-y-auto overflow-x-auto no-scrollbar">
+          <table className="w-full text-sm">
+    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+      <tr className="text-gray-600 dark:text-gray-300 whitespace-nowrap">
         {[
           "Route Name",
           "Driver Name",
           "Vehicle Number",
-          "Start Time", 
+          "Start Time",
           "Repeat Days",
           "Trip Status",
           "Actions",
         ].map((h) => (
           <th
             key={h}
-            className="px-2 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300"
+            className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200"
           >
             {h}
           </th>
         ))}
       </tr>
     </thead>
+
     <tbody>
-      {trips.map((trip) => {
+      {trips.map((trip, idx) => {
         const repeatDaysStr =
           Object.keys(trip.repeat_days)
             .filter((day) =>
@@ -1245,78 +1455,111 @@ if (loading)
               ].includes(day)
             )
             .filter(
-              (day) => trip.repeat_days[day as keyof typeof trip.repeat_days]
+              (day) =>
+                trip.repeat_days[
+                  day as keyof typeof trip.repeat_days
+                ]
             )
             .join(", ") || "None";
 
         return (
           <tr
             key={trip._id}
-            className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 wh"
+            className={`border-t dark:border-gray-700
+            ${idx % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-800"}
+            hover:bg-blue-50/50 dark:hover:bg-gray-700 transition`}
           >
-            <td className="px-2 py-2 whitespace-nowrap">{trip.route_name}</td>
-            <td className="px-2 py-2 whitespace-nowrap">
-              {drivers.find((d) => d.driver_id === trip.driver_id)?.name ||
-                "N/A"}
+            {/* Route Name */}
+            <td className="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">
+              {trip.route_name}
             </td>
-            <td className="px-2 py-2 whitespace-nowrap">
-              {vehicles.find((v) => v.vehicle_id === trip.vehicle_id)
-                ?.vehicle_number || "N/A"}
+
+            {/* Driver */}
+            <td className="px-4 py-3 whitespace-nowrap">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-bold">
+                  {drivers
+                    .find((d) => d.driver_id === trip.driver_id)
+                    ?.name?.charAt(0)
+                    .toUpperCase() || "?"}
+                </div>
+                <span className="text-gray-700 dark:text-gray-300">
+                  {drivers.find((d) => d.driver_id === trip.driver_id)?.name ||
+                    "N/A"}
+                </span>
+              </div>
             </td>
-             <td className="px-2 py-2 whitespace-nowrap">{trip.scheduled_start_time}</td> 
-            <td className="px-2 py-2 whitespace-nowrap">{repeatDaysStr}</td>
-       <td className="px-2 py-2">
+
+            {/* Vehicle */}
+            <td className="px-4 py-3 whitespace-nowrap">
   <span
-    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-      trip.status === "pending"
-        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400"
-        : trip.status === "in-progress"
-        ? "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400"
-        : trip.status === "started"
-        ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400"
-        : trip.status === "completed"
-        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400"
-        : trip.status === "cancelled"
-        ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400"
-        : "bg-gray-100 text-gray-700 dark:bg-gray-900/50 dark:text-gray-400"
-    }`}
+    className="
+      px-2 py-1 rounded text-xs font-medium
+      bg-gray-100 text-gray-800
+      dark:bg-gray-700 dark:text-gray-100
+      border border-gray-300 dark:border-gray-600
+    "
   >
-    {trip.status === "in-progress" ? "In Progress" : trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+    {vehicles.find((v) => v.vehicle_id === trip.vehicle_id)
+      ?.vehicle_number || "N/A"}
   </span>
 </td>
 
 
+            {/* Start Time */}
+            <td className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
+              {trip.scheduled_start_time}
+            </td>
 
+            {/* Repeat Days */}
+            <td className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
+              {repeatDaysStr}
+            </td>
 
-            <td className="px-2 py-2">
-              <div className="flex gap-2 items-center">
-                
+            {/* Status */}
+            <td className="px-4 py-3 whitespace-nowrap">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  trip.status === "pending"
+                    ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400"
+                    : trip.status === "in-progress"
+                    ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400"
+                    : trip.status === "started"
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                    : trip.status === "completed"
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                    : trip.status === "cancelled"
+                    ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                    : "bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-400"
+                }`}
+              >
+                {trip.status === "in-progress"
+                  ? "In Progress"
+                  : trip.status.charAt(0).toUpperCase() +
+                    trip.status.slice(1)}
+              </span>
+            </td>
+
+            {/* Actions */}
+            <td className="px-4 py-3">
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => handleView(trip)}
-                   className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded 
-                 hover:bg-gray-100 font-normal 
-                 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200"
-    >
-                  View
-                </button>
-                  {/* <button
-                  onClick={() => handleActivateDeactivate(trip)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-                  title={trip.status === "pending" || trip.status === "started" ? "Deactivate Trip" : "Activate Trip"}
+                  className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                  hover:bg-blue-50 hover:text-blue-600
+                  dark:hover:bg-blue-900/40 transition"
                 >
-                  {trip.status === "pending" || trip.status === "started" ? <DeactivateIcon /> : <ActivateIcon />}
-                </button> */}
+                  <EyeIcon />
+                </button>
 
                 <button
                   onClick={() => handleEdit(trip)}
-                 className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded 
-                 hover:bg-blue-100 font-normal 
-                 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
-    >
-                  Edit
+                  className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                  hover:bg-indigo-50 hover:text-indigo-600
+                  dark:hover:bg-indigo-900/40 transition"
+                >
+                  <EditIcon />
                 </button>
-
-
               </div>
             </td>
           </tr>
@@ -1327,7 +1570,7 @@ if (loading)
         <tr>
           <td
             colSpan={7}
-            className="text-center py-6 text-gray-500 dark:text-gray-400"
+            className="text-center py-8 text-gray-500 dark:text-gray-400"
           >
             No trips found
           </td>
@@ -1336,6 +1579,8 @@ if (loading)
     </tbody>
   </table>
 </div>
+
+        )}
       </div>
     </>
   );
