@@ -566,7 +566,14 @@ const assignDriverToVehicleRules = () => {
 
 const assignDeviceToVehicleRules = () => {
   return [
-    entityIdBodyRule('device_id', ENTITY_PREFIXES.DEVICE, 'Device ID'),
+    body('device_id')
+      .notEmpty()
+      .withMessage('Device ID is required')
+      .bail()
+      .isString()
+      .withMessage('Device ID must be a string')
+      .bail()
+      .customSanitizer((value) => (typeof value === 'string' ? value.trim() : value)),
     entityIdBodyRule('vehicle_id', ENTITY_PREFIXES.VEHICLE, 'Vehicle ID')
   ];
 };
