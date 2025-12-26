@@ -62,6 +62,19 @@ const routePointSchema = new mongoose.Schema(
       type: Number,
       default: 100
     },
+    landmark: {
+      type: String,
+      default: null
+    },
+    approximate_reach_time: {
+      type: String,
+      default: null
+    },
+    stop_status: {
+      type: String,
+      enum: ['pending', 'approaching', 'reached', 'departed', 'skipped', 'delayed'],
+      default: null
+    },
     planned_arrival_time: Date,
     planned_departure_time: Date
   },
