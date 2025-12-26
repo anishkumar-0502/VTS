@@ -439,47 +439,61 @@ if (loading)
   </h2>
 
   {!showForm && (
-    <div className="flex items-center gap-3">
-      {/* View Mode Select */}
-      <div className="relative">
-        <select
-          value={viewMode}
-          onChange={(e) => setViewMode(e.target.value as "assigned" | "unassigned")}
-          className="
-            appearance-none rounded-lg border border-gray-300 bg-white
-            px-3 py-2 pr-9 text-sm font-medium text-gray-700 shadow-sm
-            hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40
-            dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200
-          "
-        >
-          <option value="assigned">Assigned Devices</option>
-          <option value="unassigned">Unassigned Devices</option>
-        </select>
+ <div className="flex items-center gap-3">
+  {/* View Mode Select */}
+  <div className="relative">
+    <select
+      value={viewMode}
+      onChange={(e) =>
+        setViewMode(e.target.value as "assigned" | "unassigned")
+      }
+      className="
+        appearance-none rounded-full px-4 py-2 pr-9
+        text-sm font-medium
+        bg-indigo-50 dark:bg-gray-800
+        text-indigo-700 dark:text-indigo-300
+        border border-indigo-200 dark:border-gray-700
+        shadow-sm
+        hover:bg-indigo-100 dark:hover:bg-gray-700
+        focus:outline-none focus:ring-2 focus:ring-indigo-400
+      "
+    >
+      <option value="assigned">Assigned Devices</option>
+      <option value="unassigned">Unassigned Devices</option>
+    </select>
 
-        {/* Dropdown Icon */}
-        <svg
-          className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-        >
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </div>
+    {/* Dropdown Icon */}
+    <svg
+      className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  </div>
 
-      {/* Add Device Button */}
-      <Button
-        size="sm"
-        onClick={() => {
-          resetForm();
-          setEditingDevice(null);
-          setShowForm(true);
-        }}
-      >
-        Add Device
-      </Button>
-    </div>
+  {/* Add Device Button */}
+  <Button
+    size="sm"
+    className="
+      rounded-full px-5 py-2
+      bg-indigo-600 hover:bg-indigo-700
+      text-white font-medium
+      shadow-md hover:shadow-lg
+      transition-all
+    "
+    onClick={() => {
+      resetForm();
+      setEditingDevice(null);
+      setShowForm(true);
+    }}
+  >
+    + Add Device
+  </Button>
+</div>
+
   )}
 </div>
 
