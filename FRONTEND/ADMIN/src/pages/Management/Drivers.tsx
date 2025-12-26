@@ -86,6 +86,27 @@ const ActivateIcon = () => (
     <circle cx="6" cy="12" r="5" fill="#ffffff" />
   </svg>
 );
+
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M2 12C4.5 7 8 5 12 5s7.5 2 10 7c-2.5 5-6 7-10 7s-7.5-2-10-7Z"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
+const EditIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+  </svg>
+);
   // ======================
   // FETCH DRIVERS
   // ======================
@@ -216,62 +237,133 @@ const handleView = async (driver_id: string) => {
       `;
     };
 
-    Swal.fire({
-      showCloseButton: true,
-      showConfirmButton: false,
-      width: 520,
-      padding: "20px",
-      html: `
-        <div style="text-align:left;">
+   Swal.fire({
+  showCloseButton: true,
+  showConfirmButton: false,
+  width: 520,
+  padding: "0",
+  background: "transparent",
+  html: `
+  <div style="
+    border-radius:26px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:24px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
+    ">
 
-          <!-- Header -->
-          <div style="display:flex; align-items:center; gap:15px; padding-bottom:15px;">
-            <div style="
-              width:55px; height:55px; border-radius:50%;
-              background:#4f46e533; display:flex;
-              align-items:center; justify-content:center;
-              font-size:22px; font-weight:700; color:#4f46e5;">
-              ${d.name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div style="font-size:20px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
-                ${d.name}
-              </div>
-              <div style="font-size:13px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
-                Driver Details
-              </div>
-            </div>
-          </div>
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(600px at top left, rgba(99,102,241,.15), transparent 40%),
+          radial-gradient(500px at bottom right, rgba(34,211,238,.12), transparent 45%);
+      "></div>
 
-          <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:12px 0;" />
-
-          <!-- Driver Info -->
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${infoRow("Email", d.email)}
-            ${infoRow("Phone Number", d.phone_number)}
-            ${infoRow("License Number", d.license_number)}
-            ${infoRow("License Expiry", formatDate(d.license_expiry))}
-            ${infoRow("Assigned Vehicle Number", v.vehicle_number)}
-            ${infoRow("Vehicle Type", v.vehicle_type)}
-            ${infoRow("Capacity", v.capacity)}
-            ${infoRow("Vehicle Status", v.current_status)}
-            <div style="
-              font-size:14px;
-              font-weight:500;
-              padding:4px 0;
-              color:${darkMode ? "#e5e7eb" : "#111827"};">
-              <b>Status :</b> ${
-                d.status
-                  ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
-                  : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
-              }
-            </div>
-          </div>
-
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:20px 24px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:14px;
+      ">
+        <div style="
+          width:56px;
+          height:56px;
+          border-radius:16px;
+          background:rgba(255,255,255,.22);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:24px;
+          font-weight:800;
+          color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${d.name.charAt(0).toUpperCase()}
         </div>
-      `,
-      customClass: { popup: "card-popup" },
-    });
+        <div>
+          <div style="font-size:20px; font-weight:800; color:white;">
+            ${d.name}
+          </div>
+          <div style="font-size:13px; color:rgba(255,255,255,.85);">
+            Driver Profile
+          </div>
+        </div>
+      </div>
+
+     <!-- BODY -->
+<div style="
+  position:relative;
+  padding:24px;
+  color:${darkMode ? "#e5e7eb" : "#111827"};
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  font-size:14px;
+  line-height:1.6;
+">
+
+  <div><b>Email:</b> ${d.email}</div>
+
+  <div><b>Phone Number:</b> ${d.phone_number}</div>
+
+  <div><b>License Number:</b> ${d.license_number}</div>
+
+  <div><b>License Expiry:</b> ${formatDate(d.license_expiry)}</div>
+
+  <div><b>Assigned Vehicle Number:</b> ${v.vehicle_number ?? "N/A"}</div>
+
+  <div><b>Vehicle Type:</b> ${v.vehicle_type ?? "N/A"}</div>
+
+  <div><b>Capacity:</b> ${v.capacity ?? "N/A"}</div>
+
+  <div><b>Vehicle Status:</b> ${v.current_status ?? "N/A"}</div>
+
+  <div>
+    <b>Status:</b>
+    ${
+      d.status
+        ? `<span style="
+            margin-left:6px;
+            background:#10b98122;
+            color:#10b981;
+            padding:4px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:700;
+          ">Active</span>`
+        : `<span style="
+            margin-left:6px;
+            background:#ef444422;
+            color:#ef4444;
+            padding:4px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:700;
+          ">Inactive</span>`
+    }
+  </div>
+
+</div>
+
+    </div>
+  </div>
+  `,
+  customClass: { popup: "shadow-none" },
+});
+
 
   } catch (err: any) {
     Swal.fire({
@@ -317,17 +409,34 @@ const handleToggleStatus = async (driver: Driver) => {
 };
 
 
+  // const handleEdit = (driver: Driver) => {
+  //   setEditingDriver(driver);
+  //   setFormData({
+  //     name: driver.name,
+  //     email: driver.email,
+  //     phone_number: String(driver.phone_number),
+  //     license_number: driver.license_number,
+  //     license_expiry: driver.license_expiry.split("T")[0],
+  //   });
+  //   setShowForm(true);
+  // };
+
   const handleEdit = (driver: Driver) => {
-    setEditingDriver(driver);
-    setFormData({
-      name: driver.name,
-      email: driver.email,
-      phone_number: String(driver.phone_number),
-      license_number: driver.license_number,
-      license_expiry: driver.license_expiry.split("T")[0],
-    });
-    setShowForm(true);
-  };
+  setEditingDriver(driver);
+
+  setFormData({
+    name: driver.name || "",
+    email: driver.email || "",
+    phone_number: String(driver.phone_number || ""),
+    license_number: driver.license_number || "",
+    license_expiry:
+      driver.license_expiry && driver.license_expiry.includes("T")
+        ? driver.license_expiry.split("T")[0]
+        : driver.license_expiry || "",
+  });
+
+  setShowForm(true);
+};
 
   const resetForm = () => {
     setFormData({
@@ -355,6 +464,7 @@ if (loading)
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Manage Drivers
             </h2>
+             {!showForm && (
             <Button
               size="sm"
               onClick={() => {
@@ -367,6 +477,7 @@ if (loading)
             >
               Add Driver
             </Button>
+             )}
           </div>
 
           {/* ===================== FORM ===================== */}
@@ -421,100 +532,147 @@ if (loading)
           )}
 
           {/* ===================== TABLE ===================== */}
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  {["Name", "Email", "Phone", "Assigned vehicle", "Status", "Actions"].map((h) => (
-                    <th
-                      key={h}
-                      className="px-2 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {drivers.map((driver) => (
-                  <tr
-                    key={driver._id}
-                    className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300"
-                  >
-                    <td className="px-2 py-2">{driver.name}</td>
-                    <td className="px-2 py-2">{driver.email}</td>
-                    <td className="px-2 py-2">{driver.phone_number}</td>
-                    <td className="px-2 py-2">
-  {driver.assigned_vehicle?.vehicle_number || "Not Assigned"}
-</td>
-                    <td className="px-2 py-2">
-                       <span
-    className={`px-3 py-1 rounded-full text-xs font-medium ${
-      driver.status
-        ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-        : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-    }`}
-  >
-                        {driver.status ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-2 py-2">
-                      <div className="flex gap-2">
-                         <button
-        onClick={() => handleToggleStatus(driver)}
-      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-      title={driver.status ? "Deactivate User" : "Activate User"}
-    >
-      {driver.status ? <DeactivateIcon /> : <ActivateIcon />}
-    </button>
-                        <button
-                          onClick={() =>
-                            handleView(driver.driver_profile?.driver_id || "")
-                          }
-                           className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded 
-                 hover:bg-gray-100 font-normal 
-                 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200"
-    >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleEdit(driver)}
-                           className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded 
-                 hover:bg-blue-100 font-normal 
-                 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
-    >
-                          Edit
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+             {!showForm && (
+                  <div className="max-h-[calc(100vh-180px)] overflow-y-auto overflow-x-auto no-scrollbar">
+  <table className="w-full text-sm">
+    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+      <tr className="text-gray-600 dark:text-gray-300">
+        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+          Name
+        </th>
+        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+          Email
+        </th>
+        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+          Phone
+        </th>
+        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+          Assigned Vehicle
+        </th>
+        <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">
+          Status
+        </th>
+        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">
+          Actions
+        </th>
+      </tr>
+    </thead>
 
-                {drivers.length === 0 && !error && (
-                  <tr>
-                    <td colSpan={6} className="text-center py-6 text-gray-500">
-                      No drivers found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            {hasMore && (
-  <div className="flex justify-center py-4">
-    <button
-      disabled={loadingMore}
-      onClick={() => {
-        setPage(prev => prev + 1);
-        fetchDrivers();
-      }}
-      className="px-4 py-2 rounded text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-    >
-      {loadingMore ? "Loading..." : "Load More"}
-    </button>
-  </div>
-)}
+    <tbody>
+      {drivers.map((driver, idx) => (
+        <tr
+          key={driver._id}
+          className={`border-t dark:border-gray-700
+          ${idx % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-800"}
+          hover:bg-blue-50/50 dark:hover:bg-gray-700 transition`}
+        >
+          {/* Name */}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-xs">
+                {driver.name?.charAt(0).toUpperCase()}
+              </div>
+              <span className="font-medium text-gray-900 dark:text-white">
+                {driver.name}
+              </span>
+            </div>
+          </td>
 
-          </div>
+          {/* Email */}
+          <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+            {driver.email}
+          </td>
+
+          {/* Phone */}
+          <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+            {driver.phone_number}
+          </td>
+
+          {/* Vehicle */}
+          <td className="px-4 py-3">
+            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 rounded text-xs text-gray-700 dark:text-gray-300">
+              {driver.assigned_vehicle?.vehicle_number || "Not Assigned"}
+            </span>
+          </td>
+
+          {/* Status */}
+          <td className="px-4 py-3 text-center">
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                driver.status
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                  : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+              }`}
+            >
+              {driver.status ? "Active" : "Inactive"}
+            </span>
+          </td>
+
+          {/* Actions */}
+          <td className="px-4 py-3">
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => handleToggleStatus(driver)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                title={driver.status ? "Deactivate User" : "Activate User"}
+              >
+                {driver.status ? <DeactivateIcon /> : <ActivateIcon />}
+              </button>
+
+              <button
+                onClick={() =>
+                  handleView(driver.driver_profile?.driver_id || "")
+                }
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                hover:bg-blue-50 hover:text-blue-600
+                dark:hover:bg-blue-900/40 transition"
+              >
+                <EyeIcon />
+              </button>
+
+              <button
+                onClick={() => handleEdit(driver)}
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                hover:bg-indigo-50 hover:text-indigo-600
+                dark:hover:bg-indigo-900/40 transition"
+              >
+                <EditIcon />
+              </button>
+            </div>
+          </td>
+        </tr>
+      ))}
+
+      {drivers.length === 0 && !error && (
+        <tr>
+          <td
+            colSpan={6}
+            className="text-center py-8 text-gray-500 dark:text-gray-400"
+          >
+            No drivers found
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+
+  {hasMore && (
+    <div className="flex justify-center py-4">
+      <button
+        disabled={loadingMore}
+        onClick={() => {
+          setPage((prev) => prev + 1);
+          fetchDrivers();
+        }}
+        className="px-4 py-2 rounded text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+      >
+        {loadingMore ? "Loading..." : "Load More"}
+      </button>
+    </div>
+  )}
+</div>
+
+             )}
         </div>
       </div>
     </>

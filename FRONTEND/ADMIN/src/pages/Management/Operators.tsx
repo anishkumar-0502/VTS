@@ -13,6 +13,7 @@ interface Operator {
   email: string;phone?: string;
 phone_number?: string;
   registration_number: string;
+    company_name?: string;  
   address: string;
   city: string;
   state: string;
@@ -61,7 +62,32 @@ const [devicePageSize] = useState(10);
 const [deviceTotalPages, setDeviceTotalPages] = useState(1);
 const [loadingDevices, setLoadingDevices] = useState(false);
 const [loadingMoreDevices, setLoadingMoreDevices] = useState(false);
+const [formStep, setFormStep] = useState(1);
+const emptyOperatorForm = {
+  name: "",
+  email: "",
+  phone_number: "",
+  registration_number: "",
+  company_name: "",
+  address: "",
+  city: "",
+  state: "",
+  postal_code: "",
+  country: "",
+};
 
+const [operatorForm, setOperatorForm] = useState<any>({
+  name: "",
+  email: "",
+  phone_number: "",
+  registration_number: "",
+  company_name: "",
+  address: "",
+  city: "",
+  state: "",
+  postal_code: "",
+  country: "",
+});
 
   const isDark = document.documentElement.classList.contains("dark");
 
@@ -79,6 +105,33 @@ const ActivateIcon = () => (
     <circle cx="6" cy="12" r="5" fill="#ffffff" />
   </svg>
 );
+
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M2 12C4.5 7 8 5 12 5s7.5 2 10 7c-2.5 5-6 7-10 7s-7.5-2-10-7Z"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
+const EditIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+  </svg>
+);
+
+const stepFields: Record<number, string[]> = {
+  1: ["name", "email", "phone_number", "registration_number"],
+  2: ["company_name", "address", "city", "state"],
+  3: ["postal_code", "country"],
+};
 
 
   const swalBaseConfig = {
@@ -169,20 +222,17 @@ const fetchDevices = async (pageNum = 1) => {
   // Create / Update
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    let body = Object.fromEntries(formData.entries());
-
-body = {
-  name: body.name,
-  email: body.email,
-  phone_number: body.phone || body.phone_number,
-  registration_number: body.registration_number,
-  company_name: body.company_name,
-  address: body.address,
-  city: body.city,
-  state: body.state,
-  postal_code: body.postal_code,
-  country: body.country,
+   const body = {
+  name: operatorForm.name,
+  email: operatorForm.email,
+  phone_number: operatorForm.phone_number,
+  registration_number: operatorForm.registration_number,
+  company_name: operatorForm.company_name,
+  address: operatorForm.address,
+  city: operatorForm.city,
+  state: operatorForm.state,
+  postal_code: operatorForm.postal_code,
+  country: operatorForm.country,
 };
     try {
       const token = localStorage.getItem("token");
@@ -376,131 +426,165 @@ Swal.fire({
   showCloseButton: true,
   showConfirmButton: false,
   width: 700,
-  padding: "20px",
+  padding: "0",
+  background: "transparent",
   html: `
-   <div style="text-align:left; font-family:Arial, sans-serif; color:${darkMode ? "#e5e7eb" : "#111827"};">
+  <!-- GRADIENT BORDER -->
+  <div style="
+    border-radius:26px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
 
-  <!-- Header -->
-  <div style="display:flex; align-items:center; gap:15px; padding-bottom:18px;">
+    <!-- INNER CARD -->
     <div style="
-      width:60px; height:60px; border-radius:50%;
-      background:#4f46e533; display:flex;
-      align-items:center; justify-content:center;
-      font-size:24px; font-weight:700; color:#4f46e5;
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:24px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
     ">
-      ${o.name.charAt(0).toUpperCase()}
-    </div>
 
-    <div>
-      <div style="font-size:20px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
-        ${o.name}
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(600px at top left, rgba(99,102,241,.15), transparent 40%),
+          radial-gradient(500px at bottom right, rgba(34,211,238,.12), transparent 45%);
+      "></div>
+
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:20px 24px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:14px;
+      ">
+        <div style="
+          width:56px;height:56px;border-radius:16px;
+          background:rgba(255,255,255,.22);
+          display:flex;align-items:center;justify-content:center;
+          font-size:24px;font-weight:800;color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${o.name.charAt(0).toUpperCase()}
+        </div>
+
+        <div>
+          <div style="font-size:20px;font-weight:800;color:white">
+            ${o.name}
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,.85)">
+            Operator Profile
+          </div>
+        </div>
       </div>
 
-      <div style="font-size:14px; color:${darkMode ? "#e5e7eb" : "#6b7280"};">
-        Operator
-      </div>
-    </div>
-  </div>
+      <!-- CONTENT (UNCHANGED) -->
+      <div style="position:relative; padding:24px; color:${darkMode ? "#e5e7eb" : "#111827"};">
 
-  <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:14px 0;" />
+        <!-- BASIC INFO -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
+          <div><b>Email:</b> ${o.email}</div>
+          <div><b>Phone:</b> ${o.phone || "N/A"}</div>
+          <div><b>Registration #:</b> ${o.registration_number || "N/A"}</div>
+          <div><b>Company:</b> ${o.company_name || "N/A"}</div>
+          <div><b>Country:</b> ${o.country || "N/A"}</div>
+          <div>
+            <b>Status:</b>
+            ${
+              o.status
+                ? `<span style="margin-left:6px;background:#10b98122;color:#10b981;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">Active</span>`
+                : `<span style="margin-left:6px;background:#ef444422;color:#ef4444;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">Inactive</span>`
+            }
+          </div>
+        </div>
 
-  <!-- Basic Info -->
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:14px;">
+        <hr style="border:none;border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"};margin:18px 0"/>
 
-  <div style="display:flex; gap:6px; align-items:center;">
-    <b style="color:${darkMode ? "#e5e7eb" : "#111827"};">Email:</b>
-    <span style="color:${darkMode ? "#e5e7eb" : "#111827"};">${o.email}</span>
-  </div>
+        <!-- ASSIGNED DETAILS -->
+        <b style="font-size:15px">Assigned Details</b>
 
-  <div style="display:flex; gap:6px; align-items:center;">
-    <b style="color:${darkMode ? "#e5e7eb" : "#111827"};">Phone:</b>
-    <span style="color:${darkMode ? "#e5e7eb" : "#111827"};">${o.phone || "N/A"}</span>
-  </div>
+        <table style="
+          width:100%;
+          border-collapse:collapse;
+          margin-top:12px;
+          font-size:14px;
+          border:1px solid ${darkMode ? "#4b5563" : "#ddd"};
+        ">
+          <thead>
+            <tr style="background:${darkMode ? "#1f2937" : "#f3f4f6"}">
+              <th style="padding:10px;text-align:left">Drivers</th>
+              <th style="padding:10px;text-align:left">Devices</th>
+              <th style="padding:10px;text-align:left">Vehicles</th>
+            </tr>
+          </thead>
+          <tbody>
+  ${(() => {
+    const hasData =
+      o.drivers.length > 0 ||
+      o.devices.length > 0 ||
+      o.vehicles.length > 0;
 
-  <div style="display:flex; gap:6px; align-items:center;">
-    <b style="color:${darkMode ? "#e5e7eb" : "#111827"};">Registration #:</b>
-    <span style="color:${darkMode ? "#e5e7eb" : "#111827"};">${o.registration_number || "N/A"}</span>
-  </div>
-
-  <div style="display:flex; gap:6px; align-items:center;">
-    <b style="color:${darkMode ? "#e5e7eb" : "#111827"};">Company:</b>
-    <span style="color:${darkMode ? "#e5e7eb" : "#111827"};">${o.company_name || "N/A"}</span>
-  </div>
-
-  <div style="display:flex; gap:6px; align-items:center;">
-    <b style="color:${darkMode ? "#e5e7eb" : "#111827"};">Country:</b>
-    <span style="color:${darkMode ? "#e5e7eb" : "#111827"};">${o.country || "N/A"}</span>
-  </div>
-
-  <div style="display:flex; gap:6px; align-items:center;">
-    <b style="color:${darkMode ? "#e5e7eb" : "#111827"};">Status:</b>
-    <span>
-      ${
-        o.status
-          ? `<span style="background:#10b98122; color:#10b981; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:600;">Active</span>`
-          : `<span style="background:#ef444422; color:#ef4444; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:600;">Inactive</span>`
-      }
-    </span>
-  </div>
-
-</div>
-
-
-  <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:18px 0;" />
-
-  <!-- Assigned Details -->
-  <div>
-    <b style="font-size:15px; color:${darkMode ? "#e5e7eb" : "#111827"};">Assigned Details</b>
-
-    <table style="
-      width:100%;
-      border-collapse: collapse;
-      margin-top:12px;
-      font-size:14px;
-      border:1px solid ${darkMode ? "#4b5563" : "#ddd"};
-      color:${darkMode ? "#e5e7eb" : "#111827"};
-    ">
-      <thead>
-        <tr style="background:${darkMode ? "#1f2937" : "#f3f4f6"};">
-          <th style="padding:10px; border-bottom:1px solid ${darkMode ? "#374151" : "#ddd"}; text-align:left; color:${darkMode ? "#e5e7eb" : "#111827"};">Drivers</th>
-          <th style="padding:10px; border-bottom:1px solid ${darkMode ? "#374151" : "#ddd"}; text-align:left; color:${darkMode ? "#e5e7eb" : "#111827"};">Devices</th>
-          <th style="padding:10px; border-bottom:1px solid ${darkMode ? "#374151" : "#ddd"}; text-align:left; color:${darkMode ? "#e5e7eb" : "#111827"};">Vehicles</th>
+    // 👉 Case 1: NO assigned details at all
+    if (!hasData) {
+      return `
+        <tr>
+          <td colspan="3" style="
+            padding:14px;
+            text-align:center;
+            color:${darkMode ? "#9ca3af" : "#6b7280"};
+            font-style:italic;
+          ">
+            No assigned drivers, devices, or vehicles
+          </td>
         </tr>
-      </thead>
+      `;
+    }
 
-      <tbody>
-        ${(() => {
-          const maxRows = Math.max(o.drivers.length, o.devices.length, o.vehicles.length);
-          let rows = "";
+    // 👉 Case 2: Normal data rendering
+    const maxRows = Math.max(
+      o.drivers.length,
+      o.devices.length,
+      o.vehicles.length
+    );
 
-          for (let i = 0; i < maxRows; i++) {
-            rows += `
-              <tr style="color:${darkMode ? "#e5e7eb" : "#111827"};">
-                <td style="padding:8px 10px; border-bottom:1px solid ${darkMode ? "#374151" : "#eee"};">
-                  ${o.drivers[i] ? o.drivers[i].name : "—"}
-                </td>
+    let rows = "";
+    for (let i = 0; i < maxRows; i++) {
+      rows += `
+        <tr>
+          <td style="padding:8px 10px">
+            ${o.drivers[i]?.name || "—"}
+          </td>
+          <td style="padding:8px 10px">
+            ${o.devices[i]?.device_id || "—"}
+          </td>
+          <td style="padding:8px 10px">
+            ${o.vehicles[i]?.vehicle_number || "—"}
+          </td>
+        </tr>
+      `;
+    }
 
-                <td style="padding:8px 10px; border-bottom:1px solid ${darkMode ? "#374151" : "#eee"};">
-                  ${o.devices[i] ? o.devices[i].device_id : "—"}
-                </td>
+    return rows;
+  })()}
+</tbody>
 
-                <td style="padding:8px 10px; border-bottom:1px solid ${darkMode ? "#374151" : "#eee"};">
-                  ${o.vehicles[i] ? o.vehicles[i].vehicle_number : "—"}
-                </td>
-              </tr>
-            `;
-          }
-          return rows;
-        })()}
-      </tbody>
-    </table>
+        </table>
+
+      </div>
+    </div>
   </div>
-
-</div>
-
   `,
-  customClass: { popup: "card-popup" }
+  customClass: { popup: "shadow-none" }
 });
+
 
 
   } catch (err: any) {
@@ -557,70 +641,105 @@ const handleViewDevices = async (operator_id: string) => {
       </table>
       `
         : `<div style="font-size:12px; color:${mutedColor} !important; text-align:center;">No devices assigned.</div>`;
+Swal.fire({
+  showCloseButton: true,
+  showConfirmButton: false,
+  width: 540,
+  padding: "0",
+  background: "transparent",
+  html: `
+  <!-- GRADIENT BORDER -->
+  <div style="
+    border-radius:26px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
 
-    Swal.fire({
-      showCloseButton: true,
-      showConfirmButton: false,
-      width: 520,
-      padding: "20px",
-      html: `
-      <div style="text-align:left; font-family:Arial, sans-serif; color:${textColor} !important;">
+    <!-- INNER CARD -->
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:24px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
+    ">
 
-        <!-- Header -->
-        <div style="display:flex; align-items:center; gap:15px; padding-bottom:15px;">
-          <div style="
-            width:55px; height:55px; border-radius:50%;
-            background:#4f46e533; display:flex;
-            align-items:center; justify-content:center;
-            font-size:22px; font-weight:700; color:#4f46e5;
-          ">
-            ${o.name ? o.name.charAt(0).toUpperCase() : "O"}
-          </div>
-          <div>
-            <div style="font-size:20px; font-weight:700; color:${textColor} !important;">${o.name}</div>
-            <div style="font-size:13px; color:${mutedColor} !important;">Operator</div>
-          </div>
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(600px at top left, rgba(99,102,241,.15), transparent 40%),
+          radial-gradient(500px at bottom right, rgba(34,211,238,.12), transparent 45%);
+      "></div>
+
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:18px 22px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:14px;
+      ">
+        <div style="
+          width:54px;height:54px;border-radius:16px;
+          background:rgba(255,255,255,.22);
+          display:flex;align-items:center;justify-content:center;
+          font-size:22px;font-weight:800;color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${o.name ? o.name.charAt(0).toUpperCase() : "O"}
         </div>
 
-        <hr style="border:none; border-top:1px solid ${borderColor}; margin:12px 0;" />
+        <div>
+          <div style="font-size:19px;font-weight:800;color:white">
+            ${o.name}
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,.85)">
+            Operator · Devices
+          </div>
+        </div>
+      </div>
 
-        <!-- Basic Info (Single Line) -->
+      <!-- CONTENT (UNCHANGED) -->
+      <div style="position:relative; padding:22px; color:${textColor} !important;">
+
+        <!-- BASIC INFO -->
         <div style="display:flex; flex-direction:column; gap:8px; font-size:14px;">
-
-          <div style="display:flex; gap:6px; color:${textColor} !important;">
-            <b style="min-width:70px; color:${textColor} !important;">Email :</b>
-            <span style="color:${textColor} !important;">${o.email || "N/A"}</span>
-          </div>
-
-          <div style="display:flex; gap:6px; color:${textColor} !important;">
-            <b style="min-width:70px; color:${textColor} !important;">Phone :</b>
-            <span style="color:${textColor} !important;">${o.phone || "N/A"}</span>
-          </div>
-
-          <div style="display:flex; gap:6px; align-items:center; color:${textColor} !important;">
-            <b style="min-width:70px; color:${textColor} !important;">Status :</b>
+          <div><b>Email :</b> ${o.email || "N/A"}</div>
+          <div><b>Phone :</b> ${o.phone || "N/A"}</div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <b>Status :</b>
             ${
               o.status
-                ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
-                : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
+                ? `<span style="background:#10b98122;color:#10b981;padding:3px 8px;border-radius:6px;font-size:12px">Active</span>`
+                : `<span style="background:#ef444422;color:#ef4444;padding:3px 8px;border-radius:6px;font-size:12px">Inactive</span>`
             }
           </div>
-
         </div>
 
-        <hr style="border:none; border-top:1px solid ${borderColor}; margin:14px 0;" />
+        <hr style="border:none;border-top:1px solid ${borderColor};margin:14px 0"/>
 
-        <!-- Devices Section -->
-        <div style="font-size:15px; font-weight:600; margin-bottom:10px; color:${textColor} !important;">Assigned Devices</div>
+        <!-- DEVICES -->
+        <div style="font-size:15px;font-weight:600;margin-bottom:10px">
+          Assigned Devices
+        </div>
 
-        <div style="max-height:300px; overflow:auto; border-radius:6px; color:${textColor} !important;">
+        <div style="max-height:300px; overflow:auto; border-radius:6px;">
           ${devicesHTML}
         </div>
 
       </div>
-      `,
-      customClass: { popup: "card-popup" }
-    });
+    </div>
+  </div>
+  `,
+  customClass: { popup: "shadow-none" }
+});
+
   } catch (err: any) {
     Swal.fire({ icon: "error", title: "Error", text: err.message });
   }
@@ -647,15 +766,19 @@ if (loading)
               Manage Operators
             </h2>
 
+            {!showForm && (
             <Button
               size="sm"
               onClick={() => {
                 setEditingOperator(null);
+                  setOperatorForm(emptyOperatorForm); 
+                   setFormStep(1);  
                 setShowForm(true);
               }}
             >
               + Add Operator
             </Button>
+            )}
           </div>
 
           {/* Form */}
@@ -665,54 +788,98 @@ if (loading)
                 {editingOperator ? "Edit Operator" : "Add New Operator"}
               </h3>
 
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  "name",
-                  "email",
-                  "phone_number",
-                  "registration_number",
-                  "company_name", 
-                  "address",
-                  "city",
-                  "state",
-                  "postal_code",
-                  "country",
-                ].map((field) => (
-                  <div key={field}>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-                      {field.replace("_", " ")}
-                    </label>
-                    <input
-                      name={field}
-                      type={field === "email" ? "email" : "text"}
-                      defaultValue={(editingOperator as any)?.[field] || ""}
-                      required
-                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                ))}
+          <form onSubmit={handleSubmit}>
+  {/* STEP INDICATOR */}
+  <div className="flex items-center gap-2 mb-6">
+    {[1, 2, 3].map((s) => (
+      <div
+        key={s}
+        className={`h-2 flex-1 rounded-full transition ${
+          formStep >= s
+            ? "bg-indigo-500"
+            : "bg-gray-300 dark:bg-gray-600"
+        }`}
+      />
+    ))}
+  </div>
 
-                <div className="col-span-full flex justify-end gap-3 mt-5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingOperator(null);
-                    }}
-                    type="button"
-                  >
-                    Cancel
-                  </Button>
-                  <Button size="sm" type="submit">
-                    {editingOperator ? "Update Operator" : "Create Operator"}
-                  </Button>
-                </div>
-              </form>
+  {/* STEP FIELDS */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {stepFields[formStep].map((field) => (
+      <div key={field}>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
+          {field.replace("_", " ")}
+        </label>
+       <input
+  name={field}
+  type={field === "email" ? "email" : "text"}
+  value={operatorForm[field]}
+  onChange={(e) =>
+    setOperatorForm({
+      ...operatorForm,
+      [field]: e.target.value,
+    })
+  }
+  required
+  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2
+  dark:border-gray-600 dark:bg-gray-700 dark:text-white
+  focus:ring-2 focus:ring-indigo-500"
+/>
+
+      </div>
+    ))}
+  </div>
+
+  {/* NAVIGATION */}
+  <div className="flex justify-between items-center mt-6">
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={formStep === 1}
+      onClick={() => setFormStep((s) => s - 1)}
+    >
+      Back
+    </Button>
+
+    <div className="flex gap-3">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+       onClick={() => {
+  setShowForm(false);
+  setEditingOperator(null);
+  setOperatorForm(emptyOperatorForm); 
+  setFormStep(1);
+
+}}
+
+      >
+        Cancel
+      </Button>
+
+      {formStep < 3 ? (
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setFormStep((s) => s + 1)}
+        >
+          Next
+        </Button>
+      ) : (
+        <Button size="sm" type="submit">
+          {editingOperator ? "Update Operator" : "Create Operator"}
+        </Button>
+      )}
+    </div>
+  </div>
+</form>
+
             </div>
           )}
 
-         
+         {!showForm && (
 <div className="relative w-full overflow-hidden">
   <div className="max-h-[400px] max-w-full overflow-auto [scrollbar-width:none] [-ms-overflow-style:none]">
     <style>
@@ -743,114 +910,187 @@ if (loading)
       }
     }}
   >
-    <table className="min-w-full border-collapse table-fixed">
-      <thead>
-        <tr className="sticky top-0 bg-gray-100 dark:bg-gray-800 z-20 border-b border-gray-200 dark:border-gray-700">
-          {["Name", "Email", "Phone", "Assign Device", "Status", "Actions"].map((h) => (
-            <th
-              key={h}
-              className="px-3 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap"
-            >
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
+ <table className="w-full text-sm">
+  {/* <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+    <tr className="text-gray-600 dark:text-gray-300">
+      <th className="px-4 py-3 text-left">Operator</th>
+      <th className="px-4 py-3 text-left">Phone</th>
+      <th className="px-4 py-3 text-left">Assign Device</th>
+      <th className="px-4 py-3 text-left">Status</th>
+      <th className="px-4 py-3 text-right">Actions</th>
+    </tr>
+  </thead> */}
 
-      <tbody>
-        {operators.length > 0 ? (
-          operators.map((o) => (
-            <tr
-              key={o.operator_id}
-              className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+  <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+            <tr className="text-gray-600 dark:text-gray-300">
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      Operator
+    </th>
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      Phone
+    </th>
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      Assign Device
+    </th>
+    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
+      Status
+    </th>
+    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
+      Actions
+    </th>
+  </tr>
+</thead>
+
+
+  <tbody>
+    {operators.length > 0 ? (
+      operators.map((o, idx) => (
+        <tr
+          key={o.operator_id}
+          className={`border-t dark:border-gray-700
+          ${idx % 2 === 0
+            ? "bg-white dark:bg-gray-900"
+            : "bg-gray-50 dark:bg-gray-800"}
+          hover:bg-blue-50/50 dark:hover:bg-gray-700 transition`}
+        >
+          {/* OPERATOR */}
+          <td className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-indigo-500 text-white
+                flex items-center justify-center font-semibold">
+                {o.name?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {o.name}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {o.email}
+                </p>
+              </div>
+            </div>
+          </td>
+
+          {/* PHONE */}
+          <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+            {o.phone || o.phone_number || "—"}
+          </td>
+
+          {/* ASSIGN DEVICE */}
+          <td className="px-4 py-3 min-w-[180px]">
+            <div className="flex gap-2 items-center">
+              <button
+                onClick={() => handleViewDevices(o.operator_id)}
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                hover:bg-blue-50 hover:text-blue-600
+                dark:hover:bg-blue-900/40 transition"
+              >
+                <EyeIcon />
+              </button>
+
+              <select
+                defaultValue=""
+                onChange={(e) => assignDevice(o.operator_id, e.target.value)}
+                className="w-full rounded-md border px-2 py-1 text-xs
+                dark:bg-gray-800 dark:text-white
+                border-gray-300 dark:border-gray-600"
+              >
+                <option value="" disabled>Select</option>
+                {devices
+                  .filter((d: any) => !d.assigned_operator_id)
+                  .map((d) => (
+                    <option key={d.device_id} value={d.device_id}>
+                      {d.device_id}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </td>
+
+          {/* STATUS */}
+          <td className="px-4 py-3">
+            <span
+              className={`text-xs font-medium px-2 py-1 rounded
+              ${o.status
+                ? "text-green-700 bg-green-100 dark:bg-green-900/40 dark:text-green-400"
+                : "text-red-700 bg-red-100 dark:bg-red-900/40 dark:text-red-400"
+              }`}
             >
-              <td className="px-3 py-2 whitespace-nowrap">{o.name}</td>
-              <td className="px-3 py-2 whitespace-nowrap">{o.email}</td>
-              <td className="px-3 py-2 whitespace-nowrap">{o.phone || o.phone_number}</td>
-              <td className="px-3 py-2 whitespace-nowrap" style={{ minWidth: "150px" }}>
-                <div className="flex gap-2 items-center">
-                  <button
-                    onClick={() => handleViewDevices(o.operator_id)}
-                    className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    View
-                  </button>
-                  <select
-                    id={`device-select-${o.operator_id}`}
-                    defaultValue=""
-                    onChange={(e) => assignDevice(o.operator_id, e.target.value)}
-                    disabled={devices.filter((d) => !(d as any).assigned_operator_id).length === 0}
-                    className="w-full rounded-md border px-2 py-1 text-sm dark:bg-gray-800 dark:text-white border-gray-300 dark:border-gray-600"
-                  >
-                    {devices.filter((d) => !(d as any).assigned_operator_id).length > 0 ? (
-                      <>
-                        <option value="" disabled>
-                          Select
-                        </option>
-                        {devices
-                          .filter((d) => !(d as any).assigned_operator_id)
-                          .map((d) => (
-                            <option key={d.device_id} value={d.device_id}>
-                              {d.device_id}
-                            </option>
-                          ))}
-                      </>
-                    ) : (
-                      <option value="" disabled>
-                        None
-                      </option>
-                    )}
-                  </select>
-                </div>
-              </td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    o.status
-                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                      : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                  }`}
-                >
-                  {o.status ? "Active" : "Inactive"}
-                </span>
-              </td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => toggleStatus(o.operator_id)}
-                    className="p-1 hover:bg-gray-100 rounded transition-colors dark:hover:bg-gray-700"
-                    title={o.status ? "Deactivate Operator" : "Activate Operator"}
-                  >
-                    {o.status ? <DeactivateIcon /> : <ActivateIcon />}
-                  </button>
-                  <button
-                    onClick={() => handleView(o.operator_id)}
-                    className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    View
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingOperator(o);
-                      setShowForm(true);
-                    }}
-                    className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
-                  >
-                    Edit
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))
-        ) : (
-          <tr>
-            <td colSpan={6} className="text-center py-6 text-gray-500 dark:text-gray-400">
-              No operators found.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+              {o.status ? "Active" : "Inactive"}
+            </span>
+          </td>
+
+
+
+          {/* ACTIONS */}
+          <td className="px-4 py-3">
+            <div className="flex justify-end gap-2">
+
+                 {/* TOGGLE STATUS */}
+              <button
+                title="Toggle Status"
+                onClick={() => toggleStatus(o.operator_id)}
+                className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                {o.status ? <DeactivateIcon /> : <ActivateIcon />}
+              </button>
+              {/* VIEW */}
+              <button
+                title="View Operator"
+                onClick={() => handleView(o.operator_id)}
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                hover:bg-blue-50 hover:text-blue-600
+                dark:hover:bg-blue-900/40 transition"
+              >
+                <EyeIcon />
+              </button>
+
+              {/* EDIT */}
+              <button
+                title="Edit Operator"
+              onClick={() => {
+  setEditingOperator(o);
+
+  setOperatorForm({
+    name: o.name || "",
+    email: o.email || "",
+    phone_number: o.phone || o.phone_number || "",
+    registration_number: o.registration_number || "",
+    company_name: o.company_name || "",
+    address: o.address || "",
+    city: o.city || "",
+    state: o.state || "",
+    postal_code: o.postal_code || "",
+    country: o.country || "",
+  });
+
+  setFormStep(1);
+  setShowForm(true);
+}}
+
+
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                hover:bg-indigo-50 hover:text-indigo-600
+                dark:hover:bg-indigo-900/40 transition"
+              >
+                <EditIcon />
+              </button>
+
+           
+            </div>
+          </td>
+        </tr>
+      ))
+    ) : (
+      <tr>
+        <td colSpan={5} className="text-center py-8 text-gray-500">
+          No operators found
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
+
 
     {loadingMore && (
       <div className="text-center py-2 text-gray-500 dark:text-gray-400">
@@ -863,6 +1103,7 @@ if (loading)
 
   </div>
 </div>
+)}
 
 
 

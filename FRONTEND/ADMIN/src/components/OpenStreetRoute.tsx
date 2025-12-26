@@ -78,48 +78,43 @@ const OpenStreetRoute: React.FC<OpenStreetRouteProps> = ({
   useEffect(() => {
     if (!orsCoordinates) return;
 
-    const fetchRoute = async () => {
-      setLoading(true);
+  const fetchRoute = async () => {
+  setLoading(true);
 
-      try {
-        const res = await fetch(
-          `https://api.openrouteservice.org/v2/directions/driving-car`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: import.meta.env.VITE_ORS_API_KEY,
-            },
-            body: JSON.stringify({
-              coordinates: orsCoordinates,
-              instructions: false,
-              geometry: true,
-              preference: "shortest",  // ⭐ shortest path
-            }),
-          }
-        );
-
-        const data = await res.json();
-
-        if (!data.routes || !data.routes[0]) {
-          setRouteCoordinates([]);
-          return;
-        }
-
-        const encoded = data.routes[0].geometry;
-        const decoded = decodePolyline(encoded);
-
-        setRouteCoordinates(decoded);
-
-        map.fitBounds(new L.LatLngBounds(decoded), { padding: [40, 40] });
-
-      } catch (err) {
-        console.error("ORS shortest route error:", err);
-        setRouteCoordinates([]);
-      } finally {
-        setLoading(false);
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/route`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coordinates: orsCoordinates,
+          preference: "shortest",
+        }),
       }
-    };
+    );
+
+    const data = await res.json();
+
+    if (!data.routes || !data.routes[0]) {
+      setRouteCoordinates([]);
+      return;
+    }
+
+    const encoded = data.routes[0].geometry;
+    const decoded = decodePolyline(encoded);
+
+    setRouteCoordinates(decoded);
+    map.fitBounds(new L.LatLngBounds(decoded), { padding: [40, 40] });
+
+  } catch (err) {
+    console.error("Route error:", err);
+    setRouteCoordinates([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     fetchRoute();
   }, [orsCoordinates, map]);

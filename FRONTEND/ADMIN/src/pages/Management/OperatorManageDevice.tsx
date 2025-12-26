@@ -62,6 +62,27 @@ const ActivateIcon = () => (
   </svg>
 );
 
+  const EyeIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M2 12C4.5 7 8 5 12 5s7.5 2 10 7c-2.5 5-6 7-10 7s-7.5-2-10-7Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+
+  const EditIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+
 const showSuccess = (message: string) => {
   const dark = document.documentElement.classList.contains("dark");
 
@@ -169,61 +190,104 @@ const handleView = async (device_id: string) => {
       `;
     };
 
-    Swal.fire({
-      showCloseButton: true,
-      showConfirmButton: false,
-      width: 520,
-      padding: "20px",
-      html: `
-        <div style="text-align:left;">
+  Swal.fire({
+  showCloseButton: true,
+  showConfirmButton: false,
+  width: 700,
+  padding: "0",
+  background: "transparent",
+  html: `
+  <!-- GRADIENT BORDER -->
+  <div style="
+    border-radius:26px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
 
-          <!-- Header -->
-          <div style="display:flex; align-items:center; gap:15px; padding-bottom:15px;">
-            <div style="
-              width:55px; height:55px; border-radius:50%;
-              background:#4f46e533; display:flex;
-              align-items:center; justify-content:center;
-              font-size:22px; font-weight:700; color:#4f46e5;">
-              ${d.device_id.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div style="font-size:20px; font-weight:700; color:${darkMode ? "#e5e7eb" : "#111827"};">
-                ${d.device_id}
-              </div>
-              <div style="font-size:13px; color:${darkMode ? "#9ca3af" : "#6b7280"};">
-                Device Details
-              </div>
-            </div>
-          </div>
+    <!-- INNER CARD -->
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:24px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
+    ">
 
-          <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:12px 0;" />
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(600px at top left, rgba(99,102,241,.15), transparent 40%),
+          radial-gradient(500px at bottom right, rgba(34,211,238,.12), transparent 45%);
+      "></div>
 
-          <!-- Device Info -->
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${infoRow("IMEI", d.imei)}
-            ${infoRow("Device Type", d.device_type)}
-            ${infoRow("SIM Number", d.sim_number)}
-            ${infoRow("Battery Level", d.battery_level ? `${d.battery_level}%` : "-")}
-            ${infoRow("Firmware Version", d.firmware_version)}
-            ${infoRow("Assigned Vehicle", d.assigned_vehicle?.vehicle_number)}
-            ${infoRow("Assigned Date", formatDate(d.assigned_date))}
-            <div style="
-              font-size:14px;
-              font-weight:500;
-              padding:4px 0;
-              color:${darkMode ? "#e5e7eb" : "#111827"};">
-              <b>Status :</b> ${
-                d.status
-                  ? `<span style="background:#10b98122; color:#10b981; padding:3px 8px; border-radius:6px; font-size:12px;">Active</span>`
-                  : `<span style="background:#ef444422; color:#ef4444; padding:3px 8px; border-radius:6px; font-size:12px;">Inactive</span>`
-              }
-            </div>
-          </div>
-
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:20px 24px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:14px;
+      ">
+        <div style="
+          width:56px;height:56px;border-radius:16px;
+          background:rgba(255,255,255,.22);
+          display:flex;align-items:center;justify-content:center;
+          font-size:24px;font-weight:800;color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${d.device_id.charAt(0).toUpperCase()}
         </div>
-      `,
-      customClass: { popup: "card-popup" },
-    });
+
+        <div>
+          <div style="font-size:20px;font-weight:800;color:white">
+            ${d.device_id}
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,.85)">
+            Device Details
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTENT -->
+      <div style="position:relative; padding:24px; color:${darkMode ? "#e5e7eb" : "#111827"};">
+
+        <!-- BASIC INFO -->
+        <div style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:12px;
+          font-size:14px;
+        ">
+          ${infoRow("IMEI", d.imei)}
+          ${infoRow("Device Type", d.device_type)}
+          ${infoRow("SIM Number", d.sim_number)}
+          ${infoRow("Battery Level", d.battery_level ? `${d.battery_level}%` : "-")}
+          ${infoRow("Firmware Version", d.firmware_version)}
+          ${infoRow("Assigned Vehicle", d.assigned_vehicle?.vehicle_number)}
+          ${infoRow("Assigned Date", formatDate(d.assigned_date))}
+          <div style="font-size:14px;font-weight:500;">
+            <b>Status :</b>
+            ${
+              d.status
+                ? `<span style="margin-left:6px;background:#10b98122;color:#10b981;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">Active</span>`
+                : `<span style="margin-left:6px;background:#ef444422;color:#ef4444;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600">Inactive</span>`
+            }
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  `,
+  customClass: { popup: "shadow-none" },
+});
+
   } catch (err: any) {
     Swal.fire({
       icon: "error",
@@ -240,52 +304,121 @@ const handleView = async (device_id: string) => {
 const handleEdit = async (device: GPSDevice) => {
   const darkMode = document.documentElement.classList.contains("dark");
 
-  const { value: formValues } = await Swal.fire({
-    title: "Edit Device",
-    html: `
-      <div style="text-align:left; display:flex; flex-direction:column; gap:12px;">
-        <label style="font-size:14px; font-weight:500; color:${darkMode ? '#e5e7eb' : '#111827'};">Device ID</label>
-        <input 
-          id="swal-device_id" 
-          class="swal2-input" 
-          placeholder="Device ID" 
-          value="${device.device_id}" 
-          readonly
-          style="
-            background-color:${darkMode ? '#1f2937' : '#f3f4f6'};
-            color:${darkMode ? '#e5e7eb' : '#111827'};
-            cursor:not-allowed;
-          "
-        >
-        <label style="font-size:14px; font-weight:500; color:${darkMode ? '#e5e7eb' : '#111827'};">SIM Number</label>
-        <input 
-          id="swal-sim_number" 
-          class="swal2-input" 
-          placeholder="SIM Number" 
-          value="${device.sim_number}"
-          style="
-            background-color:${darkMode ? '#1f2937' : '#fff'};
-            color:${darkMode ? '#e5e7eb' : '#111827'};
-          "
-        >
+const { value: formValues } = await Swal.fire({
+  showCloseButton: true,
+  showCancelButton: true,
+  showConfirmButton: true,
+  confirmButtonText: "Update Device",
+  cancelButtonText: "Cancel",
+  focusConfirm: false,
+  padding: "0",
+  background: "transparent",
+
+  html: `
+  <!-- GRADIENT BORDER -->
+  <div style="
+    border-radius:22px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
+
+    <!-- INNER CARD -->
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:20px;
+      padding:24px 26px 22px;
+      font-family:Inter,system-ui,sans-serif;
+      color:${darkMode ? "#e5e7eb" : "#111827"};
+    ">
+
+      <!-- HEADER -->
+      <div style="margin-bottom:18px;">
+        <h2 style="
+          font-size:18px;
+          font-weight:700;
+          margin:0;
+          color:${darkMode ? "#e0e7ff" : "#1e3a8a"};
+        ">
+          Edit GPS Device
+        </h2>
+        <p style="
+          margin:4px 0 0;
+          font-size:13px;
+          color:${darkMode ? "#9ca3af" : "#6b7280"};
+        ">
+          Update SIM details for this device
+        </p>
       </div>
-    `,
-    focusConfirm: false,
-    showCancelButton: true,
-    confirmButtonText: "Save",
-    confirmButtonColor: "#2563eb",
-    cancelButtonColor: darkMode ? "#374151" : "#d1d5db",
-    preConfirm: () => {
-      const sim_number = (document.getElementById("swal-sim_number") as HTMLInputElement).value;
-      if (!sim_number) {
-        Swal.showValidationMessage("Please fill out all fields");
-        return;
-      }
-      return { sim_number };
-    },
-    background: darkMode ? "#111827" : "#ffffff", // popup background
-    color: darkMode ? "#e5e7eb" : "#111827",      // default text color
-  });
+
+      <!-- FORM -->
+      <div style="display:grid; gap:14px;">
+
+        <!-- DEVICE ID -->
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">
+            Device ID
+          </label>
+          <input
+            value="${device.device_id}"
+            readonly
+            style="
+              width:100%;
+              padding:10px 12px;
+              border-radius:10px;
+              border:1px dashed ${darkMode ? "#334155" : "#c7d2fe"};
+              background:${darkMode ? "#020617" : "#eef2ff"};
+              color:${darkMode ? "#c7d2fe" : "#1e3a8a"};
+              font-size:14px;
+              cursor:not-allowed;
+            "
+          />
+        </div>
+
+        <!-- SIM NUMBER -->
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">
+            SIM Number
+          </label>
+          <input
+            id="swal-sim_number"
+            value="${device.sim_number}"
+            placeholder="Enter SIM number"
+            style="
+              width:100%;
+              padding:11px 12px;
+              border-radius:10px;
+              border:1px solid ${darkMode ? "#334155" : "#c7d2fe"};
+              background:${darkMode ? "#020617" : "#ffffff"};
+              color:${darkMode ? "#e5e7eb" : "#111827"};
+              font-size:14px;
+              outline:none;
+            "
+          />
+        </div>
+
+      </div>
+    </div>
+  </div>
+  `,
+
+  confirmButtonColor: "#4f46e5",
+  cancelButtonColor: darkMode ? "#334155" : "#e5e7eb",
+
+  preConfirm: () => {
+    const sim_number = (document.getElementById(
+      "swal-sim_number"
+    ) as HTMLInputElement)?.value;
+
+    if (!sim_number) {
+      Swal.showValidationMessage("SIM number is required");
+      return;
+    }
+
+    return { sim_number };
+  },
+});
+
 
   if (formValues) {
     try {
@@ -379,126 +512,177 @@ showSuccess("Device updated successfully!");
         <PageBreadCrumb pageTitle="Device Management" />
 
         <div className="bg-white rounded-lg border border-gray-200 shadow p-6 dark:bg-gray-900 dark:border-gray-800 max-w-6xl mx-auto overflow-x-hidden">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Manage Devices
-            </h2>
-             <div className="mb-4">
-  <select
-    value={filterType}
-    onChange={(e) => setFilterType(e.target.value as any)}
-    className="px-3 py-2 border rounded dark:bg-gray-800 dark:text-gray-200"
-  >
-    <option value="assigned">Assigned Devices</option>
-    <option value="unassigned">Unassigned Devices</option>
-  </select>
+       <div className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700
+                bg-white dark:bg-gray-900 shadow-sm">
+
+  <div className="flex items-center justify-between px-5 py-4">
+    <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+      Manage Devices
+    </h2>
+
+    <div className="relative">
+      <select
+        value={filterType}
+        onChange={(e) => setFilterType(e.target.value as any)}
+        className="appearance-none rounded-full px-4 py-2 pr-8
+                   text-sm font-medium
+                   bg-indigo-50 dark:bg-gray-800
+                   text-indigo-700 dark:text-indigo-300
+                   border border-indigo-200 dark:border-gray-700
+                   focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      >
+        <option value="assigned">Assigned Devices</option>
+        <option value="unassigned">Unassigned Devices</option>
+      </select>
+
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500">
+        ▼
+      </span>
+    </div>
+  </div>
 </div>
-          </div>
+
          
 
 
           {/* ===================== TABLE ===================== */}
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-full border-collapse">
-               <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="px-3 py-2">#</th>
-                  <th className="px-3 py-2">Device ID</th>
-                  <th className="px-3 py-2">IMEI</th>
-                  <th className="px-3 py-2">SIM</th>
-                  {filterType === "assigned" && (
-                    <th className="px-3 py-2">Assigned Vehicle</th>
-                    )}
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Actions</th>
-                    </tr>
-                    </thead>
+                 <div className="max-h-[calc(100vh-180px)] overflow-y-auto overflow-x-auto no-scrollbar">
+  <table className="min-w-full text-sm">
+    {/* ===== HEADER ===== */}
+<thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+  <tr className="border-b border-gray-200 dark:border-gray-700">
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      #
+    </th>
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      Device ID
+    </th>
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      IMEI
+    </th>
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      SIM
+    </th>
 
-
-              <tbody>
-                {list.map((d, i) => (
-  <tr
-    key={d._id}
-    className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-  >
-    <td className="px-3 py-2">{i + 1}</td>
-    <td className="px-3 py-2 font-medium text-gray-900 dark:text-white">
-      {d.device_id}
-    </td>
-    <td className="px-3 py-2">{d.imei}</td>
-    <td className="px-3 py-2">{d.sim_number}</td>
-
-    {/* Assigned Vehicle Column ONLY for assigned devices */}
     {filterType === "assigned" && (
-      <td className="px-3 py-2 font-medium">
-        {d.assigned_vehicle?.vehicle_number || "-"} 
-      </td>
+      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Assigned Vehicle
+      </th>
     )}
 
-    <td className="px-3 py-2">
-      <span
-        className={`px-3 py-1 rounded-full text-xs font-medium ${
-          d.status
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-            : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-        }`}
-      >
-        {d.status ? "Active" : "Inactive"}
-      </span>
-    </td>
-
-    <td className="px-3 py-2">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => handleToggleStatus(d.device_id)}
-          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition"
-        >
-          {d.status ? <DeactivateIcon /> : <ActivateIcon />}
-        </button>
-
-        <button
-          onClick={() => handleView(d.device_id)}
-          className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-        >
-          View
-        </button>
-
-        <button
-          onClick={() => handleEdit(d)}
-          className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
-        >
-          Edit
-        </button>
-      </div>
-    </td>
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      Status
+    </th>
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+      Actions
+    </th>
   </tr>
-))}
+</thead>
 
 
-                {/* {devices.length === 0 && !error && ( */}
-                {list.length === 0 && !error && (
 
-                  <tr>
-                    <td colSpan={6} className="text-center py-6 text-gray-500">
-                      No devices found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            {hasMore && (
-  <div className="flex justify-center py-4">
-    <button
-      onClick={() => fetchDevices(page + 1)}
-      disabled={loadingMore}
-      className="px-4 py-2 text-sm bg-gray-200 dark:bg-gray-800 rounded hover:bg-gray-300 dark:hover:bg-gray-700"
-    >
-      {loadingMore ? "Loading..." : "Load More"}
-    </button>
-  </div>
-)}
+    {/* ===== BODY ===== */}
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+      {list.map((d, i) => (
+        <tr
+          key={d._id}
+          className="transition hover:bg-gray-50 dark:hover:bg-gray-800/60"
+        >
+          <td className="px-3 py-2 text-gray-500 dark:text-gray-400">
+            {i + 1}
+          </td>
 
-          </div>
+          <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-100">
+            {d.device_id}
+          </td>
+
+          <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+            {d.imei}
+          </td>
+
+          <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+            {d.sim_number}
+          </td>
+
+          {filterType === "assigned" && (
+            <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+              {d.assigned_vehicle?.vehicle_number || "—"}
+            </td>
+          )}
+
+          <td className="px-3 py-2">
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                d.status
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                  : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+              }`}
+            >
+              {d.status ? "Active" : "Inactive"}
+            </span>
+          </td>
+
+          <td className="px-3 py-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleToggleStatus(d.device_id)}
+                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                title={d.status ? "Deactivate Device" : "Activate Device"}
+              >
+                {d.status ? <DeactivateIcon /> : <ActivateIcon />}
+              </button>
+
+              <button
+                onClick={() => handleView(d.device_id)}
+                className="p-1.5 rounded-md text-gray-600 dark:text-gray-300
+                hover:bg-blue-50 hover:text-blue-600
+                dark:hover:bg-blue-900/40 transition"
+              >
+                <EyeIcon />
+              </button>
+
+              <button
+                onClick={() => handleEdit(d)}
+                className="p-1.5 rounded-md text-gray-600 dark:text-gray-300
+                hover:bg-indigo-50 hover:text-indigo-600
+                dark:hover:bg-indigo-900/40 transition"
+              >
+                <EditIcon />
+              </button>
+            </div>
+          </td>
+        </tr>
+      ))}
+
+      {list.length === 0 && !error && (
+        <tr>
+          <td
+            colSpan={filterType === "assigned" ? 7 : 6}
+            className="py-10 text-center text-gray-500 dark:text-gray-400 italic"
+          >
+            No devices found
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+
+  {/* ===== LOAD MORE ===== */}
+  {hasMore && (
+    <div className="flex justify-center py-4">
+      <button
+        onClick={() => fetchDevices(page + 1)}
+        disabled={loadingMore}
+        className="px-4 py-2 text-sm rounded-md
+        bg-gray-200 hover:bg-gray-300
+        dark:bg-gray-800 dark:hover:bg-gray-700 transition"
+      >
+        {loadingMore ? "Loading..." : "Load More"}
+      </button>
+    </div>
+  )}
+</div>
+
         </div>
       </div>
     </>

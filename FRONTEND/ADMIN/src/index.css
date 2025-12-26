@@ -795,25 +795,31 @@ span.flatpickr-weekday,
 
 /* Blur everything behind the popup */
 body.swal2-shown > *:not(.swal2-container) {
-  filter: blur(13px); /* adjust blur intensity */
+  filter: blur(11px); /* adjust blur intensity */
   transition: filter 0.3s ease;
 }
 
-/* Ensure the popup stays crisp and visible */
-.swal2-container {
-  backdrop-filter: none !important; /* prevent overlay from blurring the popup */
+.swal2-backdrop-show {
+  background: transparent !important;
 }
 
+/* Keep popup sharp */
+.swal2-container,
 .swal2-popup {
-  filter: none !important;
   backdrop-filter: none !important;
-  z-index: 100000; /* ensure popup stays on top */
+  filter: none !important;
+}
+
+/* Ensure popup stays above blur */
+.swal2-popup {
+  z-index: 100000 !important;
 }
 
 .custom-marker {
   background: transparent !important;
   border: none !important;
 }
+
 
 /* ✅ Hide scrollbar globally but keep scroll functionality */
 .no-scrollbar::-webkit-scrollbar {
@@ -836,28 +842,32 @@ html, body {
 .no-scrollbar::-webkit-scrollbar-thumb {
   background: transparent !important;
 }
-
 html,
 body {
-  overflow: auto; /* or scroll, depending on your needs */
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  overflow-y: auto;
 }
 
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
-}
+
+
 
 /* SweetAlert2 Card Popup */
-.swal2-popup.card-popup {
-  border-radius: 1.5rem; /* rounded-3xl */
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2); /* soft shadow */
+/* .swal2-popup.card-popup {
+  border-radius: 1.5rem; 
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   padding: 2rem;
   font-family: 'Inter', sans-serif;
-  background: linear-gradient(145deg, #ffffff, #f3f4f6); /* subtle gradient */
+  background: linear-gradient(145deg, #ffffff, #f3f4f6);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+} */
+
+.swal2-popup.card-popup {
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  padding: 2rem;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(145deg, #ffffff, #f3f4f6);
 }
+
 
 .swal2-popup.card-popup:hover {
   transform: translateY(-5px);
@@ -907,4 +917,96 @@ body::-webkit-scrollbar {
 .hide-scrollbar {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
+}
+
+/* Remove inner container spacing */
+.swal2-html-container {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Optional: cleaner backdrop */
+/* === SMALL SUCCESS TOAST (SINGLE LINE) === */
+
+.swal2-popup.success-toast-like {
+  position: fixed !important;
+  top: 16px;
+  right: 16px;
+  left: auto !important;
+  transform: none !important;
+
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+
+  width: auto !important;
+  max-width: 320px;
+  min-height: unset !important;
+
+  padding: 10px 14px !important;
+  border-radius: 12px;
+
+  background: #ffffff !important;
+  color: #111827 !important;
+
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Tick icon size */
+.swal2-popup.success-toast-like .swal2-icon {
+  margin: 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Success tick color */
+.swal2-popup.success-toast-like .swal2-success-ring {
+  border-color: #22c55e !important;
+}
+
+/* Text */
+.swal2-popup.success-toast-like .swal2-title {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #111827 !important;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Remove extra spacing */
+.swal2-html-container {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+ .dark .swal2-popup.success-toast-like {
+  background: #020617 !important;
+  color: #e5e7eb !important;
+}
+
+.dark .swal2-popup.success-toast-like .swal2-title {
+  color: #e5e7eb !important;
+}
+
+.vehicle-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  font-size: 14px;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+.dark .vehicle-input {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+.vehicle-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
 }
