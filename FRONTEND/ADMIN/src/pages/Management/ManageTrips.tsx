@@ -77,6 +77,8 @@ type RoutePoint = {
   sequence: number;
   dwell_target_seconds?: number;
   sla_arrival_buffer_seconds?: number;
+    approximate_reach_time?: string; // e.g. "08:15"
+  landmark?: string;
 };
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.50:8787";
@@ -231,6 +233,10 @@ if (!isStartSelected || !isEndSelected) {
           title: `Add Stop ${seq}`,
           html: `
             <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name">
+              <input id="swal-landmark" class="swal2-input" placeholder="Nearby Landmark">
+
+    <input id="swal-reach-time" type="time" class="swal2-input"
+           placeholder="Approximate Reach Time">
             <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" value="150">
             <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" value="240">
           `,
@@ -238,6 +244,8 @@ if (!isStartSelected || !isEndSelected) {
           confirmButtonText: "Add Stop",
           preConfirm: () => {
             const name = (document.getElementById("swal-stop-name") as HTMLInputElement)?.value;
+               const landmark = (document.getElementById("swal-landmark") as HTMLInputElement)?.value;
+    const reachTime = (document.getElementById("swal-reach-time") as HTMLInputElement)?.value;
             const dwell = Number((document.getElementById("swal-dwell") as HTMLInputElement)?.value || 150);
             const sla = Number((document.getElementById("swal-sla") as HTMLInputElement)?.value || 240);
 
@@ -245,11 +253,11 @@ if (!isStartSelected || !isEndSelected) {
               Swal.showValidationMessage("Stop name is required");
               return null;
             }
-            return { name, dwell, sla };
+            return { name, landmark, reachTime, dwell, sla };
           },
         }).then((result) => {
           if (result.isConfirmed && result.value) {
-            const { name, dwell, sla } = result.value;
+            const { name, landmark, reachTime,  dwell, sla } = result.value;
             setRoutePoints((prev) => 
                 [...prev,
                   {
@@ -259,6 +267,8 @@ if (!isStartSelected || !isEndSelected) {
                     sequence: seq,
                     dwell_target_seconds: dwell,
                     sla_arrival_buffer_seconds: sla,
+                    approximate_reach_time: reachTime || "",
+        landmark: landmark || "",
                   },
                 ].sort((a, b) => a.sequence - b.sequence) // Maintain sort order
             );
@@ -467,6 +477,9 @@ route_points: (routePoints || []).map((stop, index) => ({
     sequence: index + 1,
     dwell_target_seconds: stop.dwell_target_seconds || 150,
     sla_arrival_buffer_seconds: stop.sla_arrival_buffer_seconds || 240,
+      approximate_reach_time: stop.approximate_reach_time || null,
+  landmark: stop.landmark || null,
+
   })),
 };
 
@@ -893,24 +906,37 @@ useEffect(() => {
 
 const handleNext = (e: React.MouseEvent) => {
   e.preventDefault();
-  if (formStep === 1) {
-    if (!routeName.trim()) {
-      Swal.fire("Error", "Route Name is required", "error");
-      return;
-    }
-    if (!driverId) {
-       Swal.fire("Error", "Please select a driver", "error");
-       return;
-    }
-    if (!vehicleId) {
-      Swal.fire("Error", "Please select a vehicle", "error");
-      return;
-    }
-    if (!scheduledStartTime) {
-      Swal.fire("Error", "Scheduled Start Time is required", "error");
-      return;
-    }
+ if (formStep === 1) {
+  if (!routeName.trim()) {
+    Swal.fire("Error", "Route Name is required", "error");
+    return;
   }
+
+  if (routeName.length > 50) {
+    Swal.fire(
+      "Error",
+      "Route Name must not exceed 50 characters",
+      "error"
+    );
+    return;
+  }
+
+  if (!driverId) {
+    Swal.fire("Error", "Please select a driver", "error");
+    return;
+  }
+
+  if (!vehicleId) {
+    Swal.fire("Error", "Please select a vehicle", "error");
+    return;
+  }
+
+  if (!scheduledStartTime) {
+    Swal.fire("Error", "Scheduled Start Time is required", "error");
+    return;
+  }
+}
+
   
   if (formStep === 2) {
     if (Object.values(repeatDays).every(day => day === false)) {
@@ -1015,13 +1041,22 @@ if (loading)
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block mb-1 font-medium">Route Name</label>
-                    <input
-                      type="text"
-                      value={routeName}
-                      onChange={(e) => setRouteName(e.target.value)}
-                      className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
-                      required
-                    />
+                   <input
+  type="text"
+  value={routeName}
+  onChange={(e) => {
+    if (e.target.value.length <= 50) {
+      setRouteName(e.target.value);
+    }
+  }}
+  maxLength={50}
+  className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:text-white"
+  required
+/>
+<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+  {routeName.length}/50 characters
+</p>
+
                   </div>
 
                   <div>
@@ -1307,6 +1342,18 @@ if (loading)
                               <p className="text-sm text-gray-500 dark:text-gray-300">
                                 Dwell: {stop.dwell_target_seconds}s, SLA Buffer: {stop.sla_arrival_buffer_seconds}s
                               </p>
+                              {stop.landmark && (
+  <p className="text-sm text-gray-500 dark:text-gray-300">
+    Landmark: {stop.landmark}
+  </p>
+)}
+
+{stop.approximate_reach_time && (
+  <p className="text-sm text-gray-500 dark:text-gray-300">
+    Reach Time: {stop.approximate_reach_time}
+  </p>
+)}
+
                             </div>
                             <button
                               type="button"

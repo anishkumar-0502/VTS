@@ -324,11 +324,6 @@ const handleView = async (device_id: string) => {
           <div><b>Firmware:</b> ${d.firmware_version}</div>
           <div><b>Battery Level:</b> ${d.battery_level ?? "-"}%</div>
           <div><b>Last Signal:</b> ${d.last_signal ? new Date(d.last_signal).toLocaleString() : "-"}</div>
-          <div><b>Last Location:</b> ${
-            d.last_latitude && d.last_longitude
-              ? `${d.last_latitude.toFixed(6)}, ${d.last_longitude.toFixed(6)}`
-              : "-"
-          }</div>
           <div><b>Assigned Operator:</b> ${operatorName}</div>
           <div><b>Assigned Date:</b> ${
             d.assigned_date ? new Date(d.assigned_date).toLocaleString() : "-"
