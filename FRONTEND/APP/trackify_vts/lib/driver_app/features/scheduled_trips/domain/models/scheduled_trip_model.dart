@@ -225,6 +225,8 @@ class RoutePoint {
   final double longitude;
   final int order;
   final String id;
+  final String? landmark;
+  final String? approximateReachTime;
 
   RoutePoint({
     required this.name,
@@ -232,6 +234,8 @@ class RoutePoint {
     required this.longitude,
     required this.order,
     required this.id,
+    this.landmark,
+    this.approximateReachTime,
   });
 
   factory RoutePoint.fromJson(Map<String, dynamic> json) {
@@ -241,6 +245,8 @@ class RoutePoint {
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       order: (json['order'] as num?)?.toInt() ?? 0,
       id: json['stop_id'] as String? ?? '',
+      landmark: json['landmark'] as String?,
+      approximateReachTime: json['approximate_reach_time'] as String?,
     );
   }
 }

@@ -7,8 +7,8 @@ import 'package:trackify_vts/driver_app/features/dashboard/domain/repositories/d
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/repositories/scheduled_trips_repository.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/scheduled_trip_model.dart';
 import 'package:trackify_vts/services/open_route_service.dart';
-
 import 'package:trackify_vts/services/socket_io_service.dart';
+import 'package:trackify_vts/driver_app/features/dashboard/presentation/controllers/driver_dashboard_controller.dart';
 
 class DriverHomeMapController extends GetxController with GetTickerProviderStateMixin {
   final DashboardRepositories _dashboardRepository = DashboardRepositories();
@@ -22,6 +22,7 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
   final Rxn<ActiveTrip> activeTrip = Rxn<ActiveTrip>();
   final RxList<ScheduledTrip> scheduledTrips = RxList<ScheduledTrip>();
   final RxBool isLoading = false.obs;
+  final RxBool isDashboardLoading = false.obs;
   final RxString error = ''.obs;
 
   // Map related
@@ -41,6 +42,10 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
   void onInit() {
     super.onInit();
     mapController = MapController();
+    
+    // Attempt to sync with Dashboard Controller first
+    _syncWithDashboardController();
+    
     loadData();
     _socketIOService.initialize();
     
@@ -79,6 +84,28 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
         }
       }
     };
+  }
+
+  void _syncWithDashboardController() {
+    try {
+      if (Get.isRegistered<DriverDashboardController>(tag: 'driver_dashboard')) {
+        final dashboardController = Get.find<DriverDashboardController>(tag: 'driver_dashboard');
+        
+        // Listen to active trip changes
+        ever(dashboardController.activeTrip, (trip) {
+          activeTrip.value = trip;
+          _updateMapData();
+        });
+        
+        // Initial value if available
+        if (dashboardController.activeTrip.value != null) {
+          activeTrip.value = dashboardController.activeTrip.value;
+          _updateMapData();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error syncing with dashboard controller: $e');
+    }
   }
 
   @override
@@ -186,6 +213,14 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
   void _displayActiveTrip(ActiveTrip trip) {
     showingTripId.value = trip.tripId;
     currentRouteName.value = trip.routeName;
+    
+    if (trip.vehicleId.standingLocation != null) {
+      final lat = trip.vehicleId.standingLocation!.latitude;
+      final lng = trip.vehicleId.standingLocation!.longitude;
+      if (lat != 0 && lng != 0) {
+        vehicleLocation.value = LatLng(lat, lng);
+      }
+    }
     
     // Set stops
     final sortedStops = List<RoutePoint>.from(trip.routePoints);
@@ -415,6 +450,16 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
   }
 
   void fitMapToBounds() {
+    // If active trip & vehicle location known, prioritize focusing on vehicle
+    if (activeTrip.value != null && vehicleLocation.value != null) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        try {
+          _animatedMapMove(vehicleLocation.value!, 16.0);
+        } catch (_) {}
+      });
+      return;
+    }
+
     // Collect all relevant points
     final points = <LatLng>[];
     if (startLocation.value != null) points.add(startLocation.value!);

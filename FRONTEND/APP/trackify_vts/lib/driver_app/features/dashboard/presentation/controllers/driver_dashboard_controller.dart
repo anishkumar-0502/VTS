@@ -337,8 +337,13 @@ class DriverDashboardController extends GetxController {
 
   /// Refresh all dashboard data
   Future<void> refreshAllData() async {
-    await fetchTodaysScheduledTrips();
+    // 1. Fetch active trip first
     await fetchActiveTrip();
+    
+    // 2. Fetch scheduled trips
+    await fetchTodaysScheduledTrips();
+    
+    // 3. Fetch history
     await fetchTripHistory();
   }
 }

@@ -18,6 +18,13 @@ class DriverHomeMapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(DriverHomeMapController());
 
+    // Responsive Variables
+    final mediaQuery = MediaQuery.of(context);
+    final double width = mediaQuery.size.width;
+    final double height = mediaQuery.size.height;
+    final double scale = width / 375.0; // Base width of 375px
+    final double topPadding = mediaQuery.viewPadding.top;
+
     return Stack(
       children: [
         /// ================= MAP =================
@@ -37,8 +44,9 @@ class DriverHomeMapPage extends StatelessWidget {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.trackify.vts',
+                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                  subdomains: const ['a', 'b', 'c'],
+                  userAgentPackageName: 'com.trackify.driver',
                 ),
 
                 // Reactive Polyline Layer
@@ -51,7 +59,7 @@ class DriverHomeMapPage extends StatelessWidget {
                       Polyline(
                         points: points,
                         color: Colors.blue,
-                        strokeWidth: 5,
+                        strokeWidth: 5 * scale,
                         strokeCap: StrokeCap.round,
                         strokeJoin: StrokeJoin.round,
                       ),
@@ -70,26 +78,26 @@ class DriverHomeMapPage extends StatelessWidget {
                       if (start != null)
                         Marker(
                           point: start,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.location_on,
-                              color: Colors.green, size: 40),
+                          width: 40 * scale,
+                          height: 40 * scale,
+                          child: Icon(Icons.location_on,
+                              color: Colors.green, size: 40 * scale),
                         ),
 
                       if (end != null)
                         Marker(
                           point: end,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.location_on,
-                              color: Colors.red, size: 40),
+                          width: 40 * scale,
+                          height: 40 * scale,
+                          child: Icon(Icons.location_on,
+                              color: Colors.red, size: 40 * scale),
                         ),
 
                       if (controller.vehicleLocation.value != null)
                         Marker(
                           point: controller.vehicleLocation.value!,
-                          width: 50,
-                          height: 50,
+                          width: 50 * scale,
+                          height: 50 * scale,
                           child: Transform.rotate(
                             angle: (controller.vehicleHeading.value) * (3.14159 / 180),
                             child: Container(
@@ -101,10 +109,10 @@ class DriverHomeMapPage extends StatelessWidget {
                                       blurRadius: 4, color: Colors.black26)
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.navigation,
                                 color: Colors.blueAccent,
-                                size: 30,
+                                size: 30 * scale,
                               ),
                             ),
                           ),
@@ -113,8 +121,8 @@ class DriverHomeMapPage extends StatelessWidget {
                       ...stops.map(
                             (stop) => Marker(
                           point: LatLng(stop.latitude, stop.longitude),
-                          width: 30,
-                          height: 30,
+                          width: 30 * scale,
+                          height: 30 * scale,
                           child: Container(
                             decoration: const BoxDecoration(
                               color: Colors.white,
@@ -127,8 +135,8 @@ class DriverHomeMapPage extends StatelessWidget {
                             child: Center(
                               child: Text(
                                 '${stop.order}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 12),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 12 * scale),
                               ),
                             ),
                           ),
@@ -144,19 +152,19 @@ class DriverHomeMapPage extends StatelessWidget {
 
         /// ================= TRIP INFO OVERLAY =================
         Positioned(
-          top: 10,
-          right: 16,
-          left: 16,
+          top: topPadding + (10 * scale),
+          right: 16 * scale,
+          left: 16 * scale,
           child: Obx(() {
             if (controller.isLoading.value) {
               return Shimmer.fromColors(
                 baseColor: Colors.grey[300]!,
                 highlightColor: Colors.grey[100]!,
                 child: Container(
-                  height: 70,
+                  height: 70 * scale,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(14 * scale),
                   ),
                 ),
               );
@@ -167,8 +175,9 @@ class DriverHomeMapPage extends StatelessWidget {
 
             String routeName = 'No Trip Selected';
             String startTime = '--:--';
+            String tripStatus = 'No Trip'; // Added tripStatus
 
-// Helper function to format time with AM/PM
+            // Helper function to format time with AM/PM
             String formatTimeWithAmPm(String time) {
               try {
                 final dt = DateTime.parse(time);
@@ -183,51 +192,79 @@ class DriverHomeMapPage extends StatelessWidget {
               }
             }
 
-            if (activeTrip != null && scheduledTrips.isNotEmpty) {
+            if (activeTrip != null) {
               final trip = scheduledTrips.first;
               routeName = trip.routeName;
               startTime = formatTimeWithAmPm(trip.scheduledStartTime);
-
+              tripStatus = 'Active Trip';
             } else if (scheduledTrips.isNotEmpty) {
               final trip = scheduledTrips.first;
               routeName = trip.routeName;
               startTime = formatTimeWithAmPm(trip.scheduledStartTime);
+              tripStatus = 'Upcoming Trip';
             }
 
 
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: const [
+                borderRadius: BorderRadius.circular(14 * scale),
+                boxShadow: [
                   BoxShadow(
                     color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
+                    blurRadius: 8 * scale,
+                    offset: Offset(0, 4 * scale),
                   ),
                 ],
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.route, color: Colors.blue),
-                  const SizedBox(width: 12),
+                  Icon(Icons.route, color: Colors.blue, size: 24 * scale),
+                  SizedBox(width: 12 * scale),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          routeName,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                routeName,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14 * scale,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                             Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 2 * scale),
+                              decoration: BoxDecoration(
+                                color: tripStatus == 'Active Trip' ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4 * scale),
+                                border: Border.all(
+                                  color: tripStatus == 'Active Trip' ? Colors.green : Colors.orange,
+                                  width: 1 * scale,
+                                ),
+                              ),
+                              child: Text(
+                                tripStatus,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10 * scale,
+                                  fontWeight: FontWeight.w500,
+                                  color: tripStatus == 'Active Trip' ? Colors.green : Colors.orange,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4 * scale),
                         Text(
                           'Start Time: $startTime',
                           style: GoogleFonts.poppins(
-                            fontSize: 12,
+                            fontSize: 12 * scale,
                             color: Colors.grey[600],
                           ),
                         ),
@@ -242,117 +279,163 @@ class DriverHomeMapPage extends StatelessWidget {
 
         /// ================= FLOATING BUTTONS =================
         Positioned(
-          top: 90,
-          right: 16,
+          top: topPadding + (90 * scale),
+          right: 16 * scale,
           child: Column(
             children: [
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  FloatingActionButton.small(
-                    onPressed: () {
-                      // ✅ Refresh dashboard data
-                      final dashboardController = Get.put(DriverDashboardController());
-                      dashboardController.refreshAllData();
-
-                      // ✅ Refresh profile data
-                      final profileController = Get.put(DriverProfileController());
-                      profileController.fetchProfile(showLoading: false);
-
-                      Get.to(() => Scaffold(
-                        appBar: AppBar(
-                          backgroundColor: Colors.white,
-                          elevation: 0,
-                          title: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Image.asset(
-                                'assets/icons/home.png',
-                                height: 20,
-                                width: 20,
-                                color: Colors.black, // remove if original color needed
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Home',
-                                style: GoogleFonts.poppins(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 18,
+                  SizedBox(
+                    width: 48 * scale, // Slightly larger touch target
+                    height: 48 * scale,
+                    child: Obx(() {
+                      return FloatingActionButton(
+                        mini: true,
+                        onPressed: controller.isDashboardLoading.value ? null : () async {
+                          controller.isDashboardLoading.value = true;
+                          
+                          try {
+                            // ✅ Refresh dashboard data
+                            // Use the correct tag 'driver_dashboard' to match DriverDashboardPage
+                            final dashboardController = Get.isRegistered<DriverDashboardController>(tag: 'driver_dashboard')
+                                ? Get.find<DriverDashboardController>(tag: 'driver_dashboard')
+                                : Get.put(DriverDashboardController(), tag: 'driver_dashboard');
+                                
+                            await dashboardController.refreshAllData();
+          
+                            // ✅ Refresh profile data
+                            final profileController = Get.isRegistered<DriverProfileController>(tag: 'driver_profile')
+                                ? Get.find<DriverProfileController>(tag: 'driver_profile')
+                                : Get.put(DriverProfileController(), tag: 'driver_profile');
+                            
+                            await profileController.fetchProfile(showLoading: false);
+          
+                            Get.to(() => Scaffold(
+                              appBar: AppBar(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                elevation: 0,
+                                title: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Image.asset(
+                                      'assets/icons/home.png',
+                                      height: 20 * scale,
+                                      width: 20 * scale,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 8 * scale),
+                                    Text(
+                                      'Home',
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 18 * scale,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                leading: IconButton(
+                                  icon: Icon(
+                                    Icons.arrow_back_ios,
+                                    color: Colors.white,
+                                    size: 20 * scale,
+                                  ),
+                                  onPressed: () {
+                                    dashboardController.refreshAllData();
+                                    profileController.fetchProfile(showLoading: false);
+                                    if (Get.isRegistered<DriverHomeMapController>()) {
+                                      Get.find<DriverHomeMapController>().loadData();
+                                    }
+                                    Get.back();
+                                  },
+                                ),
+                                actions: [
+                                  IconButton(
+                                    icon: Icon(Icons.logout_rounded, color: Colors.white, size: 24 * scale),
+                                    onPressed: () {
+                                      profileController.confirmLogout(Get.context!);
+                                    },
+                                  ),
+                                  SizedBox(width: 8 * scale),
+                                ],
                               ),
-                            ],
-                          ),
-                          leading: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back_ios,
-                              color: Colors.black,
-                              size: 20,
-                            ),
-                            onPressed: () {
-                              dashboardController.refreshAllData();
-                              profileController.fetchProfile(showLoading: false);
-                              if (Get.isRegistered<DriverHomeMapController>()) {
-                                Get.find<DriverHomeMapController>().loadData();
-                              }
-                              Get.back();
-                            },
-                          ),
-                          actions: [
-                            IconButton(
-                              icon: const Icon(Icons.logout_rounded, color: Colors.red),
-                              onPressed: () {
-                                profileController.confirmLogout(Get.context!);
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                        ),
-                        body: const DriverDashboardPage(),
-                      ));
-                    },
-                    backgroundColor: Colors.white,
-                    heroTag: 'dashboard_nav_btn',
-                    child:  Image.asset('assets/icons/home.png', color: Colors.blue,height: 20,),
+                              body: Builder(
+                                builder: (context) {
+                                  // Force refresh when body builds
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    dashboardController.refreshAllData();
+                                  });
+                                  return const DriverDashboardPage();
+                                }
+                              ),
+                            ));
+                          } finally {
+                            controller.isDashboardLoading.value = false;
+                          }
+                        },
+                        backgroundColor: Colors.white,
+                        heroTag: 'dashboard_nav_btn',
+                        child: controller.isDashboardLoading.value
+                          ? Padding(
+                              padding: EdgeInsets.all(10 * scale),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2 * scale,
+                                color: Colors.blue,
+                              ),
+                            )
+                          : Image.asset('assets/icons/home.png', color: Colors.blue, height: 20 * scale),
+                      );
+                    }),
                   ),
                   Positioned(
                     right: 0,
                     top: 0,
                     child: Container(
-                      width: 12,
-                      height: 12,
+                      width: 12 * scale,
+                      height: 12 * scale,
                       decoration: BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(color: Colors.white, width: 2 * scale),
                       ),
                     ),
                   ),
                 ],
               ),
-
             ],
           ),
         ),
+        
         Positioned(
-          bottom: 200,
-          right: 16,
+          bottom: (height * 0.25) + (20 * scale),
+          right: 16 * scale,
           child: Column(
             children: [
-
-              const SizedBox(height: 16),
-              FloatingActionButton.small(
-                onPressed: controller.zoomIn,
-                backgroundColor: Colors.white,
-                heroTag: 'zoom_in_btn',
-                child:  Image.asset('assets/icons/zoom-in.png', color: Colors.blue,height: 25,),
+              SizedBox(height: 16 * scale),
+              SizedBox(
+                width: 40 * scale,
+                height: 40 * scale,
+                child: FloatingActionButton(
+                  mini: true,
+                  onPressed: controller.zoomIn,
+                  backgroundColor: Colors.white,
+                  heroTag: 'zoom_in_btn',
+                  child: Image.asset('assets/icons/zoom-in.png', color: Colors.blue, height: 25 * scale),
+                ),
               ),
-              const SizedBox(height: 10),
-              FloatingActionButton.small(
-                onPressed: controller.zoomOut,
-                backgroundColor: Colors.white,
-                heroTag: 'zoom_out_btn',
-                child:  Image.asset('assets/icons/zoom-out.png', color: Colors.blue,height: 25,),              ),
+              SizedBox(height: 10 * scale),
+              SizedBox(
+                 width: 40 * scale,
+                 height: 40 * scale,
+                 child: FloatingActionButton(
+                  mini: true,
+                  onPressed: controller.zoomOut,
+                  backgroundColor: Colors.white,
+                  heroTag: 'zoom_out_btn',
+                  child: Image.asset('assets/icons/zoom-out.png', color: Colors.blue, height: 25 * scale),
+                ),
+              ),
             ],
           ),
         ),
@@ -372,12 +455,12 @@ class DriverHomeMapPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
+                  BorderRadius.vertical(top: Radius.circular(24 * scale)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
+                      blurRadius: 10 * scale,
+                      offset: Offset(0, -5 * scale),
                     ),
                   ],
                 ),
@@ -386,17 +469,17 @@ class DriverHomeMapPage extends StatelessWidget {
                   child: Column(
                     children: [
                       Container(
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        width: 40,
-                        height: 4,
+                        margin: EdgeInsets.symmetric(vertical: 12 * scale),
+                        width: 40 * scale,
+                        height: 4 * scale,
                         decoration: BoxDecoration(
                           color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
+                          borderRadius: BorderRadius.circular(2 * scale),
                         ),
                       ),
             
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: EdgeInsets.symmetric(horizontal: 20 * scale),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -415,11 +498,11 @@ class DriverHomeMapPage extends StatelessWidget {
                                           baseColor: Colors.grey[300]!,
                                           highlightColor: Colors.grey[100]!,
                                           child: Container(
-                                            width: 150,
-                                            height: 24,
+                                            width: 150 * scale,
+                                            height: 24 * scale,
                                             decoration: BoxDecoration(
                                               color: Colors.white,
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius: BorderRadius.circular(4 * scale),
                                             ),
                                           ),
                                         )
@@ -427,19 +510,19 @@ class DriverHomeMapPage extends StatelessWidget {
                                         Text(
                                           '${controller.stops.length} Destinations',
                                           style: GoogleFonts.poppins(
-                                            fontSize: 16,
+                                            fontSize: 16 * scale,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
-                                      const SizedBox(height: 5),
+                                      SizedBox(height: 5 * scale),
                                       Row(
                                         children: [
-                                          Image.asset('assets/icons/tap.png',height: 22,),
-                                          const SizedBox(width: 5,),
+                                          Image.asset('assets/icons/tap.png', height: 22 * scale),
+                                          SizedBox(width: 5 * scale),
                                           Text(
                                             'Tap to see details',
                                             style: GoogleFonts.poppins(
-                                              fontSize: 13,
+                                              fontSize: 13 * scale,
                                               color: Colors.grey[600],
                                             ),
                                           ),
@@ -451,7 +534,7 @@ class DriverHomeMapPage extends StatelessWidget {
                                     Icon(
                                       isExpanded.value ? Icons.expand_less : Icons.expand_more,
                                       color: Colors.blue,
-                                      size: 28,
+                                      size: 28 * scale,
                                     ),
                                 ],
                               ),
@@ -461,7 +544,7 @@ class DriverHomeMapPage extends StatelessWidget {
                         ),
                       ),
             
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12 * scale),
                       const Divider(height: 1),
 
                       AnimatedSize(
@@ -471,7 +554,7 @@ class DriverHomeMapPage extends StatelessWidget {
                             ? ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 12 * scale),
                           itemCount: controller.stops.length,
                           itemBuilder: (context, index) {
                             final stop = controller.stops[index];
@@ -479,7 +562,7 @@ class DriverHomeMapPage extends StatelessWidget {
 
                             return Padding(
                               // ✅ Equal spacing between rows
-                              padding: const EdgeInsets.only(bottom: 16),
+                              padding: EdgeInsets.only(bottom: 16 * scale),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
@@ -487,8 +570,8 @@ class DriverHomeMapPage extends StatelessWidget {
                                   Column(
                                     children: [
                                       Container(
-                                        width: 10,
-                                        height: 10,
+                                        width: 10 * scale,
+                                        height: 10 * scale,
                                         decoration: const BoxDecoration(
                                           color: Colors.blue,
                                           shape: BoxShape.circle,
@@ -496,31 +579,63 @@ class DriverHomeMapPage extends StatelessWidget {
                                       ),
                                       if (!isLast)
                                         Container(
-                                          width: 2,
-                                          height: 32, // ✅ equal connector spacing
+                                          width: 2 * scale,
+                                          height: 32 * scale, // ✅ equal connector spacing
                                           color: Colors.grey[300],
                                         ),
                                     ],
                                   ),
 
-                                  const SizedBox(width: 16),
+                                  SizedBox(width: 16 * scale),
 
-                                  // Stop name
+                                  // Stop name and Landmark
                                   Expanded(
-                                    child: Text(
-                                      stop.name,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          stop.name,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14 * scale,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        if (stop.landmark != null && stop.landmark!.isNotEmpty)
+                                          Padding(
+                                            padding: EdgeInsets.only(top: 2 * scale),
+                                            child: Text(
+                                              stop.landmark!,
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 12 * scale,
+                                                color: Colors.grey[600],
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
 
+                                  // Approximate Reach Time
+                                  if (stop.approximateReachTime != null && stop.approximateReachTime!.isNotEmpty)
+                                    Padding(
+                                      padding: EdgeInsets.only(right: 8 * scale),
+                                      child: Text(
+                                        stop.approximateReachTime!,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12 * scale,
+                                          color: Colors.blueAccent,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+
                                   // ✅ Forward arrow at end
-                                  const Icon(
+                                  Icon(
                                     Icons.chevron_right,
                                     color: Colors.grey,
-                                    size: 22,
+                                    size: 22 * scale,
                                   ),
                                 ],
                               ),
@@ -532,7 +647,7 @@ class DriverHomeMapPage extends StatelessWidget {
 
 
                       Container(
-                        padding: const EdgeInsets.all(5),
+                        padding: EdgeInsets.all(5 * scale),
                         width: double.infinity,
                         child: Obx(() {
                           final isActive = controller.activeTrip.value != null;
