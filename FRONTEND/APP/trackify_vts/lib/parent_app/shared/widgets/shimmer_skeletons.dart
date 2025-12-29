@@ -6,14 +6,17 @@ class ShimmerLoadingSkeleton extends StatelessWidget {
   final double height;
   final ShapeBorder shapeBorder;
 
-  const ShimmerLoadingSkeleton({
+  ShimmerLoadingSkeleton({
     Key? key,
     this.width = double.infinity,
     this.height = 20,
-    this.shapeBorder = const RoundedRectangleBorder(
-      borderRadius: BorderRadius.all(Radius.circular(4)),
-    ),
-  }) : super(key: key);
+    ShapeBorder? shapeBorder,
+    double? borderRadius,
+  }) : shapeBorder = shapeBorder ?? 
+           RoundedRectangleBorder(
+             borderRadius: BorderRadius.circular(borderRadius ?? 4),
+           ),
+       super(key: key);
 
   @override
   Widget build(BuildContext context) {

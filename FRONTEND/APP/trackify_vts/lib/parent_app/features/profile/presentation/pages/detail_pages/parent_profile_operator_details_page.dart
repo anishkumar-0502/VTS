@@ -30,8 +30,11 @@ class ParentProfileOperatorDetailsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBar(
-        title: const Text('Operator Details'),
+        title: const Text('Operator Details',style: TextStyle(color: Colors.white),),
         centerTitle: true,
+        iconTheme: const IconThemeData(
+          color: Colors.white, // <-- Change leading icon color here
+        ),
         backgroundColor: primaryColor,
         elevation: 0,
       ),

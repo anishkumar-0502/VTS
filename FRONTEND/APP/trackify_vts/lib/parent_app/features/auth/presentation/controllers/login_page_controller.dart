@@ -107,13 +107,23 @@ class ParentLoginPageController extends GetxController {
       final token = data['token'];
       final email = data['email'];
       final name = data['name'];
+      
+      final Map<String, dynamic> sessionData = Map<String, dynamic>.from(data);
+      
+      if (data['user_details'] != null && data['user_details'] is Map) {
+         final userDetails = data['user_details'];
+         if (userDetails['end_user_id'] != null) {
+            sessionData['end_user_id'] = userDetails['end_user_id'];
+         }
+      }
+
       if (userId is String && token is String && email is String) {
         await _sessionController.saveSession(
           userId: userId,
           emailId: email,
           token: token,
           username: name is String ? name : null,
-          rawData: data,
+          rawData: sessionData,
         );
       }
     } catch (e) {
