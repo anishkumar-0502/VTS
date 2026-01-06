@@ -696,7 +696,7 @@ export default function UnifiedUserManagement() {
                             <button title="Toggle Status" onClick={() => toggleStatus(u.user_id)} className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition">
                               {u.status ? <DeactivateIcon /> : <ActivateIcon />}
                             </button>
-                            <button onClick={() => handleView(u.user_id)} className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/40 transition">
+                            <button onClick={() => handleView(u.user_id)} className="p-2 rounded-md text-blue-400 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/40 transition">
                               <EyeIcon />
                             </button>
                             <button 
