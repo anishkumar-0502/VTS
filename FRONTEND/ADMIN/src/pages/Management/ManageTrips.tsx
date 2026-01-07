@@ -235,10 +235,18 @@ if (!isStartSelected || !isEndSelected) {
             <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name">
               <input id="swal-landmark" class="swal2-input" placeholder="Nearby Landmark">
 
-    <input id="swal-reach-time" type="time" class="swal2-input"
-           placeholder="Approximate Reach Time">
-            <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" value="150">
-            <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" value="240">
+  <label style="font-size:12px; text-align:left; display:block; margin:4px 0 2px;">
+  Approximate Reach Time
+</label>
+<input
+  id="swal-reach-time"
+  type="time"
+  class="swal2-input"
+  style="margin-top:0"
+/>
+
+            <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" >
+            <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" >
           `,
           showCancelButton: true,
           confirmButtonText: "Add Stop",
@@ -546,6 +554,54 @@ const handleDeleteStop = (indexToDelete: number) => {
       ...point,
       sequence: index + 1,
     }));
+  });
+};
+const handleEditStop = (indexToEdit: number) => {
+  const stop = routePoints[indexToEdit];
+
+  Swal.fire({
+    title: `Edit Stop ${stop.sequence}`,
+    html: `
+      <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name" value="${stop.name}">
+      <input id="swal-landmark" class="swal2-input" placeholder="Nearby Landmark" value="${stop.landmark || ""}">
+      <input id="swal-reach-time" type="time" class="swal2-input" value="${stop.approximate_reach_time || ""}">
+      <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" value="${stop.dwell_target_seconds || 150}">
+      <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" value="${stop.sla_arrival_buffer_seconds || 240}">
+    `,
+    showCancelButton: true,
+    confirmButtonText: "Update Stop",
+    preConfirm: () => {
+      const name = (document.getElementById("swal-stop-name") as HTMLInputElement)?.value;
+      if (!name) {
+        Swal.showValidationMessage("Stop name is required");
+        return null;
+      }
+
+      return {
+        name,
+        landmark: (document.getElementById("swal-landmark") as HTMLInputElement)?.value || "",
+        reachTime: (document.getElementById("swal-reach-time") as HTMLInputElement)?.value || "",
+        dwell: Number((document.getElementById("swal-dwell") as HTMLInputElement)?.value || 150),
+        sla: Number((document.getElementById("swal-sla") as HTMLInputElement)?.value || 240),
+      };
+    },
+  }).then((result) => {
+    if (result.isConfirmed && result.value) {
+      setRoutePoints((prev) =>
+        prev.map((p, idx) =>
+          idx === indexToEdit
+            ? {
+                ...p,
+                name: result.value.name,
+                landmark: result.value.landmark,
+                approximate_reach_time: result.value.reachTime,
+                dwell_target_seconds: result.value.dwell,
+                sla_arrival_buffer_seconds: result.value.sla,
+              }
+            : p
+        )
+      );
+    }
   });
 };
 
@@ -1355,7 +1411,7 @@ if (loading)
 )}
 
                             </div>
-                            <button
+                            {/* <button
                               type="button"
                               onClick={() => handleDeleteStop(index)}
                               className="text-red-500 hover:text-red-700 p-1 rounded transition-colors"
@@ -1364,7 +1420,29 @@ if (loading)
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                               </svg>
-                            </button>
+                            </button> */}
+                            <div className="flex items-center gap-2">
+  {/* EDIT */}
+  <button
+    type="button"
+    onClick={() => handleEditStop(index)}
+    className="text-indigo-500 hover:text-indigo-700 p-1 rounded transition"
+    title="Edit Stop"
+  >
+    ✏️
+  </button>
+
+  {/* DELETE */}
+  <button
+    type="button"
+    onClick={() => handleDeleteStop(index)}
+    className="text-red-500 hover:text-red-700 p-1 rounded transition"
+    title="Remove Stop"
+  >
+    🗑️
+  </button>
+</div>
+
                           </li>
                         ))}
                       </ul>
