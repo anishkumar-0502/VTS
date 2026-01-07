@@ -8,8 +8,7 @@ import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import Button from "../../components/ui/button/Button";
 import { LocateFixed } from "lucide-react";
 import "leaflet/dist/leaflet.css";
-
-
+ 
 // ✅ Import Leaflet marker images
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -90,6 +89,7 @@ interface EndUser {
   assigned_vehicle_id?: string | null;
   end_user_profile?: {
     end_user_id: string;
+      phone_number?: string;  
     gender?: string;
     age?: number;
     address?: string;
@@ -164,9 +164,6 @@ const [hasMoreDrivers, setHasMoreDrivers] = useState(true);
 const [hasMoreUsers, setHasMoreUsers] = useState(true);
 const [hasMoreDevices, setHasMoreDevices] = useState(true);
 const [formStep, setFormStep] = useState(1);
-
-
-
 
   const [form, setForm] = useState({
     vehicle_number: "",
@@ -1401,6 +1398,147 @@ font-size:16px;
   }
 };
 
+const handleViewAllPassengers = async (vehicle: Vehicle, passengers: EndUser[]) => {
+  const darkMode = document.documentElement.classList.contains("dark");
+
+  if (!passengers.length) {
+    showSuccess("No passengers assigned");
+    return;
+  }
+
+const passengerRows = passengers
+  .map(
+    (p, i) => `
+      <tr style="border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}">
+        <td style="padding:10px;color:${darkMode ? "#e5e7eb" : "#111827"};">${i + 1}</td>
+
+        <td style="padding:10px;font-weight:600;color:${darkMode ? "#e5e7eb" : "#111827"};">
+          ${p.name}
+        </td>
+
+       <td style="padding:10px">
+  <span style="
+    font-size:12px;
+    background:${darkMode ? "#1f2937" : "#ecfeff"};
+    color:${darkMode ? "#67e8f9" : "#0e7490"};
+    padding:4px 10px;
+    border-radius:999px;
+    display:inline-block;
+    font-weight:600;
+  ">
+    ${p.phone_number || p.end_user_profile?.phone_number || "—"}
+  </span>
+</td>
+
+
+        <td style="padding:10px;text-align:center">
+          <button
+            data-id="${p.end_user_profile?.end_user_id}"
+            class="viewPassengerBtn"
+            style="
+              background:#4f46e5;
+              color:white;
+              border:none;
+              border-radius:999px;
+              padding:6px 16px;
+              font-size:12px;
+              cursor:pointer;
+            "
+          >
+            View
+          </button>
+        </td>
+      </tr>
+    `
+  )
+  .join("");
+
+
+  await Swal.fire({
+    showConfirmButton: false,
+    width: 620,
+    background: darkMode ? "#020617" : "#ffffff",
+  html: `
+<div style="
+  font-family:Inter,system-ui,sans-serif;
+  background:${darkMode ? "#020617" : "#ffffff"};
+  border-radius:16px;
+  padding:20px;
+">
+
+  <!-- HEADER -->
+  <div style="
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:14px;
+  ">
+    <h3 style="
+      font-size:18px;
+      font-weight:700;
+      color:${darkMode ? "#e5e7eb" : "#111827"};
+    ">
+      Assigned Passengers – ${vehicle.vehicle_number}
+    </h3>
+
+    <button id="closeAllPassengers" style="
+      background:${darkMode ? "#374151" : "#e5e7eb"};
+      color:${darkMode ? "#e5e7eb" : "#111827"};
+      border:none;
+      border-radius:8px;
+      padding:6px 12px;
+      cursor:pointer;
+      font-size:13px;
+    ">
+      Close
+    </button>
+  </div>
+
+  <!-- TABLE -->
+  <div style="
+    border:1px solid ${darkMode ? "#374151" : "#e5e7eb"};
+    border-radius:12px;
+    overflow:hidden;
+  ">
+    <table style="
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    ">
+      <thead style="background:${darkMode ? "#1f2937" : "#f9fafb"}">
+        <tr>
+          <th style="padding:10px;text-align:left;color:${darkMode ? "#e5e7eb" : "#111827"};">#</th>
+          <th style="padding:10px;text-align:left;color:${darkMode ? "#e5e7eb" : "#111827"};">Name</th>
+          <th style="padding:10px;text-align:left;color:${darkMode ? "#e5e7eb" : "#111827"};">Phone</th>
+          <th style="padding:10px;text-align:center;color:${darkMode ? "#e5e7eb" : "#111827"};">Action</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        ${passengerRows}
+      </tbody>
+    </table>
+  </div>
+</div>
+`,
+
+    didOpen: () => {
+      document
+        .getElementById("closeAllPassengers")
+        ?.addEventListener("click", () => Swal.close());
+
+      document.querySelectorAll(".viewPassengerBtn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = (btn as HTMLElement).getAttribute("data-id");
+          if (id) {
+            Swal.close();
+            handleViewPassenger(id, vehicle);
+          }
+        });
+      });
+    },
+  });
+};
 
 
   // Passenger view (assumes this endpoint exists; change if needed)
@@ -1959,20 +2097,46 @@ if (loading)
 
       <div className="relative h-[400px] border rounded-xl overflow-hidden">
 
-        <button
-          type="button"
-          onClick={handleLocateMe}
-          className="absolute z-[999] top-3 right-3 bg-white dark:bg-gray-800 p-2 rounded-full shadow"
-          title="Locate Me"
-        >
-          <LocateFixed className="text-indigo-600" />
-        </button>
+       <button
+  type="button"
+  onClick={handleLocateMe}
+  title="Locate me"
+  className="
+    absolute top-4 right-4 z-[999]
+    w-11 h-11 rounded-full
+    bg-white dark:bg-gray-900
+    border border-indigo-300 dark:border-indigo-600
+    flex items-center justify-center
+    shadow-lg
+    before:absolute before:inset-0 before:rounded-full
+    before:animate-ping before:bg-indigo-400/30
+  "
+>
+  <LocateFixed className="w-5 h-5 text-indigo-600 relative" />
+</button>
+
+
+          <div
+    className="absolute bottom-3 left-3 z-[999]
+    bg-white/90 dark:bg-gray-800/90
+    backdrop-blur
+    px-3 py-2 rounded-lg text-xs shadow"
+  >
+    <div className="font-medium text-gray-800 dark:text-gray-100">
+      How to set standing location
+    </div>
+    <div className="text-gray-600 dark:text-gray-300 mt-1">
+      1️⃣ Click 📍 to locate<br />
+      2️⃣ Click map to set location
+    </div>
+  </div>
 
         <MapContainer
           center={currentLocation || [12.9716, 77.5946]}
           zoom={7}
           className="h-full w-full"
         >
+          
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <FlyToLocation location={currentLocation} />
             <StandingMapHandler />
@@ -2006,13 +2170,6 @@ if (loading)
           )}
         </MapContainer>
       </div>
-
-      {/* <p className="text-sm text-center text-gray-500 italic">
-        Click 📍 to automatically set the standing location
-      </p> */}
-      <p className="text-sm text-center text-gray-500 italic">
-  Click 📍 to locate yourself, then click on the map to set standing location
-</p>
 
     </div>
   )}
@@ -2203,9 +2360,9 @@ if (loading)
               </td>
 
               {/* Assigned Passengers */}
-           <td className="px-3 py-2 whitespace-nowrap">
+         <td className="px-3 py-2 whitespace-nowrap">
   <div className="flex items-center gap-2">
-    {/* Assign button — first */}
+    {/* Assign button */}
     <button
       onClick={() => handleAssignPassengers(v)}
       className="text-xs px-3 py-1 rounded-md
@@ -2215,27 +2372,21 @@ if (loading)
       Assign
     </button>
 
-    {/* View icons — next, left to right */}
-    <div className="flex items-center gap-1">
-      {assignedPassengers.map((p) => (
-        <button
-          key={p._id}
-          onClick={() =>
-            handleViewPassenger(
-              p.end_user_profile?.end_user_id!,
-              v
-            )
-          }
-          className="p-1 rounded-md text-gray-600 dark:text-gray-300
-          hover:bg-blue-50 hover:text-blue-600
-          dark:hover:bg-blue-900/40 transition"
-        >
-          <EyeIcon />
-        </button>
-      ))}
-    </div>
+    {/* Single View button */}
+    {assignedPassengers.length > 0 && (
+      <button
+        onClick={() => handleViewAllPassengers(v, assignedPassengers)}
+        className="p-2 rounded-md text-blue-400 dark:text-gray-300
+        hover:bg-blue-50 hover:text-blue-600
+        dark:hover:bg-blue-900/40 transition"
+        title="View Passengers"
+      >
+        <EyeIcon />
+      </button>
+    )}
   </div>
 </td>
+
 
 
 
@@ -2264,7 +2415,7 @@ if (loading)
 
                   <button
                     onClick={() => handleView(v)}
-                    className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                    className="p-2 rounded-md text-blue-400 dark:text-gray-300
                     hover:bg-blue-50 hover:text-blue-600
                     dark:hover:bg-blue-900/40 transition"
                   >

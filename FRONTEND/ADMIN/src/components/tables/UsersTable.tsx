@@ -147,7 +147,7 @@ const UsersTable: React.FC<Props> = ({
                       <button
                         title="View user"
                         onClick={() => onView(u.user_id)}
-                        className="p-2 rounded-md text-gray-600 dark:text-gray-300
+                        className="p-2 rounded-md text-blue-400 dark:text-gray-300
                         hover:bg-blue-50 hover:text-blue-600
                         dark:hover:bg-blue-900/40 transition"
                       >
