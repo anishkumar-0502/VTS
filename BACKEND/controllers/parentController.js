@@ -72,8 +72,8 @@ class ParentController {
       res.status(200).json({
         error: false,
         message: trips.some(t => t.status === 'in-progress') 
-          ? 'Active and upcoming trips retrieved successfully' 
-          : 'Upcoming trips retrieved successfully',
+          ? 'Active trip retrieved successfully' 
+          : 'Upcoming trip retrieved successfully',
         data: trips
       });
     } catch (error) {
