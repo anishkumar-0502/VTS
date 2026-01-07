@@ -23,11 +23,15 @@ class PersonalDetailsPage extends StatelessWidget {
 
                   _detailTile(Icons.phone, "Phone", data.phoneNumber.toString(),
                   ),
-                  _detailTile(Icons.badge, "License Number", data.licenseNumber),
-                  _detailTile(Icons.event, "License Expiry", _formatDate(data.licenseExpiry)),
+                  if (data.licenseNumber.isNotEmpty)
+                    _detailTile(
+                        Icons.badge, "License Number", data.licenseNumber),
+                  if (data.licenseExpiry != null &&
+                      data.licenseExpiry!.isNotEmpty)
+                    _detailTile(Icons.event, "License Expiry",
+                        _formatDate(data.licenseExpiry)),
                   _detailTile(Icons.verified, "Status", data.status ? "Active" : "Inactive"),
-                  _detailTile(Icons.access_time, "Last Login",
-                      _formatDateTime(data.lastLogin)),
+                  
                   const SizedBox(height: 20),
                 ],
               ),
@@ -172,7 +176,8 @@ class PersonalDetailsPage extends StatelessWidget {
   }
 }
 
-String _formatDate(String rawDate) {
+String _formatDate(String? rawDate) {
+  if (rawDate == null) return '--';
   try {
     final date = DateTime.parse(rawDate);
     final day = date.day.toString().padLeft(2, '0');

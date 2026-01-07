@@ -6,6 +6,7 @@ import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/s
 import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/controllers/scheduled_trips_controller.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/pages/trip_map_page.dart';
 import 'package:trackify_vts/services/open_route_service.dart';
+import 'package:trackify_vts/driver_app/features/dashboard/presentation/pages/trip_location_display.dart';
 
 class ScheduledTripDetailsPage extends StatelessWidget {
   final ScheduledTrip trip;
@@ -55,7 +56,7 @@ class ScheduledTripDetailsPage extends StatelessWidget {
   }
 
   bool get _hasMapData {
-    final stops = trip.vehicleId?.routePoints ?? [];
+    final stops = trip.routePoints;
     final hasStart =
         (trip.startLocation != null &&
             (trip.startLocation!.latitude != 0 ||
@@ -140,7 +141,7 @@ class ScheduledTripDetailsPage extends StatelessWidget {
 
   Widget _buildRouteMap(BuildContext context) {
     final vehicle = trip.vehicleId;
-    final sortedStops = List<RoutePoint>.from(vehicle?.routePoints ?? [])
+    final sortedStops = List<RoutePoint>.from(trip.routePoints)
       ..sort((a, b) => a.order.compareTo(b.order));
     final validStops = sortedStops.where((stop) {
       return stop.latitude != 0 || stop.longitude != 0;
@@ -717,7 +718,7 @@ class ScheduledTripDetailsPage extends StatelessWidget {
   }
 
   Widget _buildRouteStopsSection() {
-    final stops = trip.vehicleId?.routePoints ?? [];
+    final stops = trip.routePoints;
     if (stops.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -773,8 +774,9 @@ class ScheduledTripDetailsPage extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            '${stop.latitude.toStringAsFixed(4)}, ${stop.longitude.toStringAsFixed(4)}',
+                          SinglePointLocationDisplay(
+                            latitude: stop.latitude,
+                            longitude: stop.longitude,
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],

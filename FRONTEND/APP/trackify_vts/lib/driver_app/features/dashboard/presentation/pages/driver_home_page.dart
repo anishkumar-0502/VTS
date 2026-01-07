@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:trackify_vts/core/Network/InternetStatusNotifier.dart';
 
+import '../../../profile/presentation/pages/driver_profile_page.dart';
 import '../controllers/driver_dashboard_controller.dart';
 import '../../../profile/presentation/controllers/driver_profile_controller.dart';
 import '../../../scheduled_trips/presentation/pages/scheduled_trips_page.dart';
-import 'driver_dashboard_page.dart';
+import '../../../home_map/presentation/pages/driver_home_map_page.dart';
+import '../../../home_map/presentation/controllers/driver_home_map_controller.dart';
+import 'driver_trip_history_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 
@@ -38,7 +41,6 @@ class _DriverHomePageState extends State<DriverHomePage> {
       builder: (context, constraints) {
         final bool isWide = constraints.maxWidth >= 900;
         return Obx(() {
-          final bool tripActive = controller.tripActive.value;
           final bool isOffline = controller.isOffline.value;
           final vehicleNumber = profileController.driverDetails['vehicleNumber'] ?? '';
           final hasVehicle =
@@ -83,7 +85,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1280),
-                    child: DriverDashboardPage(),
+                    child: DriverHomeMapPage(),
                   ),
                 ),
               ),
@@ -98,9 +100,9 @@ class _DriverHomePageState extends State<DriverHomePage> {
                 builder:
                     (context) => IconButton(
                       icon: Image.asset(
-                        'assets/icons/stack.png',
-                        width: 30, // adjust size as needed
-                        height: 30,
+                        'assets/icons/menu.png',
+                        width: 23, // adjust size as needed
+                        height: 23,
                       ),
                       onPressed: () => Scaffold.of(context).openDrawer(),
                     ),
@@ -134,6 +136,11 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     onPressed: () async {
                       // Refresh all dashboard data
                       await controller.refreshAllData();
+                      
+                      if (Get.isRegistered<DriverHomeMapController>()) {
+                        final mapController = Get.find<DriverHomeMapController>();
+                        await mapController.loadData();
+                      }
                     },
                     icon: Container(
                       padding: const EdgeInsets.all(8), // same padding as online/offline icon
@@ -150,26 +157,45 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     tooltip: 'Refresh all data',
                   ),
 
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: isWide ? 24 : 16),
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: InternetStatusNotifier.instance.isOnline,
-                      builder: (context, isOnline, _) {
-                        return Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isOnline ? Colors.green.shade50 : Colors.red.shade50,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isOnline ? Icons.wifi_tethering : Icons.wifi_off,
-                            color: isOnline ? Colors.green.shade700 : Colors.red.shade700,
-                            size: 20,
-                          ),
-                        );
+                  Obx(() {
+                    final driverName = profileController.driverDetails['name'] ?? 'Driver';
+                    // We need a helper for initials here since it's private in other file
+                    // Or we can just duplicate logic simply
+                    String getInitials(String name) {
+                      final parts = name.trim().split(' ');
+                      if (parts.length >= 2) {
+                        return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+                      } else if (parts.isNotEmpty) {
+                        return parts[0][0].toUpperCase();
+                      }
+                      return '';
+                    }
+
+                    return GestureDetector(
+                      onTap: () {
+                         Get.to(
+                            () => DriverProfilePage(),
+                            transition: Transition.rightToLeft,
+                            duration: const Duration(milliseconds: 400),
+                          );
                       },
-                    ),
-                  ),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 16),
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: primaryColor.withOpacity(0.15),
+                          child: Text(
+                            getInitials(driverName),
+                            style: TextStyle(
+                              color: primaryColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 ]
 
 
@@ -360,14 +386,6 @@ class _DriverHomePageState extends State<DriverHomePage> {
               ),
             ),
             body: scaffoldBody,
-            // floatingActionButton: FloatingActionButton.extended(
-            //   onPressed: controller.toggleTrip,
-            //   backgroundColor: tripActive ? Colors.redAccent : primaryColor,
-            //   icon: Icon(
-            //     tripActive ? Icons.stop_circle : Icons.play_arrow_rounded,
-            //   ),
-            //   label: Text(tripActive ? 'End trip' : 'Start trip'),
-            // ),
           );
         });
       },

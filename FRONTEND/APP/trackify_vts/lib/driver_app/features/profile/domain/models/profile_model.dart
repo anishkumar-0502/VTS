@@ -32,7 +32,7 @@ class ProfileData {
   final String operatorId;
   final String? assignedVehicleId;
   final String licenseNumber;
-  final String licenseExpiry;
+  final String? licenseExpiry;
   final String? parentId;
   final List<String> fcmTokens;
   final String userId;
@@ -55,7 +55,7 @@ class ProfileData {
     required this.operatorId,
     required this.assignedVehicleId,
     required this.licenseNumber,
-    required this.licenseExpiry,
+    this.licenseExpiry,
     required this.parentId,
     this.fcmTokens = const [],
     required this.userId,
@@ -80,7 +80,7 @@ class ProfileData {
       operatorId: json['operator_id'] as String,
       assignedVehicleId: json['assigned_vehicle_id'] as String?,
       licenseNumber: json['license_number'] as String,
-      licenseExpiry: json['license_expiry'] as String,
+      licenseExpiry: json['license_expiry'] as String?,
       parentId: json['end_user_id'] as String?,
       fcmTokens:
           json['fcm_tokens'] != null

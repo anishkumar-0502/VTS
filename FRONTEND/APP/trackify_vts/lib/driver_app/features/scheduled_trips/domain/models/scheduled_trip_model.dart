@@ -151,6 +151,7 @@ class VehicleData {
   final String color;
   final int seatingCapacity;
   final String vehicleId;
+  final String assignedDeviceId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -170,6 +171,7 @@ class VehicleData {
     required this.color,
     required this.seatingCapacity,
     required this.vehicleId,
+    required this.assignedDeviceId,
     this.createdAt,
     this.updatedAt,
   });
@@ -177,7 +179,7 @@ class VehicleData {
   factory VehicleData.fromJson(Map<String, dynamic> json) {
     return VehicleData(
       id: json['_id'] as String? ?? '',
-      vehicleNumber: json["vehicle_number"],
+      vehicleNumber: json["vehicle_number"] ?? '',
       vehicleType: json['vehicle_type'] as String? ?? '',
       routeName: json['route_name'] as String? ?? '',
       capacity: (json['capacity'] as num?)?.toInt() ?? 0,
@@ -204,6 +206,7 @@ class VehicleData {
       color: json['color'] as String? ?? '',
       seatingCapacity: (json['seating_capacity'] as num?)?.toInt() ?? 0,
       vehicleId: json['vehicle_id'] as String? ?? '',
+      assignedDeviceId: json['assigned_device_id'] as String? ?? '',
       createdAt:
           json['createdAt'] != null
               ? DateTime.tryParse(json['createdAt'] as String)
@@ -222,6 +225,8 @@ class RoutePoint {
   final double longitude;
   final int order;
   final String id;
+  final String? landmark;
+  final String? approximateReachTime;
 
   RoutePoint({
     required this.name,
@@ -229,6 +234,8 @@ class RoutePoint {
     required this.longitude,
     required this.order,
     required this.id,
+    this.landmark,
+    this.approximateReachTime,
   });
 
   factory RoutePoint.fromJson(Map<String, dynamic> json) {
@@ -238,6 +245,8 @@ class RoutePoint {
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       order: (json['order'] as num?)?.toInt() ?? 0,
       id: json['stop_id'] as String? ?? '',
+      landmark: json['landmark'] as String?,
+      approximateReachTime: json['approximate_reach_time'] as String?,
     );
   }
 }

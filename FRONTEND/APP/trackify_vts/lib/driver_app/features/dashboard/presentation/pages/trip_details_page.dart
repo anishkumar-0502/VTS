@@ -169,18 +169,7 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                           widget.trip.vehicleId?.vehicleNumber ?? 'N/A',
                           primaryColor,
                         ),
-                        const Divider(height: 20),
-                        _buildInfoRow(
-                          'Vehicle Type',
-                          widget.trip.vehicleId?.vehicleType ?? 'N/A',
-                          primaryColor,
-                        ),
-                        const Divider(height: 20),
-                        _buildInfoRow(
-                          'Color',
-                          widget.trip.vehicleId?.color ?? 'N/A',
-                          primaryColor,
-                        ),
+
                         const Divider(height: 20),
                         _buildInfoRow(
                           'Capacity',
@@ -190,69 +179,30 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
 
                   // Route Stops Card
-                  if (widget.trip.vehicleId?.routePoints.isNotEmpty ?? false)
+                  if (widget.trip.routePoints.isNotEmpty)
                     _buildCard(
                       title: 'Route Stops',
                       primaryColor: primaryColor,
                       child: Column(
-                        children: [
-                          ...?widget.trip.vehicleId?.routePoints.map(
-                            (point) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: primaryColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      '${point.order}',
-                                      style: TextStyle(
-                                        color: primaryColor,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          point.name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        children: widget.trip.routePoints
+                            .asMap()
+                            .entries
+                            .map(
+                              (entry) => _buildRouteStopItem(
+                            point: entry.value,
+                            index: entry.key,
+                            total: widget.trip.routePoints.length,
+                            primaryColor: primaryColor,
                           ),
-                        ],
+                        )
+                            .toList(),
                       ),
                     ),
                   const SizedBox(height: 20),
+
 
                   // Repeat Schedule Card
                   _buildCard(
@@ -297,43 +247,6 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                           widget.trip.repeatDays?.sunday ?? false,
                           primaryColor,
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Additional Details Card
-                  _buildCard(
-                    title: 'Additional Details',
-                    primaryColor: primaryColor,
-                    child: Column(
-                      children: [
-                        // _buildInfoRow(
-                        //   'Trip ID',
-                        //   widget.trip.scheduledTripId ?? 'N/A',
-                        //   primaryColor,
-                        //   isMonospace: true,
-                        // ),
-                        // const Divider(height: 20),
-
-                        _buildInfoRow(
-                          'Created',
-                          _formatDate(widget.trip.createdAt),
-                          primaryColor,
-                        ),
-                        const Divider(height: 20),
-                        _buildInfoRow(
-                          'Last Updated',
-                          _formatDate(widget.trip.updatedAt),
-                          primaryColor,
-                        ),
-                        const Divider(height: 20),
-                        _buildInfoRow(
-                          'Is Active',
-                          widget.trip.isActive ? 'Yes' : 'No',
-                          primaryColor,
-                        ),
-
                       ],
                     ),
                   ),
@@ -478,6 +391,84 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
       ),
     );
   }
+
+  Widget _buildRouteStopItem({
+    required dynamic point,
+    required int index,
+    required int total,
+    required Color primaryColor,
+  }) {
+    final bool isLast = index == total - 1;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // LEFT: Number + Line
+        Column(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${point.order}',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+
+            // Vertical Line (only if not last)
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 40,
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                color: primaryColor.withOpacity(0.3),
+              ),
+          ],
+        ),
+
+        const SizedBox(width: 14),
+
+        // RIGHT: Stop Details
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  point.name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${point.latitude.toStringAsFixed(4)}, '
+                      '${point.longitude.toStringAsFixed(4)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
 
   Widget _buildCard({
     required String title,

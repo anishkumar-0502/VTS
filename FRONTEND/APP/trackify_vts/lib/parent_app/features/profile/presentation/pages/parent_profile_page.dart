@@ -27,27 +27,17 @@ String _getInitials(String name) {
 class WaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 60);
+    var path = Path();
+    path.lineTo(0, size.height - 50);
     path.quadraticBezierTo(
-      size.width * 0.25,
-      size.height,
-      size.width * 0.5,
-      size.height - 40,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.75,
-      size.height - 80,
-      size.width,
-      size.height - 40,
-    );
+        size.width / 2, size.height, size.width, size.height - 50);
     path.lineTo(size.width, 0);
     path.close();
     return path;
   }
 
   @override
-  bool shouldReclip(WaveClipper oldClipper) => false;
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
 class ParentProfilePage extends GetView<ParentProfileController> {
@@ -83,6 +73,7 @@ class ParentProfilePage extends GetView<ParentProfileController> {
           child: Column(
             children: [
               _buildProfileCardWithWave(context, data),
+              SizedBox(height: 15,),
               _buildMenuItems(context, data),
             ],
           ),
@@ -128,94 +119,127 @@ class ParentProfilePage extends GetView<ParentProfileController> {
     const primaryColor = Color(0xFF2764FF);
     const accentColor = Color(0xFF1E4FB4);
     
-    return Stack(
-      children: [
-        Container(
-          color: Colors.white,
-          height: 340,
-        ),
-        ClipPath(
-          clipper: WaveClipper(),
-          child: Container(
-            height: 340,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [primaryColor, accentColor],
+    return SizedBox(
+      height: 300,
+      child: Stack(
+        children: [
+          ClipPath(
+            clipper: WaveClipper(),
+            child: Container(
+              height: 200,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [primaryColor, accentColor],
+                ),
               ),
             ),
           ),
-        ),
-        Positioned(
-          top: 40,
-          left: 12,
-          child: CircleAvatar(
-            backgroundColor: Colors.white.withValues(alpha: 0.9),
-            radius: 20,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black87),
-              iconSize: 20,
-              onPressed: () => Get.back(),
+          Positioned(
+            top: 40,
+            left: 12,
+            child: CircleAvatar(
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              radius: 20,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                iconSize: 20,
+                onPressed: () => Get.back(),
+              ),
             ),
           ),
-        ),
-        Positioned(
-          top: 70,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Column(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
+          Positioned(
+            top: 130,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Column(
+                children: [
+                  Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.white,
+                          child: Text(
+                            _getInitials(data.name),
+                            style: const TextStyle(
+                              color: primaryColor,
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: () => _navigateToDetailPage(context, 'edit', data),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.edit,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  child: CircleAvatar(
-                    radius: 48,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      _getInitials(data.name),
-                      style: const TextStyle(
-                        color: primaryColor,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  const SizedBox(height: 12),
+                  Text(
+                    data.name,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
                     ),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  data.name,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 4),
+                  Text(
+                    data.email,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Poppins',
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  data.email,
-                  style: const TextStyle(
-                    color: Color.fromARGB(255, 236, 234, 234),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -232,27 +256,13 @@ class ParentProfilePage extends GetView<ParentProfileController> {
         _buildMenuDivider(),
         _buildMenuItem(
           context,
-          Icons.edit_outlined,
-          'Edit Profile',
-          'edit',
-          data,
-        ),
-        _buildMenuDivider(),
-        _buildMenuItem(
-          context,
           Icons.lock_outline,
           'Change Password',
           'password',
           data,
         ),
         _buildMenuDivider(),
-        _buildMenuItem(
-          context,
-          Icons.phone_outlined,
-          'Emergency Contact',
-          'sos',
-          data,
-        ),
+
         if (data.vehicleDetails != null) ...[
           _buildMenuDivider(),
           _buildMenuItem(
@@ -441,102 +451,119 @@ class ParentProfilePage extends GetView<ParentProfileController> {
     SOSContact sosContact,
     Color primaryColor,
   ) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return ModernDialog(
-          title: 'Emergency Contact',
-          assetIcon: 'assets/icons/support.png',
-          iconColor: Colors.red[800]!,
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DialogContentRow(
-                label: 'Contact Name',
-                value: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Icon(Icons.person, color: Colors.red, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      sosContact.name,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-                isHighlighted: false,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              const SizedBox(height: 8),
-              DialogContentRow(
-                label: 'Phone Number',
-                value: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Icon(Icons.phone, color: Colors.red, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      sosContact.phoneNumber.toString(),
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-                isHighlighted: false,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-            ],
-          ),
-          actions: [
-            ModernDialogButton(
-              label: 'Call',
-              icon: Icons.call,
-              backgroundColor: Colors.red,
-              onPressed: () async {
-                Get.back();
-                final String phone = sosContact.phoneNumber.toString();
-                final Uri uri = Uri(scheme: 'tel', path: phone);
+    // Use Future.delayed to ensure the dialog is shown after the current frame
+    // This prevents the '!_debugLocked' assertion error during gesture handling
+    Future.delayed(Duration.zero, () {
+      if (!context.mounted) return;
 
-                try {
-                  final bool launched = await launchUrl(
-                    uri,
-                    mode: LaunchMode.externalApplication,
-                  );
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return ModernDialog(
+            title: 'Emergency SOS',
+            icon: Icons.emergency_rounded,
+            iconColor: Colors.red[700]!,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  'You are about to call your emergency contact',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.2),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        sosContact.name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
 
-                  if (!launched) {
+                          Text(
+                            sosContact.phoneNumber.toString(),
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.red[700],
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+            actions: [
+              ModernDialogButton(
+                label: 'Call Now',
+                icon: Icons.call,
+                backgroundColor: Colors.red[600]!,
+                onPressed: () async {
+                  Get.back();
+                  final String phone = sosContact.phoneNumber.toString();
+                  final Uri uri = Uri(scheme: 'tel', path: phone);
+
+                  try {
+                    final bool launched = await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    );
+
+                    if (!launched) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Dialer unavailable on this device.'),
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Dialer unavailable on this device.'),
-                        ),
+                        SnackBar(content: Text('Unable to open dialer. Phone: $phone')),
                       );
                     }
                   }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Unable to open dialer. Phone: $phone')),
-                    );
-                  }
-                }
-              },
-            ),
-            ModernDialogButton(
-              label: 'Close',
-              icon: Icons.close,
-              backgroundColor: Colors.grey[600]!,
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        );
-      },
-    );
+                },
+              ),
+              ModernDialogButton(
+                label: 'Cancel',
+                isOutlined: true,
+                backgroundColor: Colors.grey[600]!,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          );
+        },
+      );
+    });
   }
 }

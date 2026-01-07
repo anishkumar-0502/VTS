@@ -61,7 +61,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
           title: Column(
             children: const [
               Text(
-                'Scheduled Trips',
+                'Upcoming Trips',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               ),
               SizedBox(height: 4),
@@ -173,61 +173,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
 
           return Column(
             children: [
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryColor, primaryColor.withOpacity(0.75)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryColor.withOpacity(0.25),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.white,
-                          child: Icon(
-                            Icons.directions_bus,
-                            color: primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Your Daily Trip Scheduler',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Preview and manage upcoming trips with dynamic routing and detailed insights.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.85),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              SizedBox(height: 10,),
               // Active Trip Section
               Obx(() {
                 if (controller.activeTrip.value != null) {
@@ -1061,12 +1007,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                                           label: 'Trip Period',
                                           value: trip.tripPeriod,
                                         ),
-                                        _InfoRowData(
-                                          icon: Icons.flag,
-                                          label: 'Status',
-                                          value: trip.status,
-                                          isStatus: true,
-                                        ),
+
                                       ], primaryColor),
                                       if (trip.vehicleId != null) ...[
                                         const SizedBox(height: 16),
@@ -1258,9 +1199,9 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
       );
     }
 
-    if (trip.vehicleId?.routePoints != null) {
+    if (trip.routePoints.isNotEmpty) {
       markers.addAll(
-        trip.vehicleId!.routePoints.map(
+        trip.routePoints.map(
           (stop) => Marker(
             point: LatLng(stop.latitude, stop.longitude),
             width: 40,
@@ -1321,7 +1262,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     }
 
     final orderedStops = List<RoutePoint>.from(
-      trip.vehicleId?.routePoints ?? [],
+      trip.routePoints,
     )..sort((a, b) => a.order.compareTo(b.order));
     final filteredStops =
         orderedStops.where((stop) {
@@ -1735,7 +1676,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
   }
 
   Widget _buildMapSection(ScheduledTrip trip, Color primaryColor) {
-    final routePoints = trip.vehicleId?.routePoints ?? [];
+    final routePoints = trip.routePoints;
     final polylinePoints = <LatLng>[
       LatLng(trip.startLocation!.latitude, trip.startLocation!.longitude),
       ...routePoints.map<LatLng>(
@@ -1822,7 +1763,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                           },
                         ),
                         // Route stops markers
-                        ...?trip.vehicleId?.routePoints.asMap().entries.map(
+                        ...trip.routePoints.asMap().entries.map(
                           (entry) => _buildMapMarker(
                             context: context,
                             label: 'STOP ${entry.key + 1}',
@@ -1925,8 +1866,11 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     );
   }
 
-  Widget _buildRouteStopsSection(ScheduledTrip trip, Color primaryColor) {
-    final stops = trip.vehicleId?.routePoints ?? [];
+  Widget _buildRouteStopsSection(
+      ScheduledTrip trip,
+      Color primaryColor,
+      ) {
+    final stops = trip.routePoints;
     if (stops.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1936,75 +1880,106 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
       children: [
         const Text(
           'Route Stops',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(height: 12),
-        ...stops.map(
-          (stop) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: GestureDetector(
+        const SizedBox(height: 16),
+
+        Column(
+          children: stops.asMap().entries.map((entry) {
+            final index = entry.key;
+            final stop = entry.value;
+            final bool isLast = index == stops.length - 1;
+
+            return GestureDetector(
               onTap: () {
-                // Open maps with the stop location
-                _openMapForLocation(stop.latitude, stop.longitude, stop.name);
+                _openMapForLocation(
+                  stop.latitude,
+                  stop.longitude,
+                  stop.name,
+                );
               },
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '${stop.order}',
-                        style: TextStyle(
-                          color:
-                              primaryColor.computeLuminance() > 0.5
-                                  ? Colors.black
-                                  : Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// LEFT: Number + Vertical Line
+                  Column(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${stop.order}',
+                          style: TextStyle(
+                            color: primaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+
+                      /// Connecting Line (only between items)
+                      if (!isLast)
+                        Container(
+                          width: 2,
+                          height: 40,
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withOpacity(0.35),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(width: 14),
+
+                  /// RIGHT: Stop Details Card
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+
+                      child: Row(
                         children: [
-                          Text(
-                            stop.name,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  stop.name,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${stop.latitude.toStringAsFixed(4)}, '
+                                      '${stop.longitude.toStringAsFixed(4)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${stop.latitude.toStringAsFixed(4)}, ${stop.longitude.toStringAsFixed(4)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
+
                         ],
                       ),
                     ),
-                    Icon(Icons.location_on, color: Colors.blue[600], size: 20),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
-          ),
+            );
+          }).toList(),
         ),
       ],
     );
@@ -2076,7 +2051,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.6,
+          height: MediaQuery.of(context).size.height * 0.45,
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -2097,6 +2072,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                   ),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2157,11 +2133,11 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                                 },
                                 icon: const Icon(
                                   Icons.location_on,
-                                  color: Colors.black,
+                                  color: Colors.white,
                                 ),
                                 label: const Text(
                                   'Live Tracking',
-                                  style: TextStyle(color: Colors.black),
+                                  style: TextStyle(color: Colors.white),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: primaryColor,
@@ -2233,9 +2209,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
           ),
           const SizedBox(height: 16),
           _buildInfoRow('Vehicle', activeTrip.vehicleId.vehicleNumber),
-          _buildInfoRow('Status', activeTrip.status),
           _buildInfoRow('Passengers', '${activeTrip.passengers.length}'),
-          _buildInfoRow('Speed Limit', '${activeTrip.speedLimit} km/h'),
         ],
       );
     }
@@ -2473,8 +2447,7 @@ extension on _ScheduledTripsPageState {
   }
 
   Widget _buildRouteStopsSection(ScheduledTrip trip) {
-    if (trip.vehicleId?.routePoints == null ||
-        trip.vehicleId!.routePoints.isEmpty) {
+    if (trip.routePoints.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -2499,7 +2472,7 @@ extension on _ScheduledTripsPageState {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          ...trip.vehicleId!.routePoints.map(
+          ...trip.routePoints.map(
             (stop) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(

@@ -12,9 +12,11 @@ import '../../../profile/presentation/controllers/driver_profile_controller.dart
 import '../../../profile/presentation/pages/driver_profile_page.dart';
 import '../../../../Sessionhandler/session_controller.dart';
 import 'trip_details_page.dart';
+import 'driver_trip_history_page.dart';
 import 'live_tracking_map_page.dart';
 import 'package:trackify_vts/services/open_route_service.dart';
 import 'package:trackify_vts/core/core.dart';
+import 'trip_location_display.dart';
 
 String _getInitials(String name) {
   final parts = name.trim().split(' ');
@@ -66,7 +68,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
         return ListView(
           padding: EdgeInsets.symmetric(
             horizontal: horizontalPadding,
-            vertical: 20,
           ),
           children: [
             Center(
@@ -226,6 +227,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                   ? controller.scheduledTrips.first
                                   : null);
 
+                      // If active trip exists, ALWAYS show it, regardless of selectedTrip state
                       if (activeTrip != null) {
                         return _buildActiveTripCard(
                           context,
@@ -245,7 +247,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                       return const SizedBox.shrink();
                     }),
                     const SizedBox(height: 24),
-                    // Available Trips Section
                     Obx(() {
                       if (controller.scheduledTrips.length > 1) {
                         return Column(
@@ -255,7 +256,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Other scheduled trips',
+                                  'Upcoming Trips',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -273,11 +274,15 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                                       ), // optional smooth speed
                                     );
                                   },
-                                  child: Image.asset(
-                                    'assets/icons/fast-forward.png',
-                                    width: 15,
-                                    height: 15,
-                                    color: Colors.black, // optional tint color
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Image.asset(
+                                      'assets/icons/fast-forward.png',
+                                      width: 15,
+                                      height: 15,
+                                      color: Colors.black, // optional tint color
+                                    ),
                                   ),
                                 ),
                               ],
@@ -724,19 +729,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     trip.routeName.isNotEmpty
         ? trip.routeName
         : 'Active route';
-    final startLabel = _formatHistoryTimestamp(trip.startTime);
-    final stopsCount = trip.routePoints.length;
-    final stopLabel = stopsCount == 1 ? '1 stop' : '$stopsCount stops';
-    final speedLimitLabel =
-    trip.speedLimit > 0
-        ? '${trip.speedLimit} km/h limit'
-        : 'No speed limit';
-    final startAddress =
-    trip.startLocation.address.isNotEmpty
-        ? trip.startLocation.address
-        : '${trip.startLocation.latitude.toStringAsFixed(4)}, ${trip.startLocation.longitude.toStringAsFixed(4)}';
-    final vehicleNumber = trip.vehicleId?.vehicleNumber ?? 'Vehicle pending';
-    final statusLabel = trip.status.toUpperCase();
     final activeRoutePoints = trip.routePoints;
     final coordinates = _extractCoordinates(
       activeRoutePoints,
@@ -745,85 +737,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     );
     final stops = _extractStops(activeRoutePoints);
     final hasCoordinates = coordinates.isNotEmpty;
-
-    Widget infoChip(IconData icon, String text) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.95)),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    Widget summaryTile(String title, String value, IconData icon) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  color: Colors.white.withValues(alpha: 0.9),
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              value.isNotEmpty ? value : 'Not available',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
+    
     return GestureDetector(
       onTap: () => _handleActiveTripTap(context, trip, primaryColor),
       child: Container(
@@ -851,9 +765,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- HEADER ROW 1: ICON + ROUTE NAME ---
+            // --- HEADER ROW 1: ICON + ROUTE NAME + STATUS ---
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 48,
@@ -892,39 +806,35 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
+                      height: 1.1,
                     ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // --- HEADER ROW 2: LIVE BADGE + STATUS BADGE ---
-            Row(
-              children: [
-                _LiveTripBadge(color: Colors.greenAccent.shade400),
                 const SizedBox(width: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
                   ),
                   child: Text(
-                    statusLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                    'ONGOING',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.95),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
 
             // --- MAP SECTION ---
             ClipRRect(
@@ -961,62 +871,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-
-            // --- INFO CHIPS ---
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                infoChip(
-                  Icons.schedule,
-                  startLabel.isNotEmpty
-                      ? 'Started $startLabel'
-                      : 'Start time pending',
-                ),
-                infoChip(Icons.location_on, stopLabel),
-                infoChip(Icons.speed, speedLimitLabel),
-                if (trip.speedAlarmEnabled)
-                  infoChip(Icons.notifications_active, 'Speed alerts on'),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // --- SUMMARY SECTION ---
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 420;
-                final startLocationTile = summaryTile(
-                  'Start location',
-                  startAddress,
-                  Icons.near_me,
-                );
-                final vehicleTile = summaryTile(
-                  'Vehicle',
-                  vehicleNumber,
-                  Icons.directions_bus,
-                );
-                if (isWide) {
-                  return Row(
-                    children: [
-                      Expanded(child: startLocationTile),
-                      const SizedBox(width: 16),
-                      Expanded(child: vehicleTile),
-                    ],
-                  );
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    startLocationTile,
-                    const SizedBox(height: 12),
-                    vehicleTile,
-                  ],
-                );
-              },
-            ),
-
-
           ],
         ),
       ),
@@ -1032,7 +886,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     trip.routeName.isNotEmpty
         ? trip.routeName
         : (trip.vehicleId?.routeName ?? 'Scheduled route');
-    final statusLabel = trip.status.toUpperCase();
     final formattedStart = _formatHistoryTimestamp(trip.scheduledStartTime);
     final startLabel =
     formattedStart.isNotEmpty ? formattedStart : trip.scheduledStartTime;
@@ -1041,24 +894,27 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     final startAddress = trip.startLocation?.address ?? '';
     final endAddress = trip.endLocation?.address ?? '';
 
-    Widget infoChip(IconData icon, String text) {
+    Widget infoChip(IconData icon, String text, Color color) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: Colors.white.withOpacity(0.9)),
+            Icon(icon, size: 14, color: color),
             const SizedBox(width: 6),
-            Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: color.withOpacity(0.9),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -1076,23 +932,16 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              primaryColor,
-              primaryColor.withOpacity(0.85),
-              primaryColor.withOpacity(0.7),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: primaryColor.withOpacity(0.25),
+              color: Colors.black.withOpacity(0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
           ],
+          border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1105,7 +954,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                   child: Text(
                     routeName,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Colors.black87,
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
@@ -1116,20 +965,22 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 ),
                 const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.orange.withOpacity(0.3),
+                      width: 1,
+                    ),
                   ),
                   child: Text(
-                    statusLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                    'UPCOMING',
+                    style: TextStyle(
+                      color: Colors.orange.shade700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
@@ -1146,14 +997,15 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 infoChip(
                   Icons.access_time,
                   startLabel.isNotEmpty ? startLabel : 'Schedule pending',
+                  Colors.blueGrey,
                 ),
-                infoChip(Icons.route, stopLabel),
-                if (endAddress.isNotEmpty) infoChip(Icons.flag, endAddress),
+                infoChip(Icons.route, stopLabel, Colors.blueGrey),
+                if (endAddress.isNotEmpty) infoChip(Icons.flag, endAddress, Colors.blueGrey),
               ],
             ),
 
-            const SizedBox(height: 14),
-            Divider(color: Colors.white.withOpacity(0.25), thickness: 1),
+            const SizedBox(height: 3),
+            Divider(color: Colors.grey.withOpacity(0.2), thickness: 1),
 
             // Starting Address
             if (startAddress.isNotEmpty) ...[
@@ -1165,14 +1017,14 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                     'assets/icons/start.png',
                     height: 16,
                     width: 16,
-                    color: Colors.white,
+                    color: Colors.grey[700],
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Starts from $startAddress',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: Colors.grey[800],
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1191,15 +1043,15 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
               children: [
                 Icon(
                   Icons.info_outline,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.grey.withOpacity(0.6),
                   size: 15,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Tap to manage trip and view manifest',
+                    'Tap to view details',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.grey.withOpacity(0.6),
                       fontSize: 12,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -1493,19 +1345,16 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
           : trip.createdAt?.toIso8601String() ?? '',
     );
     final statusColor = _statusColor(trip.status, primaryColor);
-    final locations =
-    [
-      startLocation,
-      endLocation,
-    ].where((value) => value.isNotEmpty).toList();
-    final locationLabel = locations.isEmpty ? '' : locations.join(' → ');
+
     final timeLabel = startLabel.isNotEmpty ? startLabel : 'Time unavailable';
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
       onTap: () => _showTripHistoryDetails(context, trip, primaryColor,  enableStopAction: false,  // ensures no stop button
       ),
-      child: Container(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
@@ -1565,30 +1414,11 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                 ),
               ],
             ),
-            if (locationLabel.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.route, size: 16, color: primaryColor),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      locationLabel,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade700,
-                        height: 1.4,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            const SizedBox(height: 6),
+            TripLocationDisplay(trip: trip, primaryColor: primaryColor),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1860,23 +1690,30 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
         ),
         child: Row(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: primaryColor.withValues(alpha: 0.3),
-                  width: 2,
-                ),
+            GestureDetector(
+              onTap: () => Get.to(
+                    () => DriverProfilePage(),
+                transition: Transition.rightToLeft,
+                duration: const Duration(milliseconds: 400),
               ),
-              child: CircleAvatar(
-                radius: 24,
-                backgroundColor: primaryColor.withValues(alpha: 0.15),
-                child: Text(
-                  _getInitials(driverName),
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: primaryColor.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: primaryColor.withValues(alpha: 0.15),
+                  child: Text(
+                    _getInitials(driverName),
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -1989,7 +1826,9 @@ class _TripHistoryDetailsPage extends StatelessWidget {
     final speedLimitLabel =
     trip.speedLimit > 0 ? '${trip.speedLimit} km/h' : 'Not set';
     final speedAlarmLabel = trip.speedAlarmEnabled ? 'Enabled' : 'Disabled';
-    final waypoints = trip.routePoints;
+    final waypoints = trip.routePoints.isNotEmpty
+        ? trip.routePoints
+        : (trip.vehicleId?.routePoints ?? []);
     final previewPoints =
     waypoints
         .where((point) => point.latitude != 0 || point.longitude != 0)
@@ -2110,88 +1949,11 @@ class _TripHistoryDetailsPage extends StatelessWidget {
             ],
             const SizedBox(height: 24),
             _buildInfoRow(Icons.directions_bus, 'Vehicle number', vehicleNumber),
-            if (scheduleId.isNotEmpty)
-            // _buildInfoRow(
-            //   Icons.assignment,
-            //   'Scheduled trip ID',
-            //   scheduleId,
-            // ),
-            // _buildInfoRow(Icons.person, 'Driver ID', trip.driverId),
-            // _buildInfoRow(Icons.badge, 'Operator ID', trip.operatorId),
-              _buildInfoRow(Icons.place, 'Start location', startLocation),
+            _buildInfoRow(Icons.place, 'Start location', startLocation),
+
             _buildInfoRow(Icons.flag, 'End location', endLocation),
-            if (updatedLabel.isNotEmpty)
-              _buildInfoRow(Icons.update, 'Last updated', updatedLabel),
-            if (createdLabel.isNotEmpty)
-              _buildInfoRow(Icons.calendar_today, 'Created on', createdLabel),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInsightCard(
-                    statusColor,
-                    'Speed limit',
-                    speedLimitLabel,
-                    'Alerts $speedAlarmLabel',
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Expanded(
-                //   child: _buildSummaryCard(
-                //     '$stopsCount stops · $passengersCount passengers',
-                //     '$violationsCount speed alerts · $deviationsCount deviations',
-                //   ),
-                // ),
-              ],
-            ),
-            // if (analyticsData != null) ...[
-            //   const SizedBox(height: 16),
-            //   Container(
-            //     padding: const EdgeInsets.all(16),
-            //     decoration: BoxDecoration(
-            //       color: Colors.grey.shade100,
-            //       borderRadius: BorderRadius.circular(18),
-            //     ),
-            //     child: Row(
-            //       children: [
-            //         _buildAnalyticsMetric(
-            //           Icons.speed,
-            //           'Speed alerts',
-            //           analyticsData.speedViolationsCount.toString(),
-            //         ),
-            //         const SizedBox(width: 16),
-            //         _buildAnalyticsMetric(
-            //           Icons.alt_route,
-            //           'Route deviations',
-            //           analyticsData.routeDeviationsCount.toString(),
-            //         ),
-            //       ],
-            //     ),
-            //   ),
-            //   const SizedBox(height: 12),
-            //   Container(
-            //     padding: const EdgeInsets.all(16),
-            //     decoration: BoxDecoration(
-            //       color: Colors.grey.shade100,
-            //       borderRadius: BorderRadius.circular(18),
-            //     ),
-            //     child: Row(
-            //       children: [
-            //         _buildAnalyticsMetric(
-            //           Icons.pin_drop,
-            //           'Total stops',
-            //           analyticsData.totalStops.toString(),
-            //         ),
-            //         const SizedBox(width: 16),
-            //         _buildAnalyticsMetric(
-            //           Icons.timeline,
-            //           'Tracking points',
-            //           analyticsData.trackingPoints.toString(),
-            //         ),
-            //       ],
-            //     ),
-            //   ),
-            // ],
+
+
             if (hasRoutePreview) ...[
               const SizedBox(height: 24),
               Text(
@@ -2227,7 +1989,7 @@ class _TripHistoryDetailsPage extends StatelessWidget {
             if (waypoints.isNotEmpty) ...[
               const SizedBox(height: 24),
               Text(
-                'Route path',
+                'Route Stops',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -2283,8 +2045,9 @@ class _TripHistoryDetailsPage extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}',
+                                SinglePointLocationDisplay(
+                                  latitude: point.latitude,
+                                  longitude: point.longitude,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey.shade600,
@@ -2590,6 +2353,18 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
           routePoints = fetchedRoute;
           _isLoading = false;
         });
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+             final bounds = LatLngBounds.fromPoints(routePoints);
+             _mapController.fitCamera(
+               CameraFit.bounds(
+                 bounds: bounds,
+                 padding: const EdgeInsets.all(40),
+               ),
+             );
+          }
+        });
       }
     } catch (e) {
       debugPrint('⚠️ Route fetch failed: $e');
@@ -2625,13 +2400,17 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
   }
 
   void _zoomIn() {
-    if (routePoints.isEmpty) return;
+    if (widget.points.isEmpty) return;
 
-    final center = _averageLatLng(routePoints);
+    final start = LatLng(
+      widget.points.first.latitude,
+      widget.points.first.longitude,
+    );
+    
     setState(() {
-      _currentZoom = (_currentZoom + 1).clamp(1, 18);
+      _currentZoom = 16;
     });
-    _mapController.move(center, _currentZoom);
+    _mapController.move(start, 16);
   }
 
   void _openFullScreenMap() {
@@ -2738,7 +2517,8 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
           ),
           children: [
             TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+              subdomains: const ['a', 'b', 'c'],
               userAgentPackageName: 'com.trackify.driver',
             ),
             if (routePoints.isNotEmpty)
@@ -2920,7 +2700,8 @@ class _FullScreenMapState extends State<_FullScreenMap> {
           ),
           children: [
             TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+              subdomains: const ['a', 'b', 'c'],
               userAgentPackageName: 'com.trackify.driver',
             ),
             if (widget.routePoints.isNotEmpty)
@@ -3197,111 +2978,3 @@ class _GeoCoordinate {
   final int? order;
 }
 
-class DriverTripHistoryPage extends GetView<DriverDashboardController> {
-  const DriverTripHistoryPage({super.key});
-
-  @override
-  String? get tag => 'driver_dashboard';
-
-  @override
-  Widget build(BuildContext context) {
-    final Color primaryColor = Theme.of(context).colorScheme.primary;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Trip history'),
-        actions: [
-          IconButton(
-            onPressed: controller.fetchTripHistory,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: Obx(() {
-        if (controller.isLoadingTripHistory.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (controller.tripHistoryError.value.isNotEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.red.shade600),
-                const SizedBox(height: 16),
-                Text(
-                  controller.tripHistoryError.value,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red.shade700,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: controller.fetchTripHistory,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (controller.tripHistory.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.history, size: 42, color: primaryColor),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'No trips recorded yet',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Completed trips will appear here once synced. Pull down to refresh or check your recent assignments.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: controller.fetchTripHistory,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: controller.tripHistory.length,
-          itemBuilder: (context, index) {
-            final trip = controller.tripHistory[index];
-            return DriverDashboardPage._buildTripHistoryTile(
-              context,
-              trip,
-              primaryColor,
-            );
-          },
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-        );
-      }),
-    );
-  }
-}
