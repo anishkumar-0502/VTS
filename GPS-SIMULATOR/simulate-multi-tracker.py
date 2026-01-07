@@ -195,7 +195,7 @@ def main():
     parser.add_argument(
         "--webhook_url",
         help="Webhook URL to POST GPS data",
-        default="http://localhost:8787/webhook"
+        default="http://172.235.29.67:8787/webhook"
     )
     parser.add_argument(
         "--webhook_api_key",

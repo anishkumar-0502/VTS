@@ -39,7 +39,7 @@ Update `default.json` with either Google Maps details or MongoDB connectivity:
   "webhook_url": "<YOUR_WEBHOOK_URL>",
   "tracker_id": "simulated-tracker-3",
   "webhook_api_key": "<YOUR_WEBHOOK_API_KEY>",
-  "mongo_uri": "mongodb://localhost:27017/vts",
+  "mongo_uri": "mongodb://172.235.29.67:27017/vts",
   "mongo_db": "vts",
   "scheduled_trip_id": null,
   "device_id": null,
@@ -74,7 +74,7 @@ python simulate-tracker.py \
 
 ```bash
 python simulate-tracker.py \
-  --mongo_uri "mongodb://localhost:27017/vts" \
+  --mongo_uri "mongodb://172.235.29.67:27017/vts" \
   --mongo_db "vts" \
   --scheduled_trip_id "SCHTRP-123" \
   --webhook_url "<YOUR_WEBHOOK_URL>" \

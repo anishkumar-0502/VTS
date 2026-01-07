@@ -13,5 +13,5 @@
   "tracker_id": "simulated-tracker-3",
   "trip_period": "morning",
   "webhook_api_key": "my-secret-key-123",
-  "webhook_url": "http://localhost:8787/webhook"
+  "webhook_url": "http://172.235.29.67:8787/webhook"
 }

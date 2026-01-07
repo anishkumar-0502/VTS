@@ -5,7 +5,7 @@
 
 set -e
 
-WEBHOOK_URL="${WEBHOOK_URL:-http://localhost:8787/webhook}"
+WEBHOOK_URL="${WEBHOOK_URL:-http://172.235.29.67:8787/webhook}"
 WEBHOOK_KEY="${WEBHOOK_KEY:-my-secret-key-123}"
 
 echo "╔════════════════════════════════════════════════════════════════╗"

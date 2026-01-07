@@ -31,7 +31,7 @@ Simulate all 3 GPS devices simultaneously:
 
 ```bash
 python3 simulate-multi-tracker.py \
-  --webhook_url http://localhost:3000/webhook \
+  --webhook_url http://172.235.29.67:3000/webhook \
   --webhook_api_key my-secret-key-123
 ```
 
@@ -42,7 +42,7 @@ Simulate only Device 1 (Bengaluru → Chennai):
 ```bash
 python3 simulate-multi-tracker.py \
   --device 1 \
-  --webhook_url http://localhost:3000/webhook \
+  --webhook_url http://172.235.29.67:3000/webhook \
   --webhook_api_key my-secret-key-123
 ```
 
@@ -53,7 +53,7 @@ Quick test with all devices:
 ```bash
 python3 simulate-multi-tracker.py \
   --duration 10 \
-  --webhook_url http://localhost:3000/webhook \
+  --webhook_url http://172.235.29.67:3000/webhook \
   --webhook_api_key my-secret-key-123
 ```
 
@@ -128,7 +128,7 @@ python3 simulate-multi-tracker.py [options]
 
 Options:
   --config FILE              Routes configuration file (default: routes.json)
-  --webhook_url URL          Webhook endpoint (default: http://localhost:3000/webhook)
+  --webhook_url URL          Webhook endpoint (default: http://172.235.29.67:3000/webhook)
   --webhook_api_key KEY      API key for webhook (default: my-secret-key-123)
   --interval N               Update interval in seconds (default: 2)
   --duration N               Duration in seconds, 0=full route (default: 0)
@@ -157,7 +157,7 @@ python3 simulate-multi-tracker.py \
 ```bash
 python3 simulate-multi-tracker.py \
   --duration 60 \
-  --webhook_url http://localhost:3000/webhook \
+  --webhook_url http://172.235.29.67:3000/webhook \
   --webhook_api_key test-key
 ```
 
@@ -168,7 +168,7 @@ python3 simulate-multi-tracker.py \
   --device 2 \
   --duration 300 \
   --interval 3 \
-  --webhook_url http://localhost:3000/webhook \
+  --webhook_url http://172.235.29.67:3000/webhook \
   --webhook_api_key test-key
 ```
 
@@ -177,7 +177,7 @@ python3 simulate-multi-tracker.py \
 ```bash
 python3 simulate-multi-tracker.py \
   --interval 1 \
-  --webhook_url http://localhost:3000/webhook \
+  --webhook_url http://172.235.29.67:3000/webhook \
   --webhook_api_key test-key
 ```
 
@@ -191,7 +191,7 @@ python3 simulate-multi-tracker.py \
 ```bash
 python3 simulate-multi-tracker.py \
   --interval 30 \
-  --webhook_url http://localhost:3000/webhook \
+  --webhook_url http://172.235.29.67:3000/webhook \
   --webhook_api_key test-key
 ```
 
