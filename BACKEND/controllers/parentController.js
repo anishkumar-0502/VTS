@@ -61,7 +61,7 @@ class ParentController {
       }).sort({ status: 1, scheduled_start_time: 1 }); // 'in-progress' comes before 'pending' alphabetically
 
       if (trips.length === 0) {
-        res.status(200).json({
+        res.status(404).json({
           error: false,
           message: 'No active or upcoming trips found',
           data: []
@@ -71,8 +71,8 @@ class ParentController {
 
       res.status(200).json({
         error: false,
-        message: trips.some(t => t.status === 'in-progress') 
-          ? 'Active trip retrieved successfully' 
+        message: trips.some(t => t.status === 'in-progress')
+          ? 'Active trip retrieved successfully'
           : 'Upcoming trip retrieved successfully',
         data: trips
       });
