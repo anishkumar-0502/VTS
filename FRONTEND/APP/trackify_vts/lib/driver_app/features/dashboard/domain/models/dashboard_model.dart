@@ -337,6 +337,13 @@ class DriverTripHistory {
         ),
       )
           .toList() ??
+          (json['stops'] as List?)
+              ?.map(
+                (e) => scheduled_models.RoutePoint.fromJson(
+              e as Map<String, dynamic>,
+            ),
+          )
+              .toList() ??
           <scheduled_models.RoutePoint>[],
       createdAt:
       json['createdAt'] != null

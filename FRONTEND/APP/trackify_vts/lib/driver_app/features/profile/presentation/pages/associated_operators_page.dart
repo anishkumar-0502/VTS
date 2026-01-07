@@ -122,7 +122,6 @@ class AssociatedOperatorsPage extends StatelessWidget {
 
                 _info("Email", operator.email),
                 _info("Phone", operator.phone),
-                _info("Company", operator.companyName ?? "N/A"),
                 _info("Address", operator.address),
                 _info("City", operator.city),
 

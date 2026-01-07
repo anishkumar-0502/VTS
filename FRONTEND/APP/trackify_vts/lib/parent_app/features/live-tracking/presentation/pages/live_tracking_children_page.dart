@@ -145,12 +145,27 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: primaryColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.person_off_rounded, size: 64, color: primaryColor),
+            ),
+            const SizedBox(height: 24),
             Text(
-              'No children to track',
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(color: Colors.grey.shade600),
+              'No Children Linked',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'There are no children associated with your account yet.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -159,18 +174,21 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
 
     return RefreshIndicator(
       onRefresh: _fetchProfile,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          ...associatedUsers.map((user) {
-            return _buildChildCard(
-              name: user['name'] as String? ?? 'Unknown',
-              childId: user['id'] as String? ?? endUserId,
-              theme: theme,
-              primaryColor: primaryColor,
-            );
-          }),
-        ],
+      color: primaryColor,
+      backgroundColor: Colors.white,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        itemCount: associatedUsers.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 16),
+        itemBuilder: (context, index) {
+          final user = associatedUsers[index];
+          return _buildChildCard(
+            name: user['name'] as String? ?? 'Unknown',
+            childId: user['id'] as String? ?? endUserId,
+            theme: theme,
+            primaryColor: primaryColor,
+          );
+        },
       ),
     );
   }
@@ -181,109 +199,140 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
     required ThemeData theme,
     required Color primaryColor,
   }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: primaryColor.withValues(alpha: 0.15),
+          width: 1.2,
+        ),
+
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
               children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: primaryColor,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: primaryColor.withValues(alpha: 0.2), width: 2),
+                  ),
+                  child: CircleAvatar(
+                    radius: 28,
+                    backgroundColor: primaryColor.withValues(alpha: 0.1),
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         name,
-                        style: theme.textTheme.titleMedium?.copyWith(
+                        style: const TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          fontFamily: 'Poppins',
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       FutureBuilder<String>(
                         future: _fetchTripStatus(childId),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return ShimmerLoadingSkeleton(
-                              width: 70,
-                              height: 12,
-                            );
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return  ShimmerLoadingSkeleton(width: 80, height: 16);
                           }
                           final status = snapshot.data ?? 'Unknown';
                           final isOnTrip = status.contains('on trip') ||
                               status.contains('On Trip') ||
                               status.toLowerCase().contains('en_route');
-                          return Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: isOnTrip ? Colors.green : Colors.orange,
-                                  shape: BoxShape.circle,
+                          
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isOnTrip 
+                                ? Colors.green.withValues(alpha: 0.1) 
+                                : Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: isOnTrip ? Colors.green : Colors.orange,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                isOnTrip ? 'On Trip' : 'Not on Trip',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isOnTrip ? Colors.green : Colors.orange,
-                                  fontWeight: FontWeight.w500,
+                                const SizedBox(width: 6),
+                                Text(
+                                  isOnTrip ? 'On Trip' : 'Not on Trip',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isOnTrip ? Colors.green[700] : Colors.orange[800],
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           );
                         },
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildNextStopSection(childId, theme, primaryColor),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _navigateToTracking(childId),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                Material(
+                  color: primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _navigateToTracking(childId),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: primaryColor,
+                        size: 18,
+                      ),
+                    ),
                   ),
                 ),
-                icon: const Icon(Icons.location_on),
-                label: const Text(
-                  'Track Child',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          
+          Container(
+            height: 1,
+            color: Colors.grey[100],
+          ),
+          
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: _buildNextStopSection(childId, theme, primaryColor),
+          ),
+        ],
       ),
     );
   }
@@ -297,33 +346,39 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
       future: _fetchNextStop(childId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const SizedBox(
-              height: 60,
-              child: Center(child: ShimmerLoadingSkeleton(
-                width: 100,
-                height: 20,
-              )),
-            ),
+          return Row(
+            children: [
+              ShimmerLoadingSkeleton(width: 40, height: 40, borderRadius: 12),
+              const SizedBox(width: 12),
+               Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ShimmerLoadingSkeleton(width: 80, height: 12),
+                  SizedBox(height: 6),
+                  ShimmerLoadingSkeleton(width: 120, height: 16),
+                ],
+              ),
+            ],
           );
         }
 
         if (snapshot.hasError || snapshot.data == null) {
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Unable to fetch next stop',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
+          return Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.location_off_rounded, size: 20, color: Colors.grey[400]),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Next stop information unavailable',
+                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+              ),
+            ],
           );
         }
 
@@ -332,76 +387,67 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
         final latitude = nextStop['latitude'] as double? ?? 0.0;
         final longitude = nextStop['longitude'] as double? ?? 0.0;
 
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.orange.shade200),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        return Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF4E5), // Light orange background
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFE0B2)), // Light orange border
+              ),
+              child: const Icon(
+                Icons.flag_rounded,
+                color: Color(0xFFFF9800), // Orange icon
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(
-                      Icons.flag,
-                      color: Colors.white,
-                      size: 14,
+                  const Text(
+                    'NEXT STOP',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF9E9E9E),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Next Stop',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          stopName,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 4),
+                  Text(
+                    stopName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                   ),
+                  if (latitude != 0.0 && longitude != 0.0)
+                    FutureBuilder<String>(
+                      future: _getAddressFromLatLng(latitude, longitude),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            snapshot.data!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                 ],
               ),
-              if (latitude != 0.0 && longitude != 0.0)
-                FutureBuilder<String>(
-                  future: _getAddressFromLatLng(latitude, longitude),
-                  builder: (context, snapshot) {
-                    final address = snapshot.data ?? 'Loading...';
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        address,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );

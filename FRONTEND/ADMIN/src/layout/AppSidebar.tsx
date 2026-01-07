@@ -96,16 +96,16 @@ const operatorNavItems: NavItem[] = [
     path: "/live-tracking",
     permission: "view_telemetry",
   },
-  {
-     icon: <Users />,
-    name: "Manage All Users",
-    path: "/manage-all-users",
-    permission: "manage_users",
-  },
+  // {
+  //    icon: <Users />,
+  //   name: "Manage All Users",
+  //   path: "/manage-all-users",
+  //   permission: "manage_users",
+  // },
    {
    icon: <UserCheck />,
-    name: "Manage End Users",
-    path: "/manage-end-users",
+    name: "Manage Users",
+    path: "/manage-users",
     permission: "manage_users",
   },
   {
@@ -394,14 +394,14 @@ const AppSidebar: React.FC = () => {
               <img
                 className="dark:hidden"
                 src="/images/logo/logo.png"
-                alt="Logo"
+                alt="Logo-VTS"
                 width={150}
                 height={40}
               />
               <img
                 className="hidden dark:block"
-                src="/images/logo/logo-dark.png"
-                alt="Logo"
+                src="/images/logo/logo-light.png"
+                alt="Logo-VTS"
                 width={150}
                 height={40}
               />

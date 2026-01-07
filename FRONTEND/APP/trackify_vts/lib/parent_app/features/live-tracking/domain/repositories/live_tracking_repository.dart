@@ -3,7 +3,7 @@ import '../models/live_tracking_model.dart';
 
 abstract class LiveTrackingRepository {
   // 1. Fetches all trip details (route, timeline)
-  Future<ParentLiveTripData> fetchBaseTripData(String token, String childId);
+  Future<ParentLiveTripData?> fetchBaseTripData(String token, String childId);
 
   // 2. Fetches the child's live location
   Future<ChildLocation> getChildLocation(String token, String childId);
@@ -22,8 +22,11 @@ class LiveTrackingRepositoryImpl implements LiveTrackingRepository {
   LiveTrackingRepositoryImpl(this._api);
 
   @override
-  Future<ParentLiveTripData> fetchBaseTripData(String token, String childId) async {
+  Future<ParentLiveTripData?> fetchBaseTripData(String token, String childId) async {
     final response = await _api.getCurrentTrip(token, childId);
+    if (response['data'] == null) {
+      return null;
+    }
     return ParentLiveTripData.fromCurrentTripJson(response);
   }
 

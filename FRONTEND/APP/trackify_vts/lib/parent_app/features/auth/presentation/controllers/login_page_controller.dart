@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
@@ -68,7 +67,6 @@ class ParentLoginPageController extends GetxController {
         if (!response.error) {
           await _saveSession(response);
           await _fetchAndUpdateFullProfile();
-          await _registerFcmToken();
           showStatusBanner(response.message, Colors.green, Icons.check_circle);
           Get.offAll(
             () => ParentHomePage(),
@@ -109,13 +107,23 @@ class ParentLoginPageController extends GetxController {
       final token = data['token'];
       final email = data['email'];
       final name = data['name'];
+      
+      final Map<String, dynamic> sessionData = Map<String, dynamic>.from(data);
+      
+      if (data['user_details'] != null && data['user_details'] is Map) {
+         final userDetails = data['user_details'];
+         if (userDetails['end_user_id'] != null) {
+            sessionData['end_user_id'] = userDetails['end_user_id'];
+         }
+      }
+
       if (userId is String && token is String && email is String) {
         await _sessionController.saveSession(
           userId: userId,
           emailId: email,
           token: token,
           username: name is String ? name : null,
-          rawData: data,
+          rawData: sessionData,
         );
       }
     } catch (e) {
@@ -167,34 +175,5 @@ class ParentLoginPageController extends GetxController {
     }
   }
 
-  Future<void> _registerFcmToken() async {
-    try {
-      final authToken = _sessionController.token.value;
-      if (authToken.isEmpty) {
-        print('[LoginController] ⚠️ Auth token not available for FCM registration');
-        return;
-      }
 
-      final firebaseMessaging = FirebaseMessaging.instance;
-      final fcmToken = await firebaseMessaging.getToken();
-
-      if (fcmToken == null || fcmToken.isEmpty) {
-        print('[LoginController] ⚠️ Failed to get FCM token');
-        return;
-      }
-
-      print('[LoginController] 📱 Registering FCM token: $fcmToken');
-
-      final response = await _authAPICalls.registerFcmToken(fcmToken, authToken);
-
-      if (response['error'] == false) {
-        print('[LoginController] ✅ FCM token registered successfully');
-        print('[LoginController] FCM Token Count: ${response['data']['fcm_token_count']}');
-      } else {
-        print('[LoginController] ⚠️ Failed to register FCM token: ${response['message']}');
-      }
-    } catch (e) {
-      print('[LoginController] ⚠️ Error registering FCM token: $e');
-    }
-  }
 }

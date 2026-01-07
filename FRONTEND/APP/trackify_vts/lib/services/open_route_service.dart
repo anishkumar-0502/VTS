@@ -1,10 +1,12 @@
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 class OpenRouteService {
   final String apiKey;
+  
+  // Using OSRM public server as fallback since ORS key is disallowed
+  static const String _baseUrl = 'router.project-osrm.org';
 
   OpenRouteService(this.apiKey);
 
@@ -17,92 +19,62 @@ class OpenRouteService {
       throw ArgumentError('At least two coordinates are required');
     }
 
+    // OSRM expects coordinates in "lon,lat;lon,lat" format
+    final coordString = coordinates
+        .map((p) => '${p.longitude},${p.latitude}')
+        .join(';');
+
     final url = Uri.https(
-      'api.openrouteservice.org',
-      '/v2/directions/driving-car',
+      _baseUrl,
+      '/route/v1/driving/$coordString',
       {
-        'api_key': apiKey,
-        'format': 'geojson',
-        'instructions': 'false',
-        'geometry_format': 'geojson',
+        'overview': 'full',
+        'geometries': 'geojson',
+        'steps': 'false',
       },
     );
 
-    final body = jsonEncode({
-      'coordinates': coordinates
-          .map((point) => [point.longitude, point.latitude])
-          .toList(),
-      'preference': 'shortest',
-    });
+    try {
+      final res = await http.get(url);
 
-    final res = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: body,
-    );
-
-    if (res.statusCode != 200) {
-      throw Exception('Failed to fetch route: ${res.body}');
-    }
-
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final features = data['features'] as List<dynamic>?;
-    if (features != null && features.isNotEmpty) {
-      final geometry = features.first['geometry'] as Map<String, dynamic>?;
-      final points = geometry?['coordinates'] as List<dynamic>?;
-      if (points != null && points.isNotEmpty) {
-        return points.map((coord) {
-          final lon = (coord[0] as num).toDouble();
-          final lat = (coord[1] as num).toDouble();
-          return LatLng(lat, lon);
-        }).toList();
+      if (res.statusCode != 200) {
+        print('Failed to fetch route from OSRM: ${res.body}');
+        throw Exception('Failed to fetch route: ${res.body}');
       }
-    }
 
-    final routes = data['routes'] as List<dynamic>?;
-    if (routes != null && routes.isNotEmpty) {
-      final geometry = routes.first['geometry'];
-      if (geometry is Map<String, dynamic>) {
-        final points = geometry['coordinates'] as List<dynamic>?;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final routes = data['routes'] as List<dynamic>?;
+
+      if (routes != null && routes.isNotEmpty) {
+        final geometry = routes.first['geometry'] as Map<String, dynamic>?;
+        final points = geometry?['coordinates'] as List<dynamic>?;
+
         if (points != null && points.isNotEmpty) {
           return points.map((coord) {
+            // GeoJSON is [lon, lat]
             final lon = (coord[0] as num).toDouble();
             final lat = (coord[1] as num).toDouble();
             return LatLng(lat, lon);
           }).toList();
         }
-      } else if (geometry is String) {
-        return _decodePolyline(geometry);
       }
-    }
 
-    return [];
+      return [];
+    } catch (e) {
+      print('Error fetching route: $e');
+      rethrow;
+    }
   }
 
   Future<LatLng> snapToRoad(LatLng point) async {
     try {
+      // Use OSRM Nearest service
       final url = Uri.https(
-        'api.openrouteservice.org',
-        '/v2/snap/driving-car',
-        {
-          'api_key': apiKey,
-          'format': 'json',
-        },
+        _baseUrl,
+        '/nearest/v1/driving/${point.longitude},${point.latitude}',
       );
 
-      final body = jsonEncode({
-        'coordinates': [[point.longitude, point.latitude]],
-      });
-
-      final res = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      );
+      final res = await http.get(url);
 
       if (res.statusCode != 200) {
         print('[OpenRouteService] Snap to road failed: ${res.body}');
@@ -110,58 +82,22 @@ class OpenRouteService {
       }
 
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final snappedCoordinates = data['snapped_coordinates'] as List<dynamic>?;
-      
-      if (snappedCoordinates != null && snappedCoordinates.isNotEmpty) {
-        final coord = snappedCoordinates.first as List<dynamic>;
-        if (coord.length >= 2) {
-          final lon = (coord[0] as num).toDouble();
-          final lat = (coord[1] as num).toDouble();
-          print('[OpenRouteService] Snapped: ($lat, $lon)');
+      final waypoints = data['waypoints'] as List<dynamic>?;
+
+      if (waypoints != null && waypoints.isNotEmpty) {
+        final location = waypoints.first['location'] as List<dynamic>?;
+        if (location != null && location.length >= 2) {
+          final lon = (location[0] as num).toDouble();
+          final lat = (location[1] as num).toDouble();
+          // print('[OpenRouteService] Snapped: ($lat, $lon)');
           return LatLng(lat, lon);
         }
       }
-      
+
       return point;
     } catch (e) {
       print('[OpenRouteService] Error snapping to road: $e');
       return point;
     }
-  }
-
-  List<LatLng> _decodePolyline(String polyline) {
-    final points = <LatLng>[];
-    int index = 0;
-    int lat = 0;
-    int lng = 0;
-
-    while (index < polyline.length) {
-      int result = 0;
-      int shift = 0;
-      int b;
-      do {
-        b = polyline.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      final deltaLat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-      lat += deltaLat;
-
-      result = 0;
-      shift = 0;
-      do {
-        b = polyline.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      final deltaLng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-      lng += deltaLng;
-
-      points.add(
-        LatLng(lat / 1e5, lng / 1e5),
-      );
-    }
-
-    return points;
   }
 }

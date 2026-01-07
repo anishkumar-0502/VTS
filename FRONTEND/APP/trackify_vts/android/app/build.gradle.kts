@@ -3,21 +3,20 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
 }
 
 android {
     namespace = "com.example.trackify_vts"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"   // ✅ add this line
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -27,7 +26,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        
+
         multiDexEnabled = true
     }
     
@@ -58,21 +57,21 @@ android {
     flavorDimensions += "default"
 
     productFlavors {
-        create("dev") {
-            dimension = "default"
-            applicationId = "com.trackify.dev"
-            resValue("string", "app_name", "Trackify Dev")
-        }
-        create("driver") {
-            dimension = "default"
-            applicationId = "com.trackify.driver"
-            resValue("string", "app_name", "Trackify Driver")
-        }
-        create("parent") {
-            dimension = "default"
-            applicationId = "com.trackify.parent"
-            resValue("string", "app_name", "Trackify Parent")
-        }
+       create("dev") {
+           dimension = "default"
+           applicationId = "com.trackify.dev"
+           resValue("string", "app_name", "Trackify Dev")
+       }
+       create("driver") {
+           dimension = "default"
+           applicationId = "com.trackify.driver"
+           resValue("string", "app_name", "Trackify Driver")
+       }
+       create("parent") {
+           dimension = "default"
+           applicationId = "com.trackify.parent"
+           resValue("string", "app_name", "Trackify Parent")
+       }
     }
 }
 
@@ -82,7 +81,18 @@ flutter {
 }
 
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-       implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
-    implementation("com.google.firebase:firebase-messaging")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+
+// afterEvaluate removed. Google Services plugin application logic moved to top.
+if (gradle.startParameter.taskNames.any { it.contains("Parent", ignoreCase = true) }) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("androidx.browser:browser:1.8.0")
+        force("androidx.core:core-ktx:1.15.0")
+        force("androidx.core:core:1.15.0")
+    }
 }

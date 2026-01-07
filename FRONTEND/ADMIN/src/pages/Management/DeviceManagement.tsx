@@ -37,6 +37,27 @@ const ActivateIcon = () => (
   </svg>
 );
 
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M2 12C4.5 7 8 5 12 5s7.5 2 10 7c-2.5 5-6 7-10 7s-7.5-2-10-7Z"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
+const EditIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path
+      d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+  </svg>
+);
+
 export default function ManageDevices() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,67 +244,107 @@ const handleView = async (device_id: string) => {
     }
 
     // Display SweetAlert
-    Swal.fire({
-      showCloseButton: true,
-      showConfirmButton: false,
-      width: 520,
-      background: darkMode ? "#1f2937" : "#ffffff",
-      color: darkMode ? "#e5e7eb" : "#111827",
-      html: `
-        <div style="text-align:left; font-family:Arial,sans-serif;">
+   Swal.fire({
+      backdrop: false, 
+  showCloseButton: true,
+  showConfirmButton: false,
+  width: 540,
+  padding: "0",
+  background: "transparent",
+  html: `
+  <!-- GRADIENT BORDER -->
+  <div style="
+    border-radius:26px;
+    padding:2px;
+    background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5);
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  ">
 
-          <!-- Header -->
-          <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px;">
-            <div style="
-              width:50px; height:50px; border-radius:50%;
-              background:#4f46e533; display:flex;
-              align-items:center; justify-content:center;
-              font-size:22px; font-weight:700; color:#4f46e5;">
-              ${d.device_id.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div style="font-size:18px; font-weight:700;">${d.device_id}</div>
-              <div style="font-size:14px; font-weight:500; color:${darkMode ? "#9ca3af" : "#6b7280"};">
-                Device Details
-              </div>
-            </div>
+    <!-- INNER CARD -->
+    <div style="
+      background:${darkMode ? "#020617" : "#ffffff"};
+      border-radius:24px;
+      overflow:hidden;
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      text-align:left;
+    ">
+
+      <!-- SOFT GLOW -->
+      <div style="
+        position:absolute;
+        inset:0;
+        pointer-events:none;
+        background:
+          radial-gradient(600px at top left, rgba(99,102,241,.15), transparent 40%),
+          radial-gradient(500px at bottom right, rgba(34,211,238,.12), transparent 45%);
+      "></div>
+
+      <!-- HEADER -->
+      <div style="
+        position:relative;
+        padding:18px 22px;
+        background:linear-gradient(135deg,#4f46e5,#6366f1);
+        display:flex;
+        align-items:center;
+        gap:14px;
+      ">
+        <div style="
+          width:54px;height:54px;border-radius:16px;
+          background:rgba(255,255,255,.22);
+          display:flex;align-items:center;justify-content:center;
+          font-size:22px;font-weight:800;color:white;
+          box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+        ">
+          ${d.device_id.charAt(0).toUpperCase()}
+        </div>
+
+        <div>
+          <div style="font-size:19px;font-weight:800;color:white">
+            ${d.device_id}
           </div>
-
-          <!-- Info Grid -->
-          <div style="
-            display:grid;
-            grid-template-columns: 1fr 1fr;
-            gap:12px;
-            font-size:14px;
-            line-height:1.6;
-          ">
-            <div><b>IMEI:</b> ${d.imei}</div>
-            <div><b>Device Type:</b> ${d.device_type}</div>
-            <div><b>SIM Number:</b> ${d.sim_number}</div>
-            <div><b>Firmware:</b> ${d.firmware_version}</div>
-            <div><b>Battery Level:</b> ${d.battery_level ?? "-"}%</div>
-            <div><b>Last Signal:</b> ${d.last_signal ? new Date(d.last_signal).toLocaleString() : "-"}</div>
-            <div><b>Last Location:</b> ${
-              d.last_latitude && d.last_longitude
-                ? `${d.last_latitude.toFixed(6)}, ${d.last_longitude.toFixed(6)}`
-                : "-"
-            }</div>
-            <div><b>Assigned Operator:</b> ${operatorName}</div>
-            <div><b>Assigned Date:</b> ${
-              d.assigned_date ? new Date(d.assigned_date).toLocaleString() : "-"
-            }</div>
-            <div><b>Status:</b> ${
-              d.status
-                ? '<span style="color:#10b981;font-weight:600;">Active</span>'
-                : '<span style="color:#ef4444;font-weight:600;">Inactive</span>'
-            }</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.85)">
+            Device Details
           </div>
         </div>
-      `,
-      customClass: {
-      popup: "card-popup"
-    }
-    });
+      </div>
+
+      <!-- CONTENT (UNCHANGED DATA) -->
+      <div style="position:relative; padding:22px; font-size:14px; color:${darkMode ? "#e5e7eb" : "#111827"};">
+
+        <div style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:12px;
+          line-height:1.6;
+        ">
+          <div><b>IMEI:</b> ${d.imei}</div>
+          <div><b>Device Type:</b> ${d.device_type}</div>
+          <div><b>SIM Number:</b> ${d.sim_number}</div>
+          <div><b>Firmware:</b> ${d.firmware_version}</div>
+          <div><b>Battery Level:</b> ${d.battery_level ?? "-"}%</div>
+          <div><b>Last Signal:</b> ${d.last_signal ? new Date(d.last_signal).toLocaleString() : "-"}</div>
+          <div><b>Assigned Operator:</b> ${operatorName}</div>
+          <div><b>Assigned Date:</b> ${
+            d.assigned_date ? new Date(d.assigned_date).toLocaleString() : "-"
+          }</div>
+          <div>
+            <b>Status:</b>
+            ${
+              d.status
+                ? `<span style="margin-left:6px;color:#10b981;font-weight:600;">Active</span>`
+                : `<span style="margin-left:6px;color:#ef4444;font-weight:600;">Inactive</span>`
+            }
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  `,
+  customClass: { popup: "shadow-none" }
+});
+
   } catch (err: any) {
     Swal.fire({
       icon: "error",
@@ -368,33 +429,73 @@ if (loading)
 
 <div className="bg-white rounded-lg border border-gray-200 shadow p-6 dark:bg-gray-900 dark:border-gray-800 max-w-6xl mx-auto overflow-x-hidden">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Manage Devices
-            </h2>
-              
-  <select
-    value={viewMode}
-    onChange={(e) => setViewMode(e.target.value as "assigned" | "unassigned")}
-    className="border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-  >
-    <option value="assigned">Assigned Devices</option>
-    <option value="unassigned">Unassigned Devices</option>
-  </select>
+  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+    Manage Devices
+  </h2>
 
-            <Button
-              size="sm"
-              onClick={() => {
-                resetForm();
-                setEditingDevice(null);
-                setShowForm(true);
-              }}
-            >
-              Add Device
-            </Button>
-          </div>
+  {!showForm && (
+ <div className="flex items-center gap-3">
+  {/* View Mode Select */}
+  <div className="relative">
+    <select
+      value={viewMode}
+      onChange={(e) =>
+        setViewMode(e.target.value as "assigned" | "unassigned")
+      }
+      className="
+        appearance-none rounded-full px-4 py-2 pr-9
+        text-sm font-medium
+        bg-indigo-50 dark:bg-gray-800
+        text-indigo-700 dark:text-indigo-300
+        border border-indigo-200 dark:border-gray-700
+        shadow-sm
+        hover:bg-indigo-100 dark:hover:bg-gray-700
+        focus:outline-none focus:ring-2 focus:ring-indigo-400
+      "
+    >
+      <option value="assigned">Assigned Devices</option>
+      <option value="unassigned">Unassigned Devices</option>
+    </select>
+
+    {/* Dropdown Icon */}
+    <svg
+      className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-500"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  </div>
+
+  {/* Add Device Button */}
+  <Button
+    size="sm"
+    className="
+      rounded-full px-5 py-2
+      bg-indigo-600 hover:bg-indigo-700
+      text-white font-medium
+      shadow-md hover:shadow-lg
+      transition-all
+    "
+    onClick={() => {
+      resetForm();
+      setEditingDevice(null);
+      setShowForm(true);
+    }}
+  >
+    + Add Device
+  </Button>
+</div>
+
+  )}
+</div>
+
 
           {/* ===================== FORM ===================== */}
           {showForm && (
+            
             <div className="mb-8 bg-gray-50 dark:bg-gray-800 p-5 rounded-lg">
               <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">
                 {editingDevice ? "Edit Device" : "Create Device"}
@@ -439,9 +540,10 @@ if (loading)
           )}
 
 
-         {/* ===================== TABLE ===================== */}
+{/* ===================== TABLE ===================== */}
+{!showForm && (
 <div
-    className="max-h-[400px] overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg"
+  className="relative max-h-[420px] overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700"
   onScroll={(e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     if (
@@ -453,8 +555,8 @@ if (loading)
     }
   }}
 >
-  <table className="min-w-full border-collapse">
-    <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
+  <table className="min-w-full text-sm ">
+    <thead className="sticky top-0 z-10 backdrop-blur bg-gray-50/90 dark:bg-gray-800/90">
       <tr className="border-b border-gray-200 dark:border-gray-700">
         {[
           "Device ID",
@@ -466,7 +568,7 @@ if (loading)
         ].map((h) => (
           <th
             key={h}
-            className="px-2 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap"
+            className="px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-300 uppercase text-xs tracking-wide"
           >
             {h}
           </th>
@@ -474,52 +576,69 @@ if (loading)
       </tr>
     </thead>
 
-    <tbody>
+    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
       {(viewMode === "assigned" ? assignedDevices : unassignedDevices).map(
         (device: Device) => (
           <tr
             key={device._id}
-            className="border-b border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-normal whitespace-nowrap"
+            className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition"
           >
-            <td className="px-2 py-1 font-normal">{device.device_id}</td>
-            <td className="px-2 py-1 font-normal">{device.imei}</td>
-            <td className="px-2 py-1 font-normal">{device.sim_number}</td>
+            <td className="px-3 py-2 font-medium  text-gray-600 dark:text-gray-400">
+              {device.device_id}
+            </td>
+
+            <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+              {device.imei}
+            </td>
+
+            <td className="px-3 py-2  text-gray-600 dark:text-gray-400">
+              {device.sim_number}
+            </td>
+
             {viewMode === "assigned" && (
-              <td className="px-2 py-1 font-normal">
-                {device.vehicle_details?.vehicle_number || "-"}
+              <td className="px-3 py-2  text-gray-600 dark:text-gray-400">
+                {device.vehicle_details?.vehicle_number || "—"}
               </td>
             )}
-            <td className="px-2 py-1">
+
+            <td className="px-3 py-2  text-gray-600 dark:text-gray-400">
               <span
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                   device.status
-                    ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                    : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                    : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
                 }`}
               >
                 {device.status ? "Active" : "Inactive"}
               </span>
             </td>
-            <td className="px-4 py-3">
-              <div className="flex items-center gap-2 whitespace-nowrap">
+
+            <td className="px-3 py-2">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleToggleStatus(device)}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                  className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                   title={device.status ? "Deactivate Device" : "Activate Device"}
                 >
                   {device.status ? <DeactivateIcon /> : <ActivateIcon />}
                 </button>
+
                 <button
                   onClick={() => handleView(device.device_id)}
-                  className="text-xs px-3 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100 font-normal dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200"
+                  className="p-1.5 rounded-md text-blue-400 dark:text-gray-300
+                  hover:bg-blue-50 hover:text-blue-600
+                  dark:hover:bg-blue-900/40 transition"
                 >
-                  View
+                  <EyeIcon />
                 </button>
+
                 <button
                   onClick={() => handleEdit(device)}
-                  className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 font-normal dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                  className="p-1.5 rounded-md text-gray-600 dark:text-gray-300
+                  hover:bg-indigo-50 hover:text-indigo-600
+                  dark:hover:bg-indigo-900/40 transition"
                 >
-                  Edit
+                  <EditIcon />
                 </button>
               </div>
             </td>
@@ -534,7 +653,7 @@ if (loading)
         <tr>
           <td
             colSpan={viewMode === "assigned" ? 6 : 5}
-            className="text-center py-6 text-gray-500"
+            className="py-10 text-center text-gray-500 dark:text-gray-400 italic"
           >
             No devices found
           </td>
@@ -544,11 +663,13 @@ if (loading)
   </table>
 
   {loadingMoreDevices && (
-    <div className="text-center py-2 text-gray-500 dark:text-gray-400">
-      Loading more devices...
+    <div className="py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+      Loading more devices…
     </div>
   )}
 </div>
+)}
+
 
 
 

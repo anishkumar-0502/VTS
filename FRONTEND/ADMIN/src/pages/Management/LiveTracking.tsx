@@ -530,13 +530,13 @@ export default function LiveTracking() {
             Waiting for live tracking updates...
           </div>
         )}
-
+       <div className="h-[60vh] rounded-lg overflow-hidden">
         <OpenStreetMapLiveTracking
           vehicles={filteredVehicles}
           selectedVehicleId={selectedVehicleId ?? undefined}
           onVehicleSelect={handleVehicleSelect}
         />
-
+        </div>
         <DebugPanel />
       </div>
     </>

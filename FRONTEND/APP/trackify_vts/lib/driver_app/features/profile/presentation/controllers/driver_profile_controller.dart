@@ -276,7 +276,8 @@ class DriverProfileController extends GetxController {
     }
   }
 
-  String _formatDate(String dateString) {
+  String _formatDate(String? dateString) {
+    if (dateString == null) return '--';
     try {
       final date = DateTime.parse(dateString);
       return '${_pad2(date.month)}/${_pad2(date.day)}/${date.year}';
@@ -302,7 +303,8 @@ class DriverProfileController extends GetxController {
     return '${months}m';
   }
 
-  String _licenseState(String expiry) {
+  String _licenseState(String? expiry) {
+    if (expiry == null) return 'N/A';
     try {
       final date = DateTime.parse(expiry);
       final now = DateTime.now();
@@ -388,6 +390,13 @@ class DriverProfileController extends GetxController {
   }
 
 
+
+  Future<void> logout() async {
+    await sessionController.clearSession();
+    if (!isClosed) {
+      Get.offAll(() => const DriverLoginPage());
+    }
+  }
 
   Future<void> updateProfile({
     required String name,

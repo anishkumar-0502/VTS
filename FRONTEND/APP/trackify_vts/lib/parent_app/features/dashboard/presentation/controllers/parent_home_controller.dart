@@ -5,8 +5,6 @@ import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../profile/domain/models/parent_profile_model.dart';
@@ -147,6 +145,14 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver {
       
       final baseData = await _liveTrackingRepository.fetchBaseTripData(token, childId);
       
+      if (baseData == null) {
+        print('[Home] ⚠️ No trip map data returned (null)');
+        tripMapData.value = null;
+        tripMapError.value = 'No active trip';
+        if (showLoading) isFetchingTripMap.value = false;
+        return;
+      }
+
       if (baseData.timeline.isEmpty) {
         print('[Home] ⚠️ Trip map data has NO stops! Timeline is empty');
         print('[Home] ⚠️ Route name: ${baseData.routeName}');
@@ -210,6 +216,19 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver {
 
   void refreshCurrentTrip() {
     fetchCurrentTrip(showLoading: true);
+  }
+
+  Future<void> refreshAllData() async {
+    isFetchingTrip.value = true;
+    isFetchingTripMap.value = true;
+    try {
+      await _fetchProfileAndGetVehicleId();
+      await fetchCurrentTrip();
+      await fetchTripMapData();
+    } finally {
+      isFetchingTrip.value = false;
+      isFetchingTripMap.value = false;
+    }
   }
 
   Future<void> _fetchProfileAndGetVehicleId() async {

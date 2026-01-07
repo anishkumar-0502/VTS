@@ -45,22 +45,18 @@ class AssignedVehiclePage extends StatelessWidget {
           children: [
             const SizedBox(height: 16),
             _buildDetailCard('Vehicle Number', vehicle!.vehicleNumber),
-            _buildDetailCard('Vehicle Type', vehicle!.vehicleType),
+            // _buildDetailCard('Vehicle Type', vehicle!.vehicleType),
             _buildDetailCard('Capacity', vehicle!.capacity.toString()),
             _buildDetailCard(
               'Registration Number',
               vehicle!.registrationNumber,
             ),
-            _buildDetailCard('Chassis Number', vehicle!.chassisNumber),
             _buildDetailCard('Color', vehicle!.color),
             _buildDetailCard(
               'Seating Capacity',
               vehicle!.seatingCapacity.toString(),
             ),
-            _buildDetailCard(
-              'Assigned Device ID',
-              vehicle!.assignedDeviceId ?? 'N/A',
-            ),
+
 
           ],
         ),

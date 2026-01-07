@@ -30,9 +30,12 @@ class ParentProfileVehicleDetailsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBar(
-        title: const Text('Vehicle Information'),
+        title: const Text('Vehicle Information',style: TextStyle(color: Colors.white),),
         centerTitle: true,
         backgroundColor: primaryColor,
+        iconTheme: const IconThemeData(
+          color: Colors.white, // <-- Change leading icon color here
+        ),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -78,22 +81,7 @@ class ParentProfileVehicleDetailsPage extends StatelessWidget {
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(vehicle.currentStatus ?? 'unknown').withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          vehicle.currentStatus ?? 'Unknown',
-                          style: TextStyle(
-                            color: _getStatusColor(vehicle.currentStatus ?? 'unknown'),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+
                     ],
                   ),
 
