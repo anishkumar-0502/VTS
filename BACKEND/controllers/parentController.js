@@ -26,36 +26,55 @@ class ParentController {
       if (!endUser) {
         res.status(200).json({
           error: false,
-          message: 'No active trip found',
-          data: null
+          message: 'Child not found',
+          data: []
+        });
+        return;
+      }
+
+      if (!endUser.assigned_vehicle_id) {
+        res.status(200).json({
+          error: false,
+          message: 'No vehicle assigned to this child',
+          data: []
         });
         return;
       }
 
       const vehicle = await Vehicle.findOne({ vehicle_id: endUser.assigned_vehicle_id });
-      if (!vehicle || !vehicle.current_trip_id) {
+      if (!vehicle) {
         res.status(200).json({
           error: false,
-          message: 'No active trip found',
-          data: null
+          message: 'Vehicle not found',
+          data: []
         });
         return;
       }
 
-      const scheduledTrip = await ScheduledTrip.findOne({ associated_trip_id: vehicle.current_trip_id });
-      if (!scheduledTrip) {
+      // Find all relevant trips for this vehicle:
+      // 1. Current active trip (if any)
+      // 2. Upcoming scheduled trips (status: 'pending')
+      const trips = await ScheduledTrip.find({
+        vehicle_id: vehicle.vehicle_id,
+        is_active: true,
+        status: { $in: ['in-progress', 'pending'] }
+      }).sort({ status: 1, scheduled_start_time: 1 }); // 'in-progress' comes before 'pending' alphabetically
+
+      if (trips.length === 0) {
         res.status(200).json({
           error: false,
-          message: 'No active trip found',
-          data: null
+          message: 'No active or upcoming trips found',
+          data: []
         });
         return;
       }
 
       res.status(200).json({
         error: false,
-        message: 'Current trip retrieved successfully',
-        data: scheduledTrip
+        message: trips.some(t => t.status === 'in-progress') 
+          ? 'Active and upcoming trips retrieved successfully' 
+          : 'Upcoming trips retrieved successfully',
+        data: trips
       });
     } catch (error) {
       next(error);
