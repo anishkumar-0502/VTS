@@ -37,7 +37,6 @@ import AssignDevice from "./pages/Management/AssignDevice";
 import DeviceManagement from "./pages/Management/DeviceManagement";
 import AssignDeviceToVehicle from "./pages/Management/AssignDevicetoVehicle";
 import AssignDriverToVehicle from "./pages/Management/AssignDrivertoVehicle";
-import ManageAllUsers from "./pages/Management/ManageAllUsers";
 import ManageEndUser from "./pages/Management/ManageUser";
 import ManageTrips from "./pages/Management/ManageTrips";
 export default function App() {
