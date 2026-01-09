@@ -14,7 +14,7 @@ const { calculateDistance } = require('../utils/distanceUtils');
 const ParentNotificationHelper = require('../utils/parentNotificationHelper');
 
 class ParentController {
-  static async getCurrentTrip(req, res, next) {
+static async getCurrentTrip(req, res, next) {
     try {
       const { childId } = req.query;
 
@@ -27,7 +27,7 @@ class ParentController {
         res.status(200).json({
           error: false,
           message: 'Child not found',
-          data: []
+          data: null
         });
         return;
       }
@@ -36,7 +36,7 @@ class ParentController {
         res.status(200).json({
           error: false,
           message: 'No vehicle assigned to this child',
-          data: []
+          data: null
         });
         return;
       }
@@ -46,35 +46,35 @@ class ParentController {
         res.status(200).json({
           error: false,
           message: 'Vehicle not found',
-          data: []
+          data: null
         });
         return;
       }
 
-      // Find all relevant trips for this vehicle:
-      // 1. Current active trip (if any)
-      // 2. Upcoming scheduled trips (status: 'pending')
-      const trips = await ScheduledTrip.find({
+      // Find the most relevant trip for this vehicle:
+      // 1. Current active trip (status: 'in-progress')
+      // 2. Otherwise, the next upcoming scheduled trip (status: 'pending')
+      const trip = await ScheduledTrip.findOne({
         vehicle_id: vehicle.vehicle_id,
         is_active: true,
         status: { $in: ['in-progress', 'pending'] }
       }).sort({ status: 1, scheduled_start_time: 1 }); // 'in-progress' comes before 'pending' alphabetically
 
-      if (trips.length === 0) {
-        res.status(404).json({
+      if (!trip) {
+        res.status(200).json({
           error: false,
           message: 'No active or upcoming trips found',
-          data: []
+          data: null
         });
         return;
       }
 
       res.status(200).json({
         error: false,
-        message: trips.some(t => t.status === 'in-progress')
+        message: trip.status === 'in-progress'
           ? 'Active trip retrieved successfully'
           : 'Upcoming trip retrieved successfully',
-        data: trips
+        data: trip
       });
     } catch (error) {
       next(error);
