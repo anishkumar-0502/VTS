@@ -479,7 +479,7 @@ if (loading) {
   return (
     <>
       <PageMeta
-        title="Live Vehicle Tracking System"
+        title="VTS Dashboard"
         description="Track vehicles in real time, view activity status, and manage fleet performance."
       />
       <DashboardShimmer />
@@ -491,7 +491,7 @@ if (loading) {
   return (
     <>
      <PageMeta
-  title="Live Vehicle Tracking System"
+  title="VTS Dashboard"
   description="Track vehicles in real time, view activity status, and manage fleet performance."
 />
 

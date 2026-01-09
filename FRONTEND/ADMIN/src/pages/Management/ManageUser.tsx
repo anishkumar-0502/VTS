@@ -370,7 +370,7 @@ const fetchTrips = async (vehicleId: string) => {
         name: formData.sos_name,
         phone_number: String(normalizePhone(formData.sos_phone)),
       },
-      vehicle_id: selectedVehicle,
+        assigned_vehicle_id: selectedVehicle, 
 scheduled_trip_id: selectedTrip,
       pickup_location: {
         latitude: pickupCoords.lat,

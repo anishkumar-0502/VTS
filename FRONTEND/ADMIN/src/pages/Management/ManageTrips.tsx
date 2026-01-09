@@ -4,6 +4,12 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "re
 import L from "leaflet";
 import OpenStreetRoute from "../../components/OpenStreetRoute";
 import PageShimmer from "../../components/common/PageShimmer";
+import PageMeta from "../../components/common/PageMeta";
+import PageBreadCrumb from "../../components/common/PageBreadCrumb";
+import Button from "../../components/ui/button/Button";
+
+
+
 const startIcon = new L.Icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
@@ -30,9 +36,7 @@ const stopIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
-import PageMeta from "../../components/common/PageMeta";
-import PageBreadCrumb from "../../components/common/PageBreadCrumb";
-import Button from "../../components/ui/button/Button";
+
 
 // Toggle icons for activate/deactivate
 const DeactivateIcon = () => (
@@ -1015,9 +1019,14 @@ if (loading)
     <PageShimmer />
   );
 
+
+
+
+  
   return (
     <>
       <PageMeta title="Manage Trips" description="Manage, create, and update scheduled trips" />
+      <div>
       <PageBreadCrumb pageTitle="Trip Management" />
 
       <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow border border-gray-200 dark:border-gray-700 max-w-6xl mx-auto">
@@ -1650,6 +1659,7 @@ if (loading)
 </div>
 
         )}
+      </div>
       </div>
     </>
   );
