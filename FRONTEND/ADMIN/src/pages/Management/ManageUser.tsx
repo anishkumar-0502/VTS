@@ -20,6 +20,7 @@ interface EndUser {
   status: boolean;
   operator_id: string;
   assigned_vehicle_id?: string | null;
+  scheduled_trip_id?: string;
   user_id: string;
   end_user_reference?: string;
   end_user_profile?: {
@@ -354,61 +355,75 @@ const fetchTrips = async (vehicleId: string) => {
 
   // --- Actions ---
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+
+  // If not on step 3, just move to the next step (handles Enter key)
+  if (formStep < 3) {
+    if (validateStep()) {
+      setFormStep((prev) => prev + 1);
+    }
+    return;
+  }
+
+  // Final Validation for Step 3
+  if (!validateStep()) return;
     
-    if (!pickupCoords || !dropoffCoords) {
-      Swal.fire({ ...swalBaseConfig, icon: "warning", title: "Please select locations on the map!" });
-      return;
-    }
+  if (!pickupCoords || !dropoffCoords) {
+    Swal.fire({ ...swalBaseConfig, icon: "warning", title: "Please select locations on the map!" });
+    return;
+  }
 
-    const body = {
-      name: formData.name,
-      email: formData.email,
-      phone_number: String(normalizePhone(formData.phone_number)),
-      sos_contact: {
-        name: formData.sos_name,
-        phone_number: String(normalizePhone(formData.sos_phone)),
-      },
-        assigned_vehicle_id: selectedVehicle, 
-scheduled_trip_id: selectedTrip,
-      pickup_location: {
-        latitude: pickupCoords.lat,
-        longitude: pickupCoords.lng,
-        address: pickupAddress,
-        name: formData.pickup_name,
-      },
-      dropoff_location: {
-        latitude: dropoffCoords.lat,
-        longitude: dropoffCoords.lng,
-        address: dropoffAddress,
-        name: formData.dropoff_name,
-      },
-    };
-
-    try {
-      const token = localStorage.getItem("token");
-      const url = editingUser
-        ? `${BASE_URL}/operator/end-users/${editingUser.user_id}/update`
-        : `${BASE_URL}/operator/end-users/create`;
-      const res = await fetch(url, {
-        method: editingUser ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      
-      showSuccess(editingUser ? "User updated successfully!" : "User created successfully!");
-      setShowForm(false);
-      setEditingUser(null);
-      setFormStep(1);
-      setFormData(initialFormState);
-      fetchManagementUsers(1);
-    } catch (err: any) {
-      Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
-    }
+  const body = {
+    name: formData.name,
+    email: formData.email,
+    phone_number: String(normalizePhone(formData.phone_number)),
+    sos_contact: {
+      name: formData.sos_name,
+      phone_number: String(normalizePhone(formData.sos_phone)),
+    },
+    assigned_vehicle_id: selectedVehicle, 
+    scheduled_trip_id: selectedTrip,
+    pickup_location: {
+      latitude: pickupCoords.lat,
+      longitude: pickupCoords.lng,
+      address: pickupAddress,
+      name: formData.pickup_name,
+    },
+    dropoff_location: {
+      latitude: dropoffCoords.lat,
+      longitude: dropoffCoords.lng,
+      address: dropoffAddress,
+      name: formData.dropoff_name,
+    },
   };
+
+  try {
+    setLoading(true);
+    const token = localStorage.getItem("token");
+    const url = editingUser
+      ? `${BASE_URL}/operator/end-users/${editingUser.user_id}/update`
+      : `${BASE_URL}/operator/end-users/create`;
+    const res = await fetch(url, {
+      method: editingUser ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+    
+    showSuccess(editingUser ? "User updated successfully!" : "User created successfully!");
+    setShowForm(false);
+    setEditingUser(null);
+    setFormStep(1);
+    setFormData(initialFormState);
+    fetchManagementUsers(1);
+  } catch (err: any) {
+    Swal.fire({ ...swalBaseConfig, icon: "error", title: "Error", text: err.message });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const toggleStatus = async (user_id: string) => {
     try {
@@ -862,31 +877,44 @@ ref={(map) => { dropoffMapRef.current = map }}
                   )}
 
                   {/* NAVIGATION BUTTONS */}
-                  <div className="flex justify-between items-center mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <Button variant="outline" size="sm" type="button" onClick={() => formStep > 1 ? setFormStep(formStep - 1) : setShowForm(false)}>
-                      {formStep === 1 ? "Cancel" : "Back"}
-                    </Button>
-                    <div className="flex gap-3">
-                      {formStep < 3 ? (
-                        <Button
-  variant="primary"
-  size="sm"
-  type="button"
-  onClick={() => {
-   if (!validateStep()) return;
-    setFormStep(formStep + 1);
-  }}
->
-  Next Step
-</Button>
-
-                      ) : (
-                        <Button variant="primary" size="sm" type="submit">
-                          {editingUser ? "Update End User" : "Create End User"}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                 {/* NAVIGATION BUTTONS */}
+<div className="flex justify-between items-center mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+  <Button 
+    variant="outline" 
+    size="sm" 
+    type="button" 
+    onClick={() => formStep > 1 ? setFormStep(formStep - 1) : setShowForm(false)}
+  >
+    {formStep === 1 ? "Cancel" : "Back"}
+  </Button>
+  
+  <div className="flex gap-3">
+    {formStep < 3 ? (
+      <Button
+        key="next-step-btn"
+        variant="primary"
+        size="sm"
+        type="button" 
+        onClick={() => {
+          if (validateStep()) {
+            setFormStep((prev) => prev + 1);
+          }
+        }}
+      >
+        Next Step
+      </Button>
+    ) : (
+      <Button 
+        key="submit-btn"
+        variant="primary" 
+        size="sm" 
+        type="submit" 
+      >
+        {editingUser ? "Update End User" : "Create End User"}
+      </Button>
+    )}
+  </div>
+</div>
                 </form>
               </div>
             )}
@@ -930,24 +958,44 @@ ref={(map) => { dropoffMapRef.current = map }}
                               <EyeIcon />
                             </button>
                             <button 
-                              onClick={() => { 
-                                setEditingUser(u); 
-                                setShowForm(true); 
-                                setFormStep(1);
-                                setFormData({
-                                  name: u.name || "",
-                                  email: u.email || "",
-                                  phone_number: String(u.phone_number) || "",
-                                  sos_name: u.end_user_profile?.sos_contact?.name || "",
-                                  sos_phone: String(u.end_user_profile?.sos_contact?.phone_number) || "",
-                                  pickup_name: u.end_user_profile?.pickup_location?.name || "",
-                                  dropoff_name: u.end_user_profile?.dropoff_location?.name || ""
-                                });
-                                setPickupCoords({lat: u.end_user_profile?.pickup_location?.latitude || 0, lng: u.end_user_profile?.pickup_location?.longitude || 0}); 
-                                setDropoffCoords({lat: u.end_user_profile?.dropoff_location?.latitude || 0, lng: u.end_user_profile?.dropoff_location?.longitude || 0}); 
-                                setPickupAddress(u.end_user_profile?.pickup_location?.address || ""); 
-                                setDropoffAddress(u.end_user_profile?.dropoff_location?.address || ""); 
-                              }} 
+                           onClick={() => { 
+  setEditingUser(u); 
+  setShowForm(true); 
+  setFormStep(1);
+
+  setFormData({
+    name: u.name || "",
+    email: u.email || "",
+    phone_number: String(u.phone_number) || "",
+    sos_name: u.end_user_profile?.sos_contact?.name || "",
+    sos_phone: String(u.end_user_profile?.sos_contact?.phone_number) || "",
+    pickup_name: u.end_user_profile?.pickup_location?.name || "",
+    dropoff_name: u.end_user_profile?.dropoff_location?.name || ""
+  });
+
+  setPickupCoords({
+    lat: u.end_user_profile?.pickup_location?.latitude || 0,
+    lng: u.end_user_profile?.pickup_location?.longitude || 0
+  });
+
+  setDropoffCoords({
+    lat: u.end_user_profile?.dropoff_location?.latitude || 0,
+    lng: u.end_user_profile?.dropoff_location?.longitude || 0
+  });
+
+  setPickupAddress(u.end_user_profile?.pickup_location?.address || "");
+  setDropoffAddress(u.end_user_profile?.dropoff_location?.address || "");
+
+  // 🔥 IMPORTANT FIX FOR VEHICLE + TRIP
+  setSelectedVehicle(u.assigned_vehicle_id || "");
+  setSelectedTrip(u.scheduled_trip_id || "");
+
+  fetchVehicles();
+  if (u.assigned_vehicle_id) {
+    fetchTrips(u.assigned_vehicle_id);
+  }
+}}
+
                               className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/40 transition"
                             >
                               <EditIcon />
