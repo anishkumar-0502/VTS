@@ -1,0 +1,246 @@
+.single_product_features .features_icon i {
+  width: 60px;
+  height: 60px;
+  line-height: 60px;
+  text-align: center;
+  font-size: 24px;
+  color: #465fff;
+  background-color: #fff;
+  border-radius: 50%;
+  box-shadow: 0px 5px 20px rgba(70, 95, 255, 0.15);
+  display: inline-block;
+  transition: all 0.3s ease-out 0s;
+}
+
+.single_product_features:hover .features_icon i {
+  background-color: #465fff;
+  color: #fff;
+}
+
+.single_product_features .features_content .title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.video_area .video-popup {
+    transition: all 0.3s ease-out 0s;
+}
+
+.video_area .video-popup:hover {
+    background-color: #465fff !important;
+    color: #fff !important;
+}
+
+/* Gallery Styles */
+.gallery_area {
+  background-color: #fff;
+}
+
+.single_gallery {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  background: #f9f9f9; /* Greasy/Light gray background */
+  transition: all 0.3s ease-in-out;
+  height: 400px; /* Fixed height for consistent layout */
+}
+
+.single_gallery:hover {
+  border: 2px solid #465fff;
+  box-shadow: 0px 10px 30px rgba(70, 95, 255, 0.15);
+  background: #fff; /* Switch to white on hover */
+}
+
+
+.gallery_image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.gallery_image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease-in-out;
+}
+
+.gallery_content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 20px;
+  transform: translateY(calc(100% - 70px)); /* Shows only the title area initially */
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  border-top: 1px solid #eee;
+}
+
+.single_gallery:hover .gallery_content {
+  transform: translateY(0);
+}
+
+.gallery_button {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease-out;
+  margin-top: 10px;
+}
+
+.single_gallery:hover .gallery_button {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.gallery_badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 5;
+}
+
+.gallery_badge .badge {
+  padding: 5px 15px;
+  border-radius: 50px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.gallery_badge .badge.discount {
+  background-color: #ff4d4d;
+  border-radius: 50%;
+  width: 45px;
+  height: 45px;
+  line-height: 35px;
+  padding: 5px;
+  text-align: center;
+}
+
+.gallery_badge .badge.new {
+  background-color: #465fff;
+}
+
+.gallery_content .stars {
+  color: #465fff;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.gallery_title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 5px;
+}
+
+.gallery_content .price {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.gallery_content .price .old {
+  color: #aaa;
+  text-decoration: line-through;
+  margin-right: 10px;
+}
+
+.gallery_content .price .current {
+  color: #465fff;
+  font-size: 18px;
+}
+
+/* Special Purposes Styles */
+.single_purpose {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease-in-out;
+  height: 400px; /* Fixed height for the card */
+  position: relative;
+}
+
+.purpose_image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.purpose_image .constant_image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.purpose_content {
+  background-color: #2b77e5;
+  padding: 20px 30px;
+  color: #fff;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  transform: translateY(calc(100% - 70px)); /* Shows only the title area */
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+}
+
+.single_purpose:hover .purpose_content {
+  transform: translateY(0);
+}
+
+.purpose_title {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.purpose_desc {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  transition-delay: 0.1s;
+}
+
+.single_purpose:hover .purpose_desc {
+  opacity: 1;
+}
+
+.purpose_number {
+  position: absolute;
+  bottom: 80px; /* Above the collapsed header */
+  left: 20px;
+  font-size: 40px;
+  font-weight: 700;
+  color: #fff;
+  z-index: 5;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  transition: all 0.3s ease;
+}
+
+.single_purpose:hover .purpose_number {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* Constant image frame for all images in project */
+.constant_image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+
+

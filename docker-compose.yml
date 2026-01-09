@@ -41,6 +41,16 @@ services:
     networks:
       - appnet
 
+  website:
+    container_name: vts-website
+    build:
+      context: ./FRONTEND/WEBSITE
+    ports:
+      - "8080:80"
+    restart: always
+    networks:
+      - appnet
+
 networks:
   appnet:
     driver: bridge
