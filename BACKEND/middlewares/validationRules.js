@@ -107,8 +107,8 @@ const parentCreationRules = () => {
     body('address')
       .optional()
       .trim()
-      .isLength({ min: 26 })
-      .withMessage('Address must be at least 26 characters')
+      .isLength({ min: 2 })
+      .withMessage('Address must be at least 2 characters')
   ];
 };
 
@@ -151,8 +151,8 @@ const endUserCreationRules = () => {
     body('pickup_location.address')
       .optional()
       .trim()
-      .isLength({ min: 26 })
-      .withMessage('Pickup address must be at least 26 characters'),
+      .isLength({ min: 2 })
+      .withMessage('Pickup address must be at least 2 characters'),
     body('pickup_location.name')
       .optional()
       .trim()
@@ -173,8 +173,8 @@ const endUserCreationRules = () => {
     body('dropoff_location.address')
       .optional()
       .trim()
-      .isLength({ min: 26 })
-      .withMessage('Dropoff address must be at least 26 characters'),
+      .isLength({ min: 2 })
+      .withMessage('Dropoff address must be at least 2 characters'),
     body('dropoff_location.name')
       .optional()
       .trim()
