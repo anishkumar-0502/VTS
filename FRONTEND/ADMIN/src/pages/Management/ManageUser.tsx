@@ -72,18 +72,18 @@ function LocationSelector({ onSelect }: { onSelect: (lat: number, lng: number) =
   return null;
 }
 
-async function getAddressFromLatLng(lat: number, lng: number): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-    );
-    const data = await res.json();
-    return data.display_name || "Address not found";
-  } catch (error) {
-    console.error("Reverse geocoding error:", error);
-    return "Unable to fetch address";
-  }
-}
+// async function getAddressFromLatLng(lat: number, lng: number): Promise<string> {
+//   try {
+//     const res = await fetch(
+//       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+//     );
+//     const data = await res.json();
+//     return data.display_name || "Address not found";
+//   } catch (error) {
+//     console.error("Reverse geocoding error:", error);
+//     return "Unable to fetch address";
+//   }
+// }
 
 function LocateMeButton({ setCoords }: { setCoords: (coords: { lat: number; lng: number }) => void }) {
   const map = useMap();
@@ -114,6 +114,7 @@ function LocateMeButton({ setCoords }: { setCoords: (coords: { lat: number; lng:
     </button>
   );
 }
+
 
 const DeactivateIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -170,6 +171,10 @@ export default function UnifiedUserManagement() {
   const [activeTab, setActiveTab] = useState<"management" | "allUsers">("management");
   const [loading, setLoading] = useState(false);
   const isDark = document.documentElement.classList.contains("dark");
+  const [vehicles, setVehicles] = useState<any[]>([]);
+const [trips, setTrips] = useState<any[]>([]);
+const [selectedVehicle, setSelectedVehicle] = useState<string>("");
+const [selectedTrip, setSelectedTrip] = useState<string>("");
 
   const swalBaseConfig = {
     background: isDark ? "#1f2937" : "#ffffff",
@@ -189,6 +194,10 @@ export default function UnifiedUserManagement() {
   const [mgmtPage, setMgmtPage] = useState(1);
   const [hasMoreMgmt, setHasMoreMgmt] = useState(true);
   const [loadingMoreMgmt, setLoadingMoreMgmt] = useState(false);
+  const pickupMapRef = React.useRef<L.Map | null>(null);
+const dropoffMapRef = React.useRef<L.Map | null>(null);
+
+
 
   // --- Controlled Form State ---
   const initialFormState = {
@@ -201,6 +210,8 @@ export default function UnifiedUserManagement() {
     dropoff_name: ""
   };
   const [formData, setFormData] = useState(initialFormState);
+  const [errors, setErrors] = useState<any>({});
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -247,6 +258,64 @@ export default function UnifiedUserManagement() {
       setLoadingMoreMgmt(false);
     }
   };
+const validateStep = () => {
+  let newErrors: any = {};
+
+  if (formStep === 1) {
+    if (!formData.name) newErrors.name = "Name is required";
+    if (!formData.email) newErrors.email = "Email is required";
+    if (!formData.phone_number) newErrors.phone_number = "Phone is required";
+  }
+
+  if (formStep === 2) {
+    if (!formData.sos_name) newErrors.sos_name = "SOS name required";
+    if (!formData.sos_phone) newErrors.sos_phone = "SOS phone required";
+    if (!selectedVehicle) newErrors.vehicle = "Select a vehicle";
+    if (!selectedTrip) newErrors.trip = "Select a trip";
+  }
+
+  if (formStep === 3) {
+    if (!formData.pickup_name) newErrors.pickup_name = "Pickup label required";
+    if (!pickupAddress) newErrors.pickup_address = "Pickup address required";
+    if (!formData.dropoff_name) newErrors.dropoff_name = "Dropoff label required";
+    if (!dropoffAddress) newErrors.dropoff_address = "Dropoff address required";
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+
+
+
+  const fetchVehicles = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/operator/vehicles/list`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+    setVehicles(data.data || []);
+  } catch (e:any) {
+    console.error("Vehicle fetch error:", e.message);
+  }
+};
+
+const fetchTrips = async (vehicleId: string) => {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/operator/scheduled-trips/list?page=1&limit=10`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+
+    setTrips(data.data.filter((t:any) => t.vehicle_id === vehicleId));
+  } catch (e:any) {
+    console.error("Trip fetch error:", e.message);
+  }
+};
+
 
   const fetchAllUsers = async (pageNum = 1) => {
     try {
@@ -301,6 +370,8 @@ export default function UnifiedUserManagement() {
         name: formData.sos_name,
         phone_number: String(normalizePhone(formData.sos_phone)),
       },
+      vehicle_id: selectedVehicle,
+scheduled_trip_id: selectedTrip,
       pickup_location: {
         latitude: pickupCoords.lat,
         longitude: pickupCoords.lng,
@@ -531,6 +602,9 @@ export default function UnifiedUserManagement() {
                   setPickupAddress(""); 
                   setDropoffAddress(""); 
                   setFormData(initialFormState);
+                  setSelectedVehicle("");
+setSelectedTrip("");
+fetchVehicles();
                 }}>
                   + Add End User
                 </Button>
@@ -568,6 +642,7 @@ export default function UnifiedUserManagement() {
                             required 
                             className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" 
                           />
+                          {errors[field] && <p className="text-xs text-red-500 mt-1">{errors[field]}</p>}
                         </div>
                       ))}
                     </div>
@@ -598,7 +673,50 @@ export default function UnifiedUserManagement() {
                           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" 
                         />
                       </div>
+                      <div>
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Vehicle</label>
+    <select
+      value={selectedVehicle}
+      onChange={(e) => {
+        const v = e.target.value;
+        setSelectedVehicle(v);
+        setSelectedTrip("");
+        fetchTrips(v);
+      }}
+      required
+      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+    >
+      {errors.vehicle && <p className="text-xs text-red-500 mt-1">{errors.vehicle}</p>}
+      <option value="" disabled>Select a vehicle</option>
+      {vehicles.map(v => (
+        <option key={v.vehicle_id} value={v.vehicle_id}>
+          {v.vehicle_number}
+        </option>
+      ))}
+    </select>
+  </div>
+    <div>
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Trip</label>
+    <select
+      value={selectedTrip}
+      onChange={(e) => setSelectedTrip(e.target.value)}
+      disabled={!selectedVehicle || trips.length === 0}
+      required
+      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+    >
+      {errors.trip && <p className="text-xs text-red-500 mt-1">{errors.trip}</p>}
+      <option value="" disabled>
+        {selectedVehicle ? "Select trip" : "Select vehicle first"}
+      </option>
+      {trips.map((t:any) => (
+        <option key={t.scheduled_trip_id} value={t.scheduled_trip_id}>
+          {t.route_name} ({t.scheduled_start_time})
+        </option>
+      ))}
+    </select>
+  </div>
                     </div>
+                    
                   )}
 
                   {/* STEP 3: LOCATION INFO */}
@@ -608,32 +726,135 @@ export default function UnifiedUserManagement() {
                         <div className="relative">
                           <h4 className="font-semibold mb-2 text-gray-900 dark:text-white flex items-center gap-2">📍 Pickup Location</h4>
                           <div className="h-64 rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 shadow-inner">
-                            <MapContainer center={defaultCenter as any} zoom={13} className="h-full w-full">
-                              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                              <LocationSelector onSelect={async (lat, lng) => { setPickupCoords({ lat, lng }); setPickupAddress(await getAddressFromLatLng(lat, lng)); }} />
-                              {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={markerIcon} />}
-                              <LocateMeButton setCoords={async ({ lat, lng }) => { setPickupCoords({ lat, lng }); setPickupAddress(await getAddressFromLatLng(lat, lng)); }} />
-                            </MapContainer>
+                     <MapContainer
+  center={defaultCenter as any}
+  zoom={13}
+  ref={(map) => { pickupMapRef.current = map }}
+  className="h-full w-full"
+>
+  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+  {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={markerIcon} />}
+</MapContainer>
+
+
+
                           </div>
                           <div className="mt-3 space-y-2">
-                            <input name="pickup_name" placeholder="Pickup Label (e.g. Home)" value={formData.pickup_name} onChange={handleInputChange} required className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                            <input name="pickup_address" type="text" value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} required className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Auto-fetched Address" />
+                            {/* Pickup Route Select */}
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Pickup Route Point</label>
+<select
+  disabled={!selectedTrip}
+ onChange={(e) => {
+  const trip = trips.find(t => t.scheduled_trip_id === selectedTrip);
+  const rp = trip?.route_points?.find(p => p.stop_id === e.target.value);
+
+  if (rp) {
+    setFormData(prev => ({ ...prev, pickup_name: rp.name }));
+    setPickupAddress(rp.address || rp.landmark || "");
+    setPickupCoords({ lat: rp.latitude, lng: rp.longitude });
+
+    setTimeout(() => {
+      if (pickupMapRef.current) {
+        pickupMapRef.current.setView([rp.latitude, rp.longitude], 17);
+      }
+    }, 200);
+  }
+}}
+
+  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+>
+  <option value="">{selectedTrip ? "Select Route Stop" : "Select Trip First"}</option>
+  
+  {selectedTrip &&
+    trips.find(t => t.scheduled_trip_id === selectedTrip)?.route_points?.map((rp:any) => (
+      <option key={rp.stop_id} value={rp.stop_id}>
+        {rp.name}
+      </option>
+    ))
+  }
+</select>
+
+<input name="pickup_name" placeholder="Pickup Label" value={formData.pickup_name} onChange={handleInputChange} required className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+{errors.pickup_name && <p className="text-xs text-red-500">{errors.pickup_name}</p>}
+<input
+  name="pickup_address"
+  type="text"
+  value={pickupAddress}
+  onChange={(e) => setPickupAddress(e.target.value)}
+  placeholder="Landmark / Address"
+  required
+  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+/>
+{errors.pickup_address && (
+  <p className="text-xs text-red-500 mt-1">{errors.pickup_address}</p>
+)}
+
                           </div>
                         </div>
 
                         <div className="relative">
                           <h4 className="font-semibold mb-2 text-gray-900 dark:text-white flex items-center gap-2">🏁 Dropoff Location</h4>
                           <div className="h-64 rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 shadow-inner">
-                            <MapContainer center={defaultCenter as any} zoom={13} className="h-full w-full">
-                              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                              <LocationSelector onSelect={async (lat, lng) => { setDropoffCoords({ lat, lng }); setDropoffAddress(await getAddressFromLatLng(lat, lng)); }} />
-                              {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]} icon={markerIcon} />}
-                              <LocateMeButton setCoords={async ({ lat, lng }) => { setDropoffCoords({ lat, lng }); setDropoffAddress(await getAddressFromLatLng(lat, lng)); }} />
-                            </MapContainer>
+                    <MapContainer
+  center={defaultCenter as any}
+  zoom={13}
+ref={(map) => { dropoffMapRef.current = map }}
+  className="h-full w-full"
+>
+  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+  {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]} icon={markerIcon} />}
+</MapContainer>
+
                           </div>
                           <div className="mt-3 space-y-2">
-                            <input name="dropoff_name" placeholder="Dropoff Label (e.g. Office)" value={formData.dropoff_name} onChange={handleInputChange} required className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                            <input name="dropoff_address" type="text" value={dropoffAddress} onChange={(e) => setDropoffAddress(e.target.value)} required className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Auto-fetched Address" />
+                           {/* Dropoff Route Select */}
+<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Dropoff Route Point</label>
+<select
+  disabled={!selectedTrip}
+  onChange={(e) => {
+    const trip = trips.find(t => t.scheduled_trip_id === selectedTrip);
+    const rp = trip?.route_points?.find(p => p.stop_id === e.target.value);
+
+    if (rp) {
+      setFormData(prev => ({ ...prev, dropoff_name: rp.name }));
+      setDropoffAddress(rp.address || rp.landmark || "");
+      setDropoffCoords({ lat: rp.latitude, lng: rp.longitude });
+       setTimeout(() => {
+        if (dropoffMapRef.current) {
+  dropoffMapRef.current.setView([rp.latitude, rp.longitude], 17);
+}
+
+    }, 200);
+    }
+  }}
+  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+>
+  <option value="">{selectedTrip ? "Select Route Stop" : "Select Trip First"}</option>
+  
+  {selectedTrip &&
+    trips.find(t => t.scheduled_trip_id === selectedTrip)?.route_points?.map((rp:any) => (
+      <option key={rp.stop_id} value={rp.stop_id}>
+        {rp.name}
+      </option>
+    ))
+  }
+</select>
+
+<input name="dropoff_name" placeholder="Dropoff Label" value={formData.dropoff_name} onChange={handleInputChange} required className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
+
+<input
+  name="dropoff_address"
+  type="text"
+  value={dropoffAddress}
+  onChange={(e) => setDropoffAddress(e.target.value)}
+  placeholder="Landmark / Address"
+  required
+  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+/>
+{errors.dropoff_address && (
+  <p className="text-xs text-red-500 mt-1">{errors.dropoff_address}</p>
+)}
+
                           </div>
                         </div>
                       </div>
@@ -647,9 +868,18 @@ export default function UnifiedUserManagement() {
                     </Button>
                     <div className="flex gap-3">
                       {formStep < 3 ? (
-                        <Button variant="primary" size="sm" type="button" onClick={() => setFormStep(formStep + 1)}>
-                          Next Step
-                        </Button>
+                        <Button
+  variant="primary"
+  size="sm"
+  type="button"
+  onClick={() => {
+   if (!validateStep()) return;
+    setFormStep(formStep + 1);
+  }}
+>
+  Next Step
+</Button>
+
                       ) : (
                         <Button variant="primary" size="sm" type="submit">
                           {editingUser ? "Update End User" : "Create End User"}

@@ -232,30 +232,20 @@ if (!isStartSelected || !isEndSelected) {
         Swal.fire({
           title: `Add Stop ${seq}`,
           html: `
-            <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name">
+          <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name">
               <input id="swal-landmark" class="swal2-input" placeholder="Nearby Landmark">
-
-  <label style="font-size:12px; text-align:left; display:block; margin:4px 0 2px;">
-  Approximate Reach Time
-</label>
-<input
-  id="swal-reach-time"
-  type="time"
-  class="swal2-input"
-  style="margin-top:0"
-/>
-
-            <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" >
-            <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" >
+              <input id="swal-reach-time" type="time" class="swal2-input"placeholder="Approximate Reach Time">
+              <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" value="150">
+              <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" value="240">
           `,
           showCancelButton: true,
           confirmButtonText: "Add Stop",
           preConfirm: () => {
             const name = (document.getElementById("swal-stop-name") as HTMLInputElement)?.value;
                const landmark = (document.getElementById("swal-landmark") as HTMLInputElement)?.value;
-    const reachTime = (document.getElementById("swal-reach-time") as HTMLInputElement)?.value;
-            const dwell = Number((document.getElementById("swal-dwell") as HTMLInputElement)?.value || 150);
-            const sla = Number((document.getElementById("swal-sla") as HTMLInputElement)?.value || 240);
+               const reachTime = (document.getElementById("swal-reach-time") as HTMLInputElement)?.value;
+               const dwell = Number((document.getElementById("swal-dwell") as HTMLInputElement)?.value || 150);
+               const sla = Number((document.getElementById("swal-sla") as HTMLInputElement)?.value || 240);
 
             if (!name) {
               Swal.showValidationMessage("Stop name is required");
@@ -758,6 +748,7 @@ const handleView = async (trip: Trip) => {
             <b>Status:</b>
             <span style="margin-left:6px;">${statusBadge}</span>
           </div>
+          <div><b>Trip Type:</b> ${t.trip_type}</div>
         </div>
 
         <hr style="
