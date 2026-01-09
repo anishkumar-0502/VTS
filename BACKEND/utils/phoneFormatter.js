@@ -2,7 +2,7 @@ const logger = require('./logger');
 
 class PhoneFormatter {
   static COUNTRY_CODES = {
-    'IN': { code: '+91', regex: /^(\+91|0)?[6-9]\d{9}$/, length: 10 },
+    'IN': { code: '+91', regex: /^(\+91|0)?\d{10}$/, length: 10 },
     'US': { code: '+1', regex: /^(\+1)?[2-9]\d{2}[2-9](?!11)\d{6}$/, length: 10 },
     'UK': { code: '+44', regex: /^(\+44|0)?[0-9]{10}$/, length: 10 },
     'AU': { code: '+61', regex: /^(\+61|0)?[2-9]\d{8}$/, length: 9 },

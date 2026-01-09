@@ -832,11 +832,24 @@ class OperatorController {
   // ========== MANAGE END-USERS (PARENTS) ==========
   static async createEndUser(req, res, next) {
     try {
-      const { name, email, phone_number, sos_contact, pickup_location, dropoff_location } = req.body;
+      const {
+        name,
+        email,
+        phone_number,
+        sos_contact,
+        pickup_location,
+        dropoff_location,
+        assigned_vehicle_id
+      } = req.body;
       const operator_id = req.user.operator_id || req.user.user_id;
 
       if (!name || !email || !phone_number) {
         throw new CustomError('Missing required fields', 400);
+      }
+
+      let vehicle = null;
+      if (assigned_vehicle_id) {
+        vehicle = await findOperatorVehicle(operator_id, assigned_vehicle_id);
       }
 
       const password = generateEmailBasedPassword(email);
@@ -847,7 +860,8 @@ class OperatorController {
         phone_number,
         password,
         role_id: 4,
-        operator_id
+        operator_id,
+        assigned_vehicle_id: vehicle ? vehicle.vehicle_id : null
       });
 
       let endUserProfile;
@@ -857,8 +871,17 @@ class OperatorController {
           operator_id,
           sos_contact,
           pickup_location,
-          dropoff_location
+          dropoff_location,
+          assigned_vehicle_id: vehicle ? vehicle.vehicle_id : null
         });
+
+        if (vehicle) {
+          await Vehicle.updateOne(
+            { vehicle_id: vehicle.vehicle_id, operator_id },
+            { $addToSet: { end_user_ids: endUserProfile.end_user_id } }
+          );
+        }
+
         await User.updateOne({ user_id: userRecord.user_id }, { end_user_id: endUserProfile.end_user_id });
         userRecord.end_user_id = endUserProfile.end_user_id;
       } catch (creationError) {

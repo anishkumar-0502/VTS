@@ -107,8 +107,8 @@ const parentCreationRules = () => {
     body('address')
       .optional()
       .trim()
-      .isLength({ min: 5 })
-      .withMessage('Address must be at least 5 characters')
+      .isLength({ min: 26 })
+      .withMessage('Address must be at least 26 characters')
   ];
 };
 
@@ -151,8 +151,8 @@ const endUserCreationRules = () => {
     body('pickup_location.address')
       .optional()
       .trim()
-      .isLength({ min: 5 })
-      .withMessage('Pickup address must be at least 5 characters'),
+      .isLength({ min: 26 })
+      .withMessage('Pickup address must be at least 26 characters'),
     body('pickup_location.name')
       .optional()
       .trim()
@@ -173,13 +173,14 @@ const endUserCreationRules = () => {
     body('dropoff_location.address')
       .optional()
       .trim()
-      .isLength({ min: 5 })
-      .withMessage('Dropoff address must be at least 5 characters'),
+      .isLength({ min: 26 })
+      .withMessage('Dropoff address must be at least 26 characters'),
     body('dropoff_location.name')
       .optional()
       .trim()
       .isLength({ min: 2 })
-      .withMessage('Dropoff location name must be at least 2 characters')
+      .withMessage('Dropoff location name must be at least 2 characters'),
+    optionalEntityIdBodyRule('assigned_vehicle_id', ENTITY_PREFIXES.VEHICLE, 'Assigned vehicle ID')
   ];
 };
 
