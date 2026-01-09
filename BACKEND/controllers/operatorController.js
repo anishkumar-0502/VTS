@@ -1035,7 +1035,14 @@ class OperatorController {
   static async updateEndUser(req, res, next) {
     try {
       const operator_id = req.user.operator_id || req.user.user_id;
-      const { name, phone_number, sos_contact, pickup_location, dropoff_location } = req.body;
+      const {
+        name,
+        phone_number,
+        sos_contact,
+        pickup_location,
+        dropoff_location,
+        assigned_vehicle_id
+      } = req.body;
       const identifier = req.params.userId;
 
       const existingEndUser = await EndUser.findOne({
@@ -1048,16 +1055,53 @@ class OperatorController {
       }
 
       const targetUserId = existingEndUser.user_id;
+      const oldVehicleId = existingEndUser.assigned_vehicle_id;
+      let newVehicleId = oldVehicleId;
+
+      if (assigned_vehicle_id !== undefined) {
+        if (assigned_vehicle_id === null || assigned_vehicle_id === '') {
+          newVehicleId = null;
+        } else {
+          const vehicle = await findOperatorVehicle(operator_id, assigned_vehicle_id);
+          newVehicleId = vehicle.vehicle_id;
+        }
+
+        if (newVehicleId !== oldVehicleId) {
+          const updatePromises = [];
+
+          if (oldVehicleId) {
+            updatePromises.push(
+              Vehicle.updateOne(
+                { vehicle_id: oldVehicleId, operator_id },
+                { $pull: { end_user_ids: existingEndUser.end_user_id } }
+              )
+            );
+          }
+
+          if (newVehicleId) {
+            updatePromises.push(
+              Vehicle.updateOne(
+                { vehicle_id: newVehicleId, operator_id },
+                { $addToSet: { end_user_ids: existingEndUser.end_user_id } }
+              )
+            );
+          }
+
+          if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
+          }
+        }
+      }
 
       const [endUser, endUserProfile] = await Promise.all([
         User.findOneAndUpdate(
           { user_id: targetUserId, operator_id, role_id: 4 },
-          { name, phone_number },
+          { name, phone_number, assigned_vehicle_id: newVehicleId },
           { new: true }
         ),
         EndUser.findOneAndUpdate(
           { user_id: targetUserId, operator_id },
-          { sos_contact, pickup_location, dropoff_location },
+          { sos_contact, pickup_location, dropoff_location, assigned_vehicle_id: newVehicleId },
           { new: true }
         )
       ]);
