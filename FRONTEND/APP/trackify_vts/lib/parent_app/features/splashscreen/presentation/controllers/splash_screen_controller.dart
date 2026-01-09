@@ -1,3 +1,4 @@
+import "package:flutter/foundation.dart";
 import 'package:get/get.dart';
 
 import '../../../../Sessionhandler/session_controller.dart';
@@ -24,22 +25,22 @@ class ParentSplashScreenController extends GetxController {
       await _sessionController.ensureInitialized();
       await _sessionController.loadSession();
       
-      print('[SplashScreen] Session evaluation - loggedIn: ${_sessionController.isLoggedIn.value}, hasToken: ${_sessionController.token.value.isNotEmpty}');
+      debugPrint('[SplashScreen] Session evaluation - loggedIn: ${_sessionController.isLoggedIn.value}, hasToken: ${_sessionController.token.value.isNotEmpty}');
       
       final hasToken = _sessionController.token.value.isNotEmpty;
       final loggedIn = _sessionController.isLoggedIn.value;
       final hasRequiredData = _sessionController.parentData.value?.containsKey('end_user_id') ?? false;
       
       if (loggedIn && hasToken && hasRequiredData) {
-        print('[SplashScreen] ✅ Valid session found, navigating to home');
+        debugPrint('[SplashScreen] ✅ Valid session found, navigating to home');
         _goToHome();
       } else {
-        print('[SplashScreen] ⚠️ Invalid session (loggedIn=$loggedIn, hasToken=$hasToken, hasData=$hasRequiredData), clearing and going to login');
+        debugPrint('[SplashScreen] ⚠️ Invalid session (loggedIn=$loggedIn, hasToken=$hasToken, hasData=$hasRequiredData), clearing and going to login');
         await _sessionController.clearSession();
         _goToLogin();
       }
     } catch (e) {
-      print('[SplashScreen] ❌ Error evaluating session: $e');
+      debugPrint('[SplashScreen] ❌ Error evaluating session: $e');
       await _sessionController.clearSession();
       _goToLogin();
     }

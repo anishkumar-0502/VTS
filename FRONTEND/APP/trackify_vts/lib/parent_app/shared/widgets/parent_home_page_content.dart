@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geocoding/geocoding.dart';
@@ -246,7 +247,7 @@ if (!await launchUrl(
 
       await controller.fetchParentProfile();
     } catch (e) {
-      print('Error showing SOS dialog: $e');
+      debugPrint('Error showing SOS dialog: $e');
     }
   }
 
@@ -445,6 +446,7 @@ if (!await launchUrl(
   Widget _buildFullScreenMap(BuildContext context, ParentLiveTripData tripData, Color primaryColor) {
     return Obx(() {
       final currentLocation = controller.currentVehicleLocation.value;
+      final double scale = (controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
       
       return FlutterMap(
         options: MapOptions(
@@ -453,13 +455,20 @@ if (!await launchUrl(
           interactionOptions: const InteractionOptions(
             flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
           ),
+          onPositionChanged: (position, hasGesture) {
+            if (position.zoom != null) {
+              controller.currentZoom.value = position.zoom!;
+            }
+          },
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.trackifyvts',
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c'],
+            userAgentPackageName: 'com.trackify.parent',
           ),
           Obx(() {
+            final double innerScale = (controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
             final routePoints = controller.routePolylinePoints;
             
             final fullRoute = [
@@ -474,7 +483,7 @@ if (!await launchUrl(
                   Polyline(
                     points: fullRoute,
                     color: primaryColor.withValues(alpha: 0.3),
-                    strokeWidth: 2.5,
+                    strokeWidth: 2.5 * innerScale,
                   ),
                 ],
               );
@@ -484,64 +493,43 @@ if (!await launchUrl(
                 Polyline(
                   points: routePoints,
                   color: Colors.white,
-                  strokeWidth: 6.0,
+                  strokeWidth: 6.0 * innerScale,
                 ),
                 Polyline(
                   points: routePoints,
                   color: primaryColor,
-                  strokeWidth: 3.5,
+                  strokeWidth: 3.5 * innerScale,
                 ),
               ],
             );
           }),
           Obx(() {
+            final double innerScale = (controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
+            final isTargetStart = controller.targetLocation.value != null &&
+                (tripData.startLocation.latitude - controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                (tripData.startLocation.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001;
+
+            final isTargetEnd = controller.targetLocation.value != null &&
+                (tripData.endLocation.latitude - controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                (tripData.endLocation.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001;
+
             final markers = <Marker>[
-              Marker(
-                width: 40.0,
-                height: 40.0,
-                point: tripData.startLocation,
-                child: GestureDetector(
-                  onTap: () async {
-                    final address = await getAddressFromLatLng(
-                      tripData.startLocation.latitude,
-                      tripData.startLocation.longitude,
-                    );
-                    showAddressPopup(context, 'Start Location', address, primaryColor);
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(50),
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.location_on, color: Colors.white, size: 20),
-                  ),
-                ),
-              ),
-              ...tripData.timeline.asMap().entries.map((entry) {
-                final index = entry.key + 1;
-                final stop = entry.value;
-                return Marker(
-                  width: 40.0,
-                  height: 40.0,
-                  point: stop.location,
+              if (!isTargetStart)
+                Marker(
+                  width: 40.0 * innerScale,
+                  height: 40.0 * innerScale,
+                  point: tripData.startLocation,
                   child: GestureDetector(
                     onTap: () async {
                       final address = await getAddressFromLatLng(
-                        stop.location.latitude,
-                        stop.location.longitude,
+                        tripData.startLocation.latitude,
+                        tripData.startLocation.longitude,
                       );
-                      showAddressPopup(context, 'Stop $index', address, primaryColor);
+                      showAddressPopup(context, 'Start Location', address, primaryColor);
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.orange,
+                        color: Colors.green,
                         borderRadius: BorderRadius.circular(50),
                         border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
@@ -551,102 +539,149 @@ if (!await launchUrl(
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          index.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
+                      child: Icon(Icons.location_on, color: Colors.white, size: 20 * innerScale),
                     ),
+                  ),
+                ),
+              ...tripData.timeline.asMap().entries.map((entry) {
+                final index = entry.key + 1;
+                final stop = entry.value;
+                final isTargetStop = controller.targetLocation.value != null &&
+                    (stop.location.latitude - controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                    (stop.location.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001;
+
+                return Marker(
+                  width: 40.0 * innerScale,
+                  height: 40.0 * innerScale,
+                  point: stop.location,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final address = await getAddressFromLatLng(
+                        stop.location.latitude,
+                        stop.location.longitude,
+                      );
+                      showAddressPopup(context, isTargetStop ? 'Your Location' : 'Stop $index', address, primaryColor);
+                    },
+                    child: isTargetStop
+                        ? Image.asset(
+                            'assets/icons/homemarker.png',
+                            width: 40.0 * innerScale,
+                            height: 40.0 * innerScale,
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(50),
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                index.toString(),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14 * innerScale,
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 );
               }),
-              Marker(
-                width: 40.0,
-                height: 40.0,
-                point: tripData.endLocation,
-                child: GestureDetector(
-                  onTap: () async {
-                    final address = await getAddressFromLatLng(
-                      tripData.endLocation.latitude,
-                      tripData.endLocation.longitude,
-                    );
-                    showAddressPopup(context, 'End Location', address, primaryColor);
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(50),
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                        ),
-                      ],
+              if (!isTargetEnd)
+                Marker(
+                  width: 40.0 * innerScale,
+                  height: 40.0 * innerScale,
+                  point: tripData.endLocation,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final address = await getAddressFromLatLng(
+                        tripData.endLocation.latitude,
+                        tripData.endLocation.longitude,
+                      );
+                      showAddressPopup(context, 'End Location', address, primaryColor);
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(50),
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Icon(Icons.location_on, color: Colors.white, size: 20 * innerScale),
                     ),
-                    child: const Icon(Icons.location_on, color: Colors.white, size: 20),
                   ),
                 ),
-              ),
               if (controller.assignedVehicleId != null &&
                   controller.vehicleLocations.containsKey(controller.assignedVehicleId)) ...[
                 Marker(
-                  width: 50.0,
-                  height: 50.0,
+                  width: 50.0 * innerScale,
+                  height: 50.0 * innerScale,
                   point: controller.vehicleLocations[controller.assignedVehicleId]!,
                   child: GestureDetector(
                     onTap: () {
                       _showAssignedVehicleInfoPopup(context, primaryColor);
                     },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: primaryColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryColor.withOpacity(0.6),
-                            blurRadius: 12,
-                            spreadRadius: 3,
-                          ),
-                        ],
+                    child: Transform.rotate(
+                      angle: (controller.vehicleHeadings[controller.assignedVehicleId] ?? 0.0) * (pi / 180),
+                      child: Container(
+                        padding: EdgeInsets.all(6 * innerScale),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4 * innerScale,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.navigation,
+                          color: Colors.blueAccent,
+                          size: 30 * innerScale,
+                        ),
                       ),
-                      child: const Icon(Icons.directions_bus, color: Colors.white, size: 24),
                     ),
                   ),
                 ),
                 Marker(
-                  width: 100.0,
-                  height: 30.0,
+                  width: 100.0 * innerScale,
+                  height: 30.0 * innerScale,
                   point: controller.vehicleLocations[controller.assignedVehicleId]!,
                   alignment: Alignment.topCenter,
                   child: Transform.translate(
-                    offset: const Offset(0, -35),
+                    offset: Offset(0, -35 * innerScale),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 8 * innerScale, vertical: 4 * innerScale),
                       decoration: BoxDecoration(
                         color: primaryColor,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12 * innerScale),
                         border: Border.all(color: Colors.white, width: 1),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 4,
+                            blurRadius: 4 * innerScale,
                           ),
                         ],
                       ),
                       child: Text(
-                        controller.assignedVehicleId ?? 'Vehicle',
+                        controller.assignedVehicleNumber ?? 'Vehicle',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
+                          fontSize: 11 * innerScale,
                           fontWeight: FontWeight.bold,
                         ),
                         maxLines: 1,

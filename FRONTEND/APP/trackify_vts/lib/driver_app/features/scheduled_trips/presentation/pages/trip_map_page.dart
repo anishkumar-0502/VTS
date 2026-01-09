@@ -101,7 +101,8 @@ class _TripMapPageState extends State<TripMapPage> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c'],
             userAgentPackageName: 'com.trackify.driver',
           ),
           if (_polylinePoints.isNotEmpty)

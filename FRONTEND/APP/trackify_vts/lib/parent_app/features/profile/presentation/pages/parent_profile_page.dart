@@ -51,7 +51,7 @@ class ParentProfilePage extends GetView<ParentProfileController> {
     const primaryColor = Color(0xFF2764FF);
     
     return Obx(() {
-      print(
+      debugPrint(
         'Building ParentProfilePage, isLoading: ${controller.isLoading.value}, data: ${controller.profileData.value?.name}',
       );
       if (controller.isLoading.value) {

@@ -229,7 +229,7 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
     try {
       controller = Get.find<ParentHomeController>(tag: 'home');
     } catch (e) {
-      print('❌ [VehicleInfoDialog] Failed to find ParentHomeController: $e');
+      debugPrint('❌ [VehicleInfoDialog] Failed to find ParentHomeController: $e');
     }
     
     if (_address == null) {
@@ -256,9 +256,7 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          if (_address == null) {
-            _address = 'Unable to fetch address';
-          }
+          _address ??= 'Unable to fetch address';
         });
       }
     } finally {
@@ -405,7 +403,7 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
                     final ts = controller.vehicleTimestamps[matchedVehicleId];
                     if (ts != null) {
                       displayTime = ts;
-                      print("🕐 [VehicleInfoDialog] Using live timestamp for $matchedVehicleId: $displayTime");
+                      debugPrint("🕐 [VehicleInfoDialog] Using live timestamp for $matchedVehicleId: $displayTime");
                     }
                   } else if (matchedVehicleId == null) {
                     for (final vid in controller.vehicleLocations.keys) {
@@ -417,7 +415,7 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
                         final ts = controller.vehicleTimestamps[vid];
                         if (ts != null) {
                           displayTime = ts;
-                          print("🕐 [VehicleInfoDialog] Found matching vehicle $vid with timestamp: $displayTime");
+                          debugPrint("🕐 [VehicleInfoDialog] Found matching vehicle $vid with timestamp: $displayTime");
                         }
                         break;
                       }
@@ -566,10 +564,6 @@ class _VehicleInfoLabelWidgetState extends State<_VehicleInfoLabelWidget> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (widget.vehicleId != null && widget.controller.vehicleTimestamps.containsKey(widget.vehicleId)) {
-        widget.controller.vehicleTimestamps[widget.vehicleId];
-      }
-      
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
@@ -631,19 +625,19 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
   @override
   void initState() {
     super.initState();
-    mapController = MapController();
+    try {
+      controller = Get.find<ParentHomeController>(tag: 'home');
+    } catch (e) {
+      debugPrint('❌ [CurrentLocationMapWithSocket] Failed to find ParentHomeController: $e');
+      rethrow;
+    }
+    mapController = controller.mapController;
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     );
     _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
     
-    try {
-      controller = Get.find<ParentHomeController>(tag: 'home');
-    } catch (e) {
-      print('❌ [CurrentLocationMapWithSocket] Failed to find ParentHomeController: $e');
-      rethrow;
-    }
     currentLocation = widget.initialLocation;
     animatedLocation = widget.initialLocation;
     _previousLocation = widget.initialLocation;
@@ -755,9 +749,9 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
       vehicleNumber = controller.vehicleNumbers[widget.vehicleId];
     }
     
-    print("🔍 [_showVehicleInfoPopup] Vehicle ID: ${widget.vehicleId}");
-    print("🔍 [_showVehicleInfoPopup] Vehicle Number: $vehicleNumber");
-    print("🔍 [_showVehicleInfoPopup] Timestamp: $lastMovementTime");
+    debugPrint("🔍 [_showVehicleInfoPopup] Vehicle ID: ${widget.vehicleId}");
+    debugPrint("🔍 [_showVehicleInfoPopup] Vehicle Number: $vehicleNumber");
+    debugPrint("🔍 [_showVehicleInfoPopup] Timestamp: $lastMovementTime");
 
     showDialog(
       context: context,
@@ -774,154 +768,14 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
     );
   }
 
-  void _showOldVehicleInfoPopup(BuildContext context) {
-    String vehicleNumber = widget.vehicleNumber ?? 'Unknown Vehicle';
-    String movementTime = lastMovementTime != null
-        ? '${lastMovementTime!.hour.toString().padLeft(2, '0')}:${lastMovementTime!.minute.toString().padLeft(2, '0')}:${lastMovementTime!.second.toString().padLeft(2, '0')}'
-        : 'N/A';
-    String movementDate = lastMovementTime != null
-        ? '${lastMovementTime!.day}/${lastMovementTime!.month}/${lastMovementTime!.year}'
-        : 'N/A';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 8,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.white,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: widget.primaryColor.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.directions_bus,
-                    color: widget.primaryColor,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Vehicle Information',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: widget.primaryColor,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Vehicle Number',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      vehicleNumber,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: widget.primaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Movement Date',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      movementDate,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Movement Time',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      movementTime,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Close',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   void dispose() {
     _isDisposed = true;
     _animationController.dispose();
-    mapController.dispose();
     super.dispose();
   }
 
-  Marker _buildVehicleInfoMarker(LatLng displayLocation) {
+  Marker _buildVehicleInfoMarker(LatLng displayLocation, double scale) {
     String displayVehicleNumber = widget.vehicleNumber ?? 'Vehicle';
     
     if (widget.vehicleId != null) {
@@ -934,12 +788,12 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
     }
     
     return Marker(
-      width: 140.0,
-      height: 60.0,
+      width: 140.0 * scale,
+      height: 60.0 * scale,
       point: displayLocation,
       alignment: Alignment.topCenter,
       child: Transform.translate(
-        offset: const Offset(0, -65),
+        offset: Offset(0, -65 * scale),
         child: _VehicleInfoLabelWidget(
           vehicleNumber: displayVehicleNumber,
           baseTime: lastMovementTime,
@@ -954,6 +808,7 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      final double scale = (controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
       final vehicleLocation = controller.currentVehicleLocation.value ?? 
                             controller.vehicleLocations[widget.vehicleId] ?? 
                             currentLocation;
@@ -980,12 +835,17 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
           interactionOptions: const InteractionOptions(
             flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
           ),
+          onPositionChanged: (position, hasGesture) {
+            if (position.zoom != null) {
+              controller.currentZoom.value = position.zoom!;
+            }
+          },
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.trackifyvts',
-            tileSize: 256,
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c'],
+            userAgentPackageName: 'com.trackify.parent',
           ),
           PolylineLayer(
             polylines: [
@@ -993,83 +853,77 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
                 Polyline(
                   points: controller.routePolylinePoints,
                   color: Colors.white,
-                  strokeWidth: 6.0,
+                  strokeWidth: 6.0 * scale,
                 ),
               if (controller.routePolylinePoints.isNotEmpty)
                 Polyline(
                   points: controller.routePolylinePoints,
                   color: widget.primaryColor,
-                  strokeWidth: 3.5,
+                  strokeWidth: 3.5 * scale,
                 ),
               if (controller.routePolylinePoints.isEmpty && locationHistory.isNotEmpty)
                 Polyline(
                   points: locationHistory,
                   color: Colors.white,
-                  strokeWidth: 6.0,
+                  strokeWidth: 6.0 * scale,
                 ),
               if (controller.routePolylinePoints.isEmpty && locationHistory.isNotEmpty)
                 Polyline(
                   points: locationHistory,
                   color: widget.primaryColor,
-                  strokeWidth: 3.5,
+                  strokeWidth: 3.5 * scale,
                 ),
             ],
           ),
           MarkerLayer(
             markers: [
-              if (displayLocation != null)
+              if (controller.targetLocation.value != null)
                 Marker(
-                  width: 50.0,
-                  height: 50.0,
-                  point: displayLocation,
-                  child: GestureDetector(
-                    onTap: () {
-                      _showVehicleInfoPopup(context);
-                    },
+                  width: 40 * scale,
+                  height: 40 * scale,
+                  point: controller.targetLocation.value!,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    'assets/icons/homemarker.png',
+                    width: 40 * scale,
+                    height: 40 * scale,
+                  ),
+                ),
+              Marker(
+                width: 50.0 * scale,
+                height: 50.0 * scale,
+                point: displayLocation,
+                alignment: Alignment.center,
+                child: GestureDetector(
+                  onTap: () {
+                    _showVehicleInfoPopup(context);
+                  },
+                  child: Transform.rotate(
+                    angle: (controller.vehicleHeadings[widget.vehicleId] ?? 0.0) * (pi / 180),
                     child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: widget.primaryColor,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
                         boxShadow: [
-                          BoxShadow(
-                            color: widget.primaryColor.withValues(alpha: 0.6),
-                            blurRadius: 12,
-                            spreadRadius: 3,
-                          ),
+                          BoxShadow(blurRadius: 4, color: Colors.black26)
                         ],
                       ),
-                      child: const Icon(Icons.directions_bus, color: Colors.white, size: 24),
+                      child: Icon(
+                        Icons.navigation,
+                        color: Colors.blueAccent,
+                        size: 30 * scale,
+                      ),
                     ),
                   ),
                 ),
-              if (displayLocation != null)
-                _buildVehicleInfoMarker(displayLocation),
+              ),
+              _buildVehicleInfoMarker(displayLocation, scale),
             ],
           ),
         ],
       );
     });
   }
-}
-
-class _LocationPinPainter extends CustomPainter {
-  final Color color;
-
-  _LocationPinPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 Widget _buildShimmerLoading(Color primaryColor) {
@@ -1101,7 +955,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    mapController = MapController();
+    mapController = widget.controller.mapController;
     widget.onMapCreated(mapController);
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1110,12 +964,21 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
         _animateMapMove(startLocation, 13.0);
       }
     });
+
+    // Listen for live location updates and animate/move map if it's the first time
+    widget.controller.currentVehicleLocation.listen((location) {
+      if (location != null && !_isDisposed && mounted) {
+        // If the user hasn't interacted much or we want to follow, we could animate here.
+        // For now, let's just ensure we have the latest location for markers.
+        // If you want to auto-follow:
+        // _animateMapMove(location, mapController.camera.zoom);
+      }
+    });
   }
 
   @override
   void dispose() {
     _isDisposed = true;
-    mapController.dispose();
     super.dispose();
   }
 
@@ -1163,38 +1026,6 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
     controller.forward();
   }
 
-  void _showAssignedVehicleInfoPopup(BuildContext context) {
-      final vehicleLocation = widget.controller.assignedVehicleId != null 
-        ? widget.controller.vehicleLocations[widget.controller.assignedVehicleId]
-        : null;
-    
-      final vehicleTimestamp = widget.controller.assignedVehicleId != null 
-        ? widget.controller.vehicleTimestamps[widget.controller.assignedVehicleId]
-        : null;
-    
-      final vehicleNumber = widget.controller.assignedVehicleNumber ?? 
-        (widget.controller.assignedVehicleId != null 
-          ? widget.controller.vehicleNumbers[widget.controller.assignedVehicleId]
-          : null);
-    
-    double latitude = vehicleLocation?.latitude ?? 0.0;
-    double longitude = vehicleLocation?.longitude ?? 0.0;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return VehicleInfoDialog(
-          latitude: latitude,
-          longitude: longitude,
-          primaryColor: widget.primaryColor,
-          timestamp: vehicleTimestamp,
-          vehicleId: widget.controller.assignedVehicleId,
-          vehicleNumber: vehicleNumber,
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -1209,14 +1040,20 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
           interactionOptions: const InteractionOptions(
             flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
           ),
+          onPositionChanged: (position, hasGesture) {
+            if (position.zoom != null) {
+              widget.controller.currentZoom.value = position.zoom!;
+            }
+          },
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.trackifyvts',
-            tileSize: 256,
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c'],
+            userAgentPackageName: 'com.trackify.parent',
           ),
           Obx(() {
+            final double scale = (widget.controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
             final routePoints = widget.controller.routePolylinePoints;
             
             final fullRoute = [
@@ -1231,7 +1068,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                   Polyline(
                     points: fullRoute,
                     color: widget.primaryColor.withValues(alpha: 0.12),
-                    strokeWidth: 2.5,
+                    strokeWidth: 2.5 * scale,
                   ),
                 ],
               );
@@ -1241,45 +1078,61 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                 Polyline(
                   points: routePoints,
                   color: Colors.white,
-                  strokeWidth: 6.0,
+                  strokeWidth: 6.0 * scale,
                 ),
                 Polyline(
                   points: routePoints,
                   color: widget.primaryColor,
-                  strokeWidth: 3.5,
+                  strokeWidth: 3.5 * scale,
                 ),
               ],
             );
           }),
           Obx(() {
+            final double scale = (widget.controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
+            final vehicleLocation = widget.controller.currentVehicleLocation.value;
+            final vehicleHeading = widget.controller.currentVehicleHeading.value;
+
+            final isTargetStart = widget.controller.targetLocation.value != null &&
+                (widget.tripData.startLocation.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                (widget.tripData.startLocation.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
+
+            final isTargetEnd = widget.controller.targetLocation.value != null &&
+                (widget.tripData.endLocation.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                (widget.tripData.endLocation.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
+
             final markers = <Marker>[
-              Marker(
-                width: 32.0,
-                height: 32.0,
-                point: widget.tripData.startLocation,
-                alignment: Alignment.center,
-                child: GestureDetector(
-                  onTap: () async {
-                    final address = await getAddressFromLatLng(
-                      widget.tripData.startLocation.latitude,
-                      widget.tripData.startLocation.longitude,
-                    );
-                    showAddressPopup(context, 'Start Location', address, widget.primaryColor);
-                  },
-                  child: const Icon(
-                    Icons.location_on,
-                    color: Colors.green,
-                    size: 32,
+              // Start Location Marker (only show if not the target location, as target is already shown in timeline)
+              if (!isTargetStart)
+                Marker(
+                  width: 40 * scale,
+                  height: 40 * scale,
+                  point: widget.tripData.startLocation,
+                  alignment: Alignment.center,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final address = await getAddressFromLatLng(
+                        widget.tripData.startLocation.latitude,
+                        widget.tripData.startLocation.longitude,
+                      );
+                      if (!mounted) return;
+                      showAddressPopup(context, 'Start Location', address, widget.primaryColor);
+                    },
+                    child: Icon(Icons.location_on, color: Colors.green, size: 40 * scale),
                   ),
                 ),
-              ),
+              // Stop Markers (Numbered)
               ...widget.tripData.timeline.asMap().entries.map((entry) {
                 final index = entry.key + 1;
                 final stop = entry.value;
+                final isTargetStop = widget.controller.targetLocation.value != null &&
+                    (stop.location.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                    (stop.location.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
+
                 return Marker(
-                  width: 32.0,
-                  height: 32.0,
                   point: stop.location,
+                  width: isTargetStop ? 40 * scale : 30 * scale,
+                  height: isTargetStop ? 40 * scale : 30 * scale,
                   alignment: Alignment.center,
                   child: GestureDetector(
                     onTap: () async {
@@ -1287,91 +1140,131 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                         stop.location.latitude,
                         stop.location.longitude,
                       );
-                      showAddressPopup(context, 'Stop $index', address, widget.primaryColor);
+                      if (!mounted) return;
+                      showAddressPopup(context, isTargetStop ? 'Your Location' : 'Stop $index', address, widget.primaryColor);
                     },
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Colors.blue,
-                      size: 32,
-                    ),
+                    child: isTargetStop
+                        ? Image.asset(
+                            'assets/icons/homemarker.png',
+                            width: 40 * scale,
+                            height: 40 * scale,
+                          )
+                        : Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(blurRadius: 2, color: Colors.black26)
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                '$index',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12 * scale,
+                                  color: Colors.black,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 );
               }),
-              Marker(
-                width: 32.0,
-                height: 32.0,
-                point: widget.tripData.endLocation,
-                alignment: Alignment.center,
-                child: GestureDetector(
-                  onTap: () async {
-                    final address = await getAddressFromLatLng(
-                      widget.tripData.endLocation.latitude,
-                      widget.tripData.endLocation.longitude,
-                    );
-                    showAddressPopup(context, 'End Location', address, widget.primaryColor);
-                  },
-                  child: const Icon(
-                    Icons.location_on,
-                    color: Colors.red,
-                    size: 32,
+              // End Location Marker (only show if not the target location, as target is already shown in timeline)
+              if (!isTargetEnd)
+                Marker(
+                  width: 40 * scale,
+                  height: 40 * scale,
+                  point: widget.tripData.endLocation,
+                  alignment: Alignment.center,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final address = await getAddressFromLatLng(
+                        widget.tripData.endLocation.latitude,
+                        widget.tripData.endLocation.longitude,
+                      );
+                      if (!mounted) return;
+                      showAddressPopup(context, 'End Location', address, widget.primaryColor);
+                    },
+                    child: Icon(Icons.location_on, color: Colors.red, size: 40 * scale),
                   ),
                 ),
-              ),
-              if (widget.controller.assignedVehicleId != null &&
-                  widget.controller.vehicleLocations.containsKey(widget.controller.assignedVehicleId)) ...[
+              // Vehicle Marker (Live)
+              if (vehicleLocation != null) ...[
                 Marker(
-                  width: 50.0,
-                  height: 50.0,
-                  point: widget.controller.vehicleLocations[widget.controller.assignedVehicleId]!,
+                  width: 50 * scale,
+                  height: 50 * scale,
+                  point: vehicleLocation,
+                  alignment: Alignment.center,
                   child: GestureDetector(
                     onTap: () {
-                      _showAssignedVehicleInfoPopup(context);
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return VehicleInfoDialog(
+                            latitude: vehicleLocation.latitude,
+                            longitude: vehicleLocation.longitude,
+                            primaryColor: widget.primaryColor,
+                            timestamp: widget.controller.vehicleTimestamps[widget.controller.assignedVehicleId],
+                            vehicleId: widget.controller.assignedVehicleId,
+                            vehicleNumber: widget.controller.assignedVehicleNumber ?? 
+                                (widget.controller.assignedVehicleId != null 
+                                  ? widget.controller.vehicleNumbers[widget.controller.assignedVehicleId]
+                                  : null),
+                          );
+                        },
+                      );
                     },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: widget.primaryColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: widget.primaryColor.withValues(alpha: 0.6),
-                            blurRadius: 12,
-                            spreadRadius: 3,
-                          ),
-                        ],
+                    child: Transform.rotate(
+                      angle: vehicleHeading * (pi / 180),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(blurRadius: 4, color: Colors.black26)
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.navigation,
+                          color: Colors.blueAccent,
+                          size: 30 * scale,
+                        ),
                       ),
-                      child: const Icon(Icons.directions_bus, color: Colors.white, size: 24),
                     ),
                   ),
                 ),
+                // Vehicle ID Badge
                 Marker(
-                  width: 100.0,
-                  height: 30.0,
-                  point: widget.controller.vehicleLocations[widget.controller.assignedVehicleId]!,
+                  width: 100.0 * scale,
+                  height: 30.0 * scale,
+                  point: vehicleLocation,
                   alignment: Alignment.topCenter,
                   child: Transform.translate(
-                    offset: const Offset(0, -35),
+                    offset: Offset(0, -35 * scale),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 4 * scale),
                       decoration: BoxDecoration(
                         color: widget.primaryColor,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12 * scale),
                         border: Border.all(color: Colors.white, width: 1),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 4,
+                            blurRadius: 4 * scale,
                           ),
                         ],
                       ),
                       child: Text(
                         widget.controller.assignedVehicleNumber ?? 'Vehicle',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
+                          fontSize: 11 * scale,
                           fontWeight: FontWeight.bold,
+                          fontFamily: 'Poppins',
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1395,65 +1288,12 @@ class ParentHomePage extends GetView<ParentHomeController> {
   @override
   String? get tag => 'home';
 
-  final RxBool showRouteBanner = false.obs;
-  Timer? _bannerTimer;
-
-  void _showRouteBannerTemporarily() {
-    _bannerTimer?.cancel();
-    showRouteBanner.value = true;
-    _bannerTimer = Timer(const Duration(seconds: 5), () {
-      showRouteBanner.value = false;
-    });
-  }
-
-  late MapController _mapController;
-
   void _zoomIn() {
-    if (_mapController != null) {
-      final newZoom = _mapController.camera.zoom + 1;
-      _animateZoom(newZoom);
-    }
+    controller.zoomIn();
   }
 
   void _zoomOut() {
-    if (_mapController != null) {
-      final newZoom = _mapController.camera.zoom - 1;
-      _animateZoom(newZoom);
-    }
-  }
-
-  void _animateZoom(double destZoom) {
-    if (_mapController == null) return;
-    
-    final latTween = Tween<double>(
-      begin: _mapController.camera.center.latitude,
-      end: _mapController.camera.center.latitude,
-    );
-    final lngTween = Tween<double>(
-      begin: _mapController.camera.center.longitude,
-      end: _mapController.camera.center.longitude,
-    );
-    final zoomTween = Tween<double>(
-      begin: _mapController.camera.zoom,
-      end: destZoom,
-    );
-
-    // We can't access TickerProvider here easily since ParentHomePage is a GetView (StatelessWidget)
-    // We will use a simple movement for now, or we would need to convert ParentHomePage to StatefulWidget
-    // Alternatively, just use the mapController's move method which is instant but functional.
-    // For smooth animation we ideally need a TickerProvider.
-    
-    // However, we can use a small trick by using a periodic timer or just rely on Flutter Map's internal if available
-    // But since we want "smooth animation", let's use the map controller move with a slight delay if possible or just standard move.
-    
-    // Actually, let's just use standard move for now as converting to StatefulWidget for just this might be overkill 
-    // unless strictly required. 
-    // Wait, the user asked for "smooth animation".
-    
-    // Let's cheat a bit and use the AnimatedMapController if we had one, but we don't.
-    // Let's convert ParentHomePage to StatefulWidget to support TickerProvider for smooth zoom.
-    
-    _mapController.move(_mapController.camera.center, destZoom);
+    controller.zoomOut();
   }
 
 
@@ -1612,38 +1452,6 @@ class ParentHomePage extends GetView<ParentHomeController> {
           ),
         ),
       ),
-    );
-  }
-
-  void _showAssignedVehicleInfoPopup(BuildContext context, Color primaryColor) {
-    final vehicleLocation = controller.assignedVehicleId != null 
-        ? controller.vehicleLocations[controller.assignedVehicleId]
-        : null;
-    
-    final vehicleTimestamp = controller.assignedVehicleId != null 
-        ? controller.vehicleTimestamps[controller.assignedVehicleId]
-        : null;
-    
-    final vehicleNumber = controller.assignedVehicleNumber ?? 
-        (controller.assignedVehicleId != null 
-          ? controller.vehicleNumbers[controller.assignedVehicleId]
-          : null);
-    
-    double latitude = vehicleLocation?.latitude ?? 0.0;
-    double longitude = vehicleLocation?.longitude ?? 0.0;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return VehicleInfoDialog(
-          latitude: latitude,
-          longitude: longitude,
-          primaryColor: primaryColor,
-          timestamp: vehicleTimestamp,
-          vehicleId: controller.assignedVehicleId,
-          vehicleNumber: vehicleNumber,
-        );
-      },
     );
   }
 
@@ -1814,7 +1622,7 @@ if (!await launchUrl(
 
       await controller.fetchParentProfile();
     } catch (e) {
-      print('Error showing SOS dialog: $e');
+      debugPrint('Error showing SOS dialog: $e');
     }
   }
 
@@ -1833,121 +1641,201 @@ if (!await launchUrl(
         barrierDismissible: false,
         builder: (BuildContext context) {
           return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 8,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            elevation: 12,
+            backgroundColor: Colors.transparent,
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
                 color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: 72,
+                    height: 72,
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
+                      gradient: LinearGradient(
+                        colors: [Colors.green.shade400, Colors.green.shade600],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
                     child: const Icon(
-                      Icons.phone,
-                      color: Colors.green,
+                      Icons.phone_in_talk,
+                      color: Colors.white,
                       size: 32,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Call Driver',
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Contact Driver',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                      color: Colors.black87,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Connect with your child\'s school bus driver',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      height: 1.5,
                     ),
                   ),
                   const SizedBox(height: 24),
                   Obx(() {
                     if (isFetching.value) {
-                      return const SizedBox(
-                        height: 60,
-                        child: Center(
-                          child: CircularProgressIndicator(),
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                          ),
                         ),
                       );
                     }
 
                     if (errorMessage.value.isNotEmpty) {
-                      return Text(
-                        errorMessage.value,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.red,
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
                         ),
-                        textAlign: TextAlign.center,
+                        child: Text(
+                          errorMessage.value,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       );
                     }
 
                     if (driverName.value.isEmpty) {
-                      return const Text(
-                        'Loading driver contact...',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                      );
+                      return const SizedBox.shrink();
                     }
 
-                    return Column(
-                      children: [
-                        Text(
-                          driverName.value,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.person, color: Colors.blue, size: 20),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Driver Name',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      driverName.value,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.phone, color: Colors.green, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              driverPhone.value,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.green,
-                                letterSpacing: 1,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Divider(height: 1, color: Colors.grey.shade200),
+                          ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: primaryColor.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.directions_bus, color: primaryColor, size: 20),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.directions_bus, color: Colors.blue, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              vehicleNumber.value,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Vehicle Number',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      vehicleNumber.value,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     );
                   }),
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
+                    height: 54,
                     child: ElevatedButton(
                       onPressed: () async {
                         if (driverPhone.value.isEmpty) {
@@ -2002,47 +1890,45 @@ if (!await launchUrl(
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 4,
+                        shadowColor: Colors.green.withValues(alpha: 0.4),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.call, color: Colors.white),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Call Driver',
+                        children: const [
+                          Icon(Icons.call, color: Colors.white, size: 22),
+                          SizedBox(width: 10),
+                          Text(
+                            'Call Now',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: const BorderSide(color: Colors.grey),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey,
-                        ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
                       ),
                     ),
                   ),
@@ -2053,7 +1939,7 @@ if (!await launchUrl(
         },
       );
     } catch (e) {
-      print('Error showing call driver dialog: $e');
+      debugPrint('Error showing call driver dialog: $e');
     }
   }
 
@@ -2110,7 +1996,7 @@ if (!await launchUrl(
         errorMessage.value = 'Failed to fetch driver contact';
       }
     } catch (e) {
-      print('Error fetching driver contact: $e');
+      debugPrint('Error fetching driver contact: $e');
       errorMessage.value = 'Error: ${e.toString()}';
     } finally {
       isFetching.value = false;
@@ -2123,7 +2009,7 @@ if (!await launchUrl(
       final tripData = controller.tripMapData.value;
 
       if (token.isEmpty || tripData == null) {
-        print('Error: Token or trip data missing');
+        debugPrint('Error: Token or trip data missing');
         return;
       }
 
@@ -2131,7 +2017,7 @@ if (!await launchUrl(
       final childId = Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
 
       if (tripId.isEmpty || childId.isEmpty) {
-        print('Error: Missing trip or child ID');
+        debugPrint('Error: Missing trip or child ID');
         return;
       }
 
@@ -2142,11 +2028,11 @@ if (!await launchUrl(
         'childId': childId,
       };
 
-      print('═══════════════════════════════════════════════════════');
-      print('📞 CALLING DRIVER');
-      print('═══════════════════════════════════════════════════════');
-      print('URL: $url');
-      print('Request Body: ${json.encode(requestBody)}');
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('📞 CALLING DRIVER');
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('URL: $url');
+      debugPrint('Request Body: ${json.encode(requestBody)}');
 
       final response = await http.post(
         url,
@@ -2157,25 +2043,25 @@ if (!await launchUrl(
         body: json.encode(requestBody),
       ).timeout(const Duration(seconds: 15));
 
-      print('Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
+      debugPrint('Status Code: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonBody = json.decode(response.body);
         final data = jsonBody['data'] as Map<String, dynamic>?;
         
-        print('\n✅ CALL INITIATED SUCCESSFULLY');
-        print('Call ID: ${data?['call_id']}');
-        print('Driver Phone: ${data?['driver_phone']}');
-        print('Driver Name: ${data?['driver_name']}');
-        print('═══════════════════════════════════════════════════════\n');
+        debugPrint('\n✅ CALL INITIATED SUCCESSFULLY');
+        debugPrint('Call ID: ${data?['call_id']}');
+        debugPrint('Driver Phone: ${data?['driver_phone']}');
+        debugPrint('Driver Name: ${data?['driver_name']}');
+        debugPrint('═══════════════════════════════════════════════════════\n');
       } else {
-        print('❌ Failed to initiate call with backend');
-        print('═══════════════════════════════════════════════════════\n');
+        debugPrint('❌ Failed to initiate call with backend');
+        debugPrint('═══════════════════════════════════════════════════════\n');
       }
     } catch (e) {
-      print('❌ Error initiating call with backend: $e');
-      print('═══════════════════════════════════════════════════════\n');
+      debugPrint('❌ Error initiating call with backend: $e');
+      debugPrint('═══════════════════════════════════════════════════════\n');
     }
   }
 
@@ -2187,16 +2073,16 @@ if (!await launchUrl(
     try {
       Get.find<ParentHomeController>(tag: 'home');
     } catch (e) {
-      print('❌ [ParentHomePage] Controller not found: $e - Registering now');
+      debugPrint('❌ [ParentHomePage] Controller not found: $e - Registering now');
       try {
         Get.put<ParentHomeController>(
           ParentHomeController(),
           tag: 'home',
           permanent: true,
         );
-        print('✅ [ParentHomePage] ParentHomeController registered');
+        debugPrint('✅ [ParentHomePage] ParentHomeController registered');
       } catch (regError) {
-        print('❌ [ParentHomePage] Failed to register controller: $regError');
+        debugPrint('❌ [ParentHomePage] Failed to register controller: $regError');
       }
     }
 
@@ -2630,7 +2516,7 @@ if (!await launchUrl(
       controller: controller,
       primaryColor: primaryColor,
       onMapCreated: (mapController) {
-        _mapController = mapController;
+        // Map controller is now managed by the ParentHomeController
       },
     );
   }
@@ -2645,14 +2531,6 @@ if (!await launchUrl(
   }
 
   final Map<String, Future<String>> _addressCache = {};
-
-  Future<String> _getCachedAddress(double lat, double lng) {
-    final key = '${lat}_$lng';
-    if (!_addressCache.containsKey(key)) {
-      _addressCache[key] = getAddressFromLatLng(lat, lng);
-    }
-    return _addressCache[key]!;
-  }
 
   Widget _buildRouteStopsCard(BuildContext context, Color primaryColor) {
     return Obx(() {
@@ -2697,15 +2575,62 @@ if (!await launchUrl(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Active Route',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[600],
-                            letterSpacing: 0.5,
-                            fontFamily: 'Poppins',
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              controller.isUpcomingTrip.value ? 'Upcoming Route' : 'Active Route',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[600],
+                                letterSpacing: 0.5,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                            if (controller.isUpcomingTrip.value)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: Colors.orange,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Upcoming Trip',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.orange,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              )
+                            else if (tripData.associatedTripId.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: Colors.green,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Active Trip',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.green,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -2774,6 +2699,9 @@ if (!await launchUrl(
                 itemBuilder: (context, index) {
                   final stop = tripData.timeline[index];
                   final isLast = index == tripData.timeline.length - 1;
+                  final isTargetStop = controller.targetLocation.value != null &&
+                      (stop.location.latitude - controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                      (stop.location.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001;
 
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2781,14 +2709,25 @@ if (!await launchUrl(
                       // Timeline indicator
                       Column(
                         children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              shape: BoxShape.circle,
+                          if (isTargetStop)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Image.asset(
+                                'assets/icons/homemarker.png',
+                                width: 18,
+                                height: 18,
+                              ),
+                            )
+                          else
+                            Container(
+                              width: 10,
+                              height: 10,
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          ),
                           if (!isLast)
                             Container(
                               width: 2,
@@ -2813,18 +2752,42 @@ if (!await launchUrl(
                           child: Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  stop.name,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                    fontFamily: 'Poppins',
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      stop.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+
+                                    if (stop.landmark.isNotEmpty)
+                                      Text(
+                                        'Landmark: ${stop.landmark}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[400],
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
+                              if (stop.scheduledTime.isNotEmpty)
+                                Text(
+                                  'Estimated: ${stop.scheduledTime}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
                               Icon(
                                 Icons.chevron_right,
                                 color: Colors.grey.shade400,

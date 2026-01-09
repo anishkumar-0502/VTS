@@ -23,7 +23,7 @@ class ParentAppLayout extends StatelessWidget {
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
-          print('[ParentAppLayout] Back button - navigating to previous screen');
+          debugPrint('[ParentAppLayout] Back button - navigating to previous screen');
           Get.back();
         }
       },

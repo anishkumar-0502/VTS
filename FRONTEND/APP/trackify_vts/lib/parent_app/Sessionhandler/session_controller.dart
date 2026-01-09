@@ -1,3 +1,4 @@
+import "package:flutter/foundation.dart";
 import 'dart:async';
 import 'dart:convert';
 
@@ -36,7 +37,7 @@ class SessionController extends GetxController {
         _initCompleter.complete();
       }
     } catch (e) {
-      print('[SessionController] Error initializing preferences: $e');
+      debugPrint('[SessionController] Error initializing preferences: $e');
       if (!_initCompleter.isCompleted) {
         _initCompleter.complete();
       }
@@ -70,7 +71,7 @@ class SessionController extends GetxController {
           final decoded = jsonDecode(storedParentData);
           parentData.value = decoded is Map<String, dynamic> ? Map<String, dynamic>.from(decoded) : null;
         } catch (e) {
-          print('[SessionController] Error decoding parentData: $e');
+          debugPrint('[SessionController] Error decoding parentData: $e');
           parentData.value = null;
         }
       } else {
@@ -78,9 +79,9 @@ class SessionController extends GetxController {
       }
       
       sessionError.value = '';
-      print('[SessionController] ✅ Session loaded from storage');
+      debugPrint('[SessionController] ✅ Session loaded from storage');
     } catch (e) {
-      print('[SessionController] ❌ Error applying session: $e');
+      debugPrint('[SessionController] ❌ Error applying session: $e');
       sessionError.value = 'Failed to load session data';
     }
   }
@@ -92,14 +93,14 @@ class SessionController extends GetxController {
     }
 
     if (token.value.isEmpty) {
-      print('[SessionController] ⚠️ Token is empty');
+      debugPrint('[SessionController] ⚠️ Token is empty');
       isSessionValid.value = false;
       sessionError.value = 'Session token is missing';
       return;
     }
 
     if (userId.value.isEmpty) {
-      print('[SessionController] ⚠️ User ID is empty');
+      debugPrint('[SessionController] ⚠️ User ID is empty');
       isSessionValid.value = false;
       sessionError.value = 'User ID is missing';
       return;
@@ -108,7 +109,7 @@ class SessionController extends GetxController {
     if (sessionExpiryTime.value != null) {
       final now = DateTime.now();
       if (now.isAfter(sessionExpiryTime.value!)) {
-        print('[SessionController] ⚠️ Session expired');
+        debugPrint('[SessionController] ⚠️ Session expired');
         isSessionValid.value = false;
         sessionError.value = 'Session has expired';
         return;
@@ -117,7 +118,7 @@ class SessionController extends GetxController {
 
     isSessionValid.value = true;
     sessionError.value = '';
-    print('[SessionController] ✅ Session is valid');
+    debugPrint('[SessionController] ✅ Session is valid');
   }
 
   Future<void> loadSession() async {
@@ -125,9 +126,9 @@ class SessionController extends GetxController {
       await ensureInitialized();
       _applySessionFromPrefs();
       _validateSession();
-      print('[SessionController] ✅ Session reloaded');
+      debugPrint('[SessionController] ✅ Session reloaded');
     } catch (e) {
-      print('[SessionController] ❌ Error loading session: $e');
+      debugPrint('[SessionController] ❌ Error loading session: $e');
       sessionError.value = 'Failed to load session';
     }
   }
@@ -176,10 +177,10 @@ class SessionController extends GetxController {
       isSessionValid.value = true;
       sessionError.value = '';
       
-      print('[SessionController] ✅ Session saved successfully');
-      print('[SessionController] ⏰ Session expiry: ${expiry.toString()}');
+      debugPrint('[SessionController] ✅ Session saved successfully');
+      debugPrint('[SessionController] ⏰ Session expiry: ${expiry.toString()}');
     } catch (e) {
-      print('[SessionController] ❌ Error saving session: $e');
+      debugPrint('[SessionController] ❌ Error saving session: $e');
       sessionError.value = 'Failed to save session';
       isSessionValid.value = false;
       rethrow;
@@ -203,9 +204,9 @@ class SessionController extends GetxController {
       await prefs.setString(_sessionExpiryKey, expiry.toIso8601String());
       
       this.sessionExpiryTime.value = expiry;
-      print('[SessionController] ✅ Session extended until ${expiry.toString()}');
+      debugPrint('[SessionController] ✅ Session extended until ${expiry.toString()}');
     } catch (e) {
-      print('[SessionController] ❌ Error extending session: $e');
+      debugPrint('[SessionController] ❌ Error extending session: $e');
       sessionError.value = 'Failed to extend session';
     }
   }
@@ -214,7 +215,7 @@ class SessionController extends GetxController {
     try {
       await ensureInitialized();
       
-      print('[SessionController] 🔄 Clearing session...');
+      debugPrint('[SessionController] 🔄 Clearing session...');
       await prefs.remove('isLoggedIn');
       await prefs.remove('userId');
       await prefs.remove('username');
@@ -228,9 +229,9 @@ class SessionController extends GetxController {
       isSessionValid.value = true;
       sessionError.value = '';
       
-      print('[SessionController] ✅ Session cleared successfully');
+      debugPrint('[SessionController] ✅ Session cleared successfully');
     } catch (e) {
-      print('[SessionController] ❌ Error clearing session: $e');
+      debugPrint('[SessionController] ❌ Error clearing session: $e');
       sessionError.value = 'Failed to clear session';
       rethrow;
     }
@@ -238,11 +239,11 @@ class SessionController extends GetxController {
 
   Future<void> logout() async {
     try {
-      print('[SessionController] 🚪 Logging out...');
+      debugPrint('[SessionController] 🚪 Logging out...');
       await clearSession();
-      print('[SessionController] ✅ Logout successful');
+      debugPrint('[SessionController] ✅ Logout successful');
     } catch (e) {
-      print('[SessionController] ❌ Error during logout: $e');
+      debugPrint('[SessionController] ❌ Error during logout: $e');
       rethrow;
     }
   }
@@ -262,6 +263,6 @@ class SessionController extends GetxController {
   @override
   void onClose() {
     super.onClose();
-    print('[SessionController] 🔴 SessionController disposed');
+    debugPrint('[SessionController] 🔴 SessionController disposed');
   }
 }

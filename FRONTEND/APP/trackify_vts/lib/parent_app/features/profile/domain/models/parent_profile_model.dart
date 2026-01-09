@@ -1,3 +1,4 @@
+import "package:flutter/foundation.dart";
 import '../../../dashboard/domain/models/trip_details_models.dart';
 import '../../../../../driver_app/features/profile/domain/models/profile_model.dart';
 
@@ -96,7 +97,7 @@ class ParentProfileData {
                 try {
                   return OperatorDetails.fromJson(json['operator_details']);
                 } catch (e) {
-                  print('Error parsing operator details: $e');
+                  debugPrint('Error parsing operator details: $e');
                   return null;
                 }
               })()
@@ -112,7 +113,7 @@ class ParentProfileData {
                               e as Map<String, dynamic>,
                             );
                           } catch (e) {
-                            print('Error parsing associated operator: $e');
+                            debugPrint('Error parsing associated operator: $e');
                             return null;
                           }
                         })(),
@@ -544,8 +545,10 @@ class TripRoutePoint {
   final int dwellTargetSeconds;
   final int slaArrivalBufferSeconds;
   final int geofenceRadiusMeters;
+  final String landmark;
   final String status;
   final int delaySeconds;
+  final String? approximateReachTime;
   final bool arrivalNotified;
   final bool requiredActionsCompleted;
   final List<dynamic> checklist;
@@ -562,8 +565,10 @@ class TripRoutePoint {
     required this.dwellTargetSeconds,
     required this.slaArrivalBufferSeconds,
     required this.geofenceRadiusMeters,
+    required this.landmark,
     required this.status,
     required this.delaySeconds,
+    this.approximateReachTime,
     required this.arrivalNotified,
     required this.requiredActionsCompleted,
     required this.checklist,
@@ -598,8 +603,10 @@ class TripRoutePoint {
       dwellTargetSeconds: _toInt(json['dwell_target_seconds']),
       slaArrivalBufferSeconds: _toInt(json['sla_arrival_buffer_seconds']),
       geofenceRadiusMeters: _toInt(json['geofence_radius_meters']),
+      landmark: (json['landmark'] as dynamic?)?.toString() ?? '',
       status: (json['status'] as dynamic?)?.toString() ?? '',
       delaySeconds: _toInt(json['delay_seconds']),
+      approximateReachTime: (json['approximate_reach_time'] ?? json['scheduled_time'] as dynamic?)?.toString(),
       arrivalNotified: json['arrival_notified'] as bool? ?? false,
       requiredActionsCompleted: json['required_actions_completed'] as bool? ?? false,
       checklist: (json['checklist'] as List<dynamic>?) ?? [],
@@ -619,8 +626,10 @@ class TripRoutePoint {
       'dwell_target_seconds': dwellTargetSeconds,
       'sla_arrival_buffer_seconds': slaArrivalBufferSeconds,
       'geofence_radius_meters': geofenceRadiusMeters,
+      'landmark': landmark,
       'status': status,
       'delay_seconds': delaySeconds,
+      'approximate_reach_time': approximateReachTime,
       'arrival_notified': arrivalNotified,
       'required_actions_completed': requiredActionsCompleted,
       'checklist': checklist,
@@ -805,6 +814,12 @@ class CurrentTrip {
   final TripDetails? tripDetails;
   final TripVehicleDetails vehicle;
   final OperatorDetails? driver;
+  final String? routeName;
+  final List<TripRoutePoint> routePoints;
+  final Location? startLocation;
+  final Location? endLocation;
+  final String? scheduledTripId;
+  final String? tripType;
 
   CurrentTrip({
     required this.tripId,
@@ -813,49 +828,76 @@ class CurrentTrip {
     this.tripDetails,
     required this.vehicle,
     this.driver,
+    this.routeName,
+    this.routePoints = const [],
+    this.startLocation,
+    this.endLocation,
+    this.scheduledTripId,
+    this.tripType,
   });
 
   factory CurrentTrip.fromJson(Map<String, dynamic> json) {
+    // Determine vehicle details
+    TripVehicleDetails vehicleDetails;
+    if (json['vehicle'] != null) {
+      vehicleDetails = TripVehicleDetails.fromJson(json['vehicle']);
+    } else {
+      // Create a default vehicle if only vehicle_id is present
+      vehicleDetails = TripVehicleDetails(
+        id: (json['vehicle_id'] as dynamic?)?.toString() ?? '',
+        vehicleNumber: (json['vehicle_number'] as dynamic?)?.toString() ?? 'N/A',
+        operatorId: (json['operator_id'] as dynamic?)?.toString() ?? '',
+        assignedDeviceId: '',
+        vehicleType: '',
+        assignedDriverId: '',
+        endUserIds: [],
+        capacity: 0,
+        currentStatus: 'unknown',
+        status: false,
+        speed: 0,
+        registrationNumber: '',
+        chassisNumber: '',
+        color: '',
+        seatingCapacity: 0,
+        vehicleId: (json['vehicle_id'] as dynamic?)?.toString() ?? '',
+        createdAt: '',
+        updatedAt: '',
+        lastUpdate: '',
+        latitude: 0.0,
+        longitude: 0.0,
+        currentTripId: (json['trip_id'] ?? json['scheduled_trip_id'] as dynamic?)?.toString() ?? '',
+        deviceId: '',
+        driverId: (json['driver_id'] as dynamic?)?.toString() ?? '',
+      );
+    }
+
     return CurrentTrip(
-      tripId: json['trip_id'] != null ? (json['trip_id'] as dynamic?)?.toString() ?? '' : '',
-      status: json['status'] != null ? (json['status'] as dynamic?)?.toString() ?? '' : '',
+      tripId: (json['trip_id'] ?? json['scheduled_trip_id'] as dynamic?)?.toString() ?? '',
+      status: json['status'] != null ? (json['status'] as dynamic?)?.toString() ?? '' : 'scheduled',
       currentLocation: json['current_location'] != null
           ? Location.fromJson(json['current_location'])
           : null,
       tripDetails: json['trip_details'] != null
           ? TripDetails.fromJson(json['trip_details'])
           : null,
-      vehicle: json['vehicle'] != null
-          ? TripVehicleDetails.fromJson(json['vehicle'])
-          : TripVehicleDetails(
-              id: '',
-              vehicleNumber: 'N/A',
-              operatorId: '',
-              assignedDeviceId: '',
-              vehicleType: '',
-              assignedDriverId: '',
-              endUserIds: [],
-              capacity: 0,
-              currentStatus: 'unknown',
-              status: false,
-              speed: 0,
-              registrationNumber: '',
-              chassisNumber: '',
-              color: '',
-              seatingCapacity: 0,
-              vehicleId: '',
-              createdAt: '',
-              updatedAt: '',
-              lastUpdate: '',
-              latitude: 0.0,
-              longitude: 0.0,
-              currentTripId: '',
-              deviceId: '',
-              driverId: '',
-            ),
+      vehicle: vehicleDetails,
       driver: json['driver'] != null
           ? OperatorDetails.fromJson(json['driver'])
           : null,
+      routeName: (json['route_name'] as dynamic?)?.toString(),
+      routePoints: json['route_points'] != null
+          ? (json['route_points'] as List<dynamic>)
+              .map((e) => TripRoutePoint.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : [],
+      startLocation: json['start_location'] != null
+          ? Location.fromJson(json['start_location'])
+          : null,
+      endLocation: json['end_location'] != null
+          ? Location.fromJson(json['end_location'])
+          : null,
+      scheduledTripId: (json['scheduled_trip_id'] as dynamic?)?.toString(),
+      tripType: json['trip_type']?.toString(),
     );
   }
 
@@ -865,8 +907,13 @@ class CurrentTrip {
       'status': status,
       'current_location': currentLocation?.toJson(),
       'trip_details': tripDetails?.toJson(),
-      'vehicle': vehicle?.toJson(),
+      'vehicle': vehicle.toJson(),
       'driver': driver?.toJson(),
+      'route_name': routeName,
+      'route_points': routePoints.map((e) => e.toJson()).toList(),
+      'start_location': startLocation?.toJson(),
+      'end_location': endLocation?.toJson(),
+      'scheduled_trip_id': scheduledTripId,
     };
   }
 }
@@ -982,18 +1029,43 @@ class CurrentTripResponse {
   final bool error;
   final String message;
   final CurrentTrip? data;
+  final List<CurrentTrip> allTrips;
 
   CurrentTripResponse({
     required this.error,
     required this.message,
     this.data,
+    this.allTrips = const [],
   });
 
   factory CurrentTripResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    CurrentTrip? currentTrip;
+    List<CurrentTrip> trips = [];
+
+    if (rawData != null) {
+      if (rawData is List) {
+        trips = rawData
+            .map((e) => CurrentTrip.fromJson(e as Map<String, dynamic>))
+            .toList();
+        if (trips.isNotEmpty) {
+          // Prefer active trips, otherwise take the first one
+          currentTrip = trips.firstWhere(
+            (t) => t.status.toLowerCase() == 'active' || t.status.toLowerCase() == 'in-progress',
+            orElse: () => trips.first,
+          );
+        }
+      } else if (rawData is Map) {
+        currentTrip = CurrentTrip.fromJson(rawData as Map<String, dynamic>);
+        trips = [currentTrip];
+      }
+    }
+
     return CurrentTripResponse(
       error: json['error'] as bool? ?? true,
       message: json['message'] as String? ?? '',
-      data: json['data'] != null ? CurrentTrip.fromJson(json['data']) : null,
+      data: currentTrip,
+      allTrips: trips,
     );
   }
 
@@ -1002,6 +1074,7 @@ class CurrentTripResponse {
       'error': error,
       'message': message,
       'data': data?.toJson(),
+      'all_trips': allTrips.map((e) => e.toJson()).toList(),
     };
   }
 }

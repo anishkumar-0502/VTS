@@ -68,14 +68,14 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
   }
 
   void _connectSocket(String authToken) {
-    print('🔌 Attempting Socket.IO connection for child tracking...');
+    debugPrint('🔌 Attempting Socket.IO connection for child tracking...');
 
     _disconnectSocket();
 
     Future.delayed(const Duration(milliseconds: 200), () {
       if (_isDisposed) return;
 
-      print('🔌 Creating new Socket.IO instance...');
+      debugPrint('🔌 Creating new Socket.IO instance...');
       socket = IO.io(
         trackify_vts.socketUrl,
         IO.OptionBuilder()
@@ -91,20 +91,20 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
             .build(),
       );
 
-      print('🔌 Connecting socket...');
+      debugPrint('🔌 Connecting socket...');
       socket?.connect();
 
-      print('🔌 Socket instance created, registering listeners...');
+      debugPrint('🔌 Socket instance created, registering listeners...');
       _setupSocketListeners();
     });
   }
 
   void _disconnectSocket() {
     if (socket != null) {
-      print('🔌 Cleaning up existing socket...');
+      debugPrint('🔌 Cleaning up existing socket...');
       socket?.clearListeners();
       if (socket?.connected ?? false) {
-        print('🔌 Disconnecting socket...');
+        debugPrint('🔌 Disconnecting socket...');
         socket?.disconnect();
       }
       socket?.dispose();
@@ -116,7 +116,7 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
     if (socket == null || _isDisposed) return;
 
     socket?.onConnect((_) {
-      print('✅ Socket.IO connected successfully!');
+      debugPrint('✅ Socket.IO connected successfully!');
       if (!_isDisposed) setState(() => _isConnected = true);
       socket?.emit("join_parent");
       socket?.emit("subscribe_child_tracking", {
@@ -125,17 +125,17 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
     });
 
     socket?.onConnectError((e) {
-      print('❌ Socket.IO connection error: $e');
+      debugPrint('❌ Socket.IO connection error: $e');
       if (!_isDisposed) setState(() => _isConnected = false);
     });
 
     socket?.onError((e) {
-      print('❌ Socket.IO error: $e');
+      debugPrint('❌ Socket.IO error: $e');
       if (!_isDisposed) setState(() => _isConnected = false);
     });
 
     socket?.onDisconnect((reason) {
-      print('⚠️ Socket.IO disconnected: $reason');
+      debugPrint('⚠️ Socket.IO disconnected: $reason');
       if (!_isDisposed) setState(() => _isConnected = false);
     });
 
@@ -170,7 +170,7 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
 
   @override
   void dispose() {
-    print('🧹 Cleaning up LiveTrackingMapPage...');
+    debugPrint('🧹 Cleaning up LiveTrackingMapPage...');
     _isDisposed = true;
     _disconnectSocket();
     currentChildLocation = null;
@@ -178,7 +178,7 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
     _userHasZoomed = false;
     _lastUserInteraction = null;
     mapController.dispose();
-    print('🧹 LiveTrackingMapPage cleanup complete');
+    debugPrint('🧹 LiveTrackingMapPage cleanup complete');
     super.dispose();
   }
 
@@ -225,7 +225,9 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
         ),
         children: [
           TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            subdomains: const ['a', 'b', 'c'],
+            userAgentPackageName: 'com.trackify.parent',
           ),
           MarkerLayer(
             markers: [
