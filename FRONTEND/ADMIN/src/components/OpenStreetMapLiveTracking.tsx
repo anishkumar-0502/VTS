@@ -44,10 +44,23 @@ interface OpenStreetMapLiveTrackingProps {
   showPolylines?: boolean;
 }
 
-const MapUpdater = ({ selectedVehicle }: { selectedVehicle: Vehicle | undefined }) => {
+const MapUpdater = ({ 
+  selectedVehicle,
+  height 
+}: { 
+  selectedVehicle: Vehicle | undefined;
+  height?: string;
+}) => {
   const map = useMap();
   const userInteractedRef = useRef(false);
   const lastVehicleIdRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    // Force Leaflet to recalculate its container size when height changes
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }, [height, map]);
 
   useEffect(() => {
     const handleZoom = () => {
@@ -133,46 +146,35 @@ const getSpeedColor = (speed: number | null): string => {
 
 const createVehicleIcon = (vehicle: Vehicle, isSelected: boolean, isConnected: boolean) => {
   const rotation = vehicle.course ?? 0;
-  const size = isSelected ? 38 : 32;
-  const arrowColor = isConnected ? "#1A56DB" : "#9CA3AF";
+
+  // smaller sizes
+  const size = isSelected ? 28 : 22;     // arrow size
+  const circleSize = size + 16;          // circle size
 
   return L.divIcon({
     html: `
       <div style="
         position: relative;
-        width: ${size + 24}px;
-        height: ${size + 24}px;
+        width: ${circleSize}px;
+        height: ${circleSize}px;
+        border-radius: 50%;
+        background:#3B7BEE;
         display: flex;
         align-items: center;
         justify-content: center;
       ">
-
-        <!-- softer halo -->
-        <div style="
-          position: absolute;
-          width: ${size + 30}px;
-          height: ${size + 30}px;
-          border-radius: 50%;
-          background: rgba(66,133,244,0.12);  /* lighter */
-          filter: blur(6px);                  /* more blur */
-        "></div>
-
-        <!-- arrow -->
         <svg width="${size}" height="${size}" viewBox="0 0 100 100"
-          style="transform: rotate(${rotation}deg); z-index: 2;">
-          <polygon points="50,0 100,100 50,75 0,100"
-            fill="${arrowColor}"
-            stroke="#FFFFFF"
-            stroke-width="6"
-            stroke-linejoin="round"
-          />
+          style="transform: rotate(${rotation}deg);">
+          <polygon points="50,0 100,100 50,75 0,100" fill="white" />
         </svg>
       </div>
     `,
-    iconSize: [size + 24, size + 24],
+    iconSize: [circleSize, circleSize],
     className: "vehicle-arrow-marker"
   });
 };
+
+
 
 
 
@@ -287,7 +289,7 @@ export default function OpenStreetMapLiveTracking({
       style={{
         height,
         width: "100%",
-        borderRadius: "0.5rem",
+        borderRadius: height === "100%" ? "0" : "0.5rem",
         overflow: "hidden",
       }}
     >
@@ -311,7 +313,7 @@ export default function OpenStreetMapLiveTracking({
           showPolylines={showPolylines}
         />
 
-        <MapUpdater selectedVehicle={selectedVehicle} />
+        <MapUpdater selectedVehicle={selectedVehicle} height={height} />
       </MapContainer>
     </div>
   );
