@@ -6,8 +6,8 @@
     return (
       <>
         <PageMeta
-          title="React.js Operator Login | TailAdmin - Next.js Admin Dashboard Template"
-          description="This is React.js Operator Login page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+          title="Operator Login"
+          description="This is a Operator Login page "
         />
         <AuthLayout>
           <OperatorSigninForm />
