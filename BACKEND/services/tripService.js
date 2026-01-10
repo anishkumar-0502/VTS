@@ -1107,6 +1107,7 @@ class TripService {
       start_location: source.start_location,
       end_location: source.end_location,
       trip_period: source.trip_period,
+      trip_type: source.trip_type,
       status: 'planned',
       planned_date: dateKey,
       planned_start_time: plannedStartTime,
@@ -1297,6 +1298,7 @@ class TripService {
           route_name: trip.route_name,
           planned_date: trip.planned_date || null,
           trip_period: tripSnapshot.trip_period || null,
+          trip_type: tripSnapshot.trip_type || null,
           start_time: trip.start_time,
           end_time: trip.end_time,
           start_location: trip.start_location,
@@ -1651,7 +1653,8 @@ class TripService {
 
   static async startTripFromScheduled(data) {
     try {
-      const { scheduledTrip, driver_id, operator_id } = data;
+      const { scheduledTrip: rawScheduledTrip, driver_id, operator_id } = data;
+      const scheduledTrip = rawScheduledTrip?.toObject?.() ?? rawScheduledTrip;
 
       const vehicle = await findVehicleByIdentifier(scheduledTrip.vehicle_id);
       if (!vehicle) {
@@ -1660,17 +1663,27 @@ class TripService {
 
       const normalizedRoutePoints = normalizeRoutePointsPayload(scheduledTrip.route_points);
       const todayKey = formatDateKey(new Date());
+      
+      const plannedStartTime = buildPlannedStartDate(todayKey, scheduledTrip.scheduled_start_time);
+      const plannedRoutePoints = buildPlannedTimeline(normalizedRoutePoints, plannedStartTime);
+      
+      const plannedEndReference = plannedRoutePoints.length
+        ? plannedRoutePoints[plannedRoutePoints.length - 1].planned_departure_time
+        : null;
+      const plannedEndTime = plannedEndReference || plannedStartTime;
+
       const plannedUpdate = {
         status: 'en_route',
         start_time: new Date(),
         driver_id,
         operator_id,
-        vehicle_id: vehicle.vehicle_id
+        vehicle_id: vehicle.vehicle_id,
+        trip_period: scheduledTrip.trip_period,
+        trip_type: scheduledTrip.trip_type,
+        planned_start_time: plannedStartTime,
+        planned_end_time: plannedEndTime,
+        route_points: plannedRoutePoints
       };
-
-      if (normalizedRoutePoints.length) {
-        plannedUpdate.route_points = normalizedRoutePoints;
-      }
 
       const existingPlannedTrip = await Trip.findOneAndUpdate(
         { scheduled_trip_id: scheduledTrip.scheduled_trip_id, planned_date: todayKey },
@@ -1693,16 +1706,16 @@ class TripService {
         end_location: scheduledTrip.end_location,
         start_time: new Date(),
         trip_period: scheduledTrip.trip_period,
+        trip_type: scheduledTrip.trip_type,
         scheduled_trip_id: scheduledTrip.scheduled_trip_id,
         planned_date: todayKey,
+        planned_start_time: plannedStartTime,
+        planned_end_time: plannedEndTime,
         status: 'en_route',
+        route_points: plannedRoutePoints,
         passengers: await buildPassengerManifest(vehicle.vehicle_id)
       };
 
-      if (normalizedRoutePoints.length) {
-        tripPayload.route_points = normalizedRoutePoints;
-      }
-      
       tripPayload.total_passengers = tripPayload.passengers.length;
 
       const trip = new OnDemandTrip(tripPayload);

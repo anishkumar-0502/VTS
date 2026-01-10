@@ -33,6 +33,10 @@ const tripHistorySchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    trip_type: {
+      type: String,
+      default: null
+    },
     start_time: Date,
     end_time: Date,
     start_location: {
