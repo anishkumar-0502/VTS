@@ -97,39 +97,84 @@ const getSpeedColor = (speed: number | null): string => {
   return "#EF4444";
 };
 
+// const createVehicleIcon = (vehicle: Vehicle, isSelected: boolean, isConnected: boolean) => {
+//   const speedValue = vehicle.speed ?? 0;
+//   const speedColor = getSpeedColor(speedValue);
+//   const size = isSelected ? 32 : 28;
+//   const borderColor = isConnected ? "#10B981" : "#EF4444";
+//   const fillColor = isSelected ? "#3B82F6" : speedColor;
+
+//   return L.divIcon({
+//     html: `
+//       <div style="
+//         width: ${size}px;
+//         height: ${size}px;
+//         background-color: ${fillColor};
+//         border: 3px solid ${borderColor};
+//         border-radius: 50%;
+//         display: flex;
+//         align-items: center;
+//         justify-content: center;
+//         cursor: pointer;
+//         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+//         transition: all 0.2s;
+//         font-weight: bold;
+//         font-size: 10px;
+//         color: white;
+//         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+//       ">
+//         ${Math.round(speedValue)}
+//       </div>
+//     `,
+//     iconSize: [36, 36],
+//     className: "vehicle-marker",
+//   });
+// };
+
 const createVehicleIcon = (vehicle: Vehicle, isSelected: boolean, isConnected: boolean) => {
-  const speedValue = vehicle.speed ?? 0;
-  const speedColor = getSpeedColor(speedValue);
-  const size = isSelected ? 32 : 28;
-  const borderColor = isConnected ? "#10B981" : "#EF4444";
-  const fillColor = isSelected ? "#3B82F6" : speedColor;
+  const rotation = vehicle.course ?? 0;
+  const size = isSelected ? 38 : 32;
+  const arrowColor = isConnected ? "#1A56DB" : "#9CA3AF";
 
   return L.divIcon({
     html: `
       <div style="
-        width: ${size}px;
-        height: ${size}px;
-        background-color: ${fillColor};
-        border: 3px solid ${borderColor};
-        border-radius: 50%;
+        position: relative;
+        width: ${size + 24}px;
+        height: ${size + 24}px;
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: all 0.2s;
-        font-weight: bold;
-        font-size: 10px;
-        color: white;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       ">
-        ${Math.round(speedValue)}
+
+        <!-- softer halo -->
+        <div style="
+          position: absolute;
+          width: ${size + 30}px;
+          height: ${size + 30}px;
+          border-radius: 50%;
+          background: rgba(66,133,244,0.12);  /* lighter */
+          filter: blur(6px);                  /* more blur */
+        "></div>
+
+        <!-- arrow -->
+        <svg width="${size}" height="${size}" viewBox="0 0 100 100"
+          style="transform: rotate(${rotation}deg); z-index: 2;">
+          <polygon points="50,0 100,100 50,75 0,100"
+            fill="${arrowColor}"
+            stroke="#FFFFFF"
+            stroke-width="6"
+            stroke-linejoin="round"
+          />
+        </svg>
       </div>
     `,
-    iconSize: [36, 36],
-    className: "vehicle-marker",
+    iconSize: [size + 24, size + 24],
+    className: "vehicle-arrow-marker"
   });
 };
+
+
 
 const VehicleMarker = ({
   vehicle,

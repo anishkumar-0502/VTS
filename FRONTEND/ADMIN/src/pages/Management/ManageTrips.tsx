@@ -4,6 +4,12 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "re
 import L from "leaflet";
 import OpenStreetRoute from "../../components/OpenStreetRoute";
 import PageShimmer from "../../components/common/PageShimmer";
+import PageMeta from "../../components/common/PageMeta";
+import PageBreadCrumb from "../../components/common/PageBreadCrumb";
+import Button from "../../components/ui/button/Button";
+
+
+
 const startIcon = new L.Icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
@@ -30,9 +36,7 @@ const stopIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
-import PageMeta from "../../components/common/PageMeta";
-import PageBreadCrumb from "../../components/common/PageBreadCrumb";
-import Button from "../../components/ui/button/Button";
+
 
 // Toggle icons for activate/deactivate
 const DeactivateIcon = () => (
@@ -232,30 +236,20 @@ if (!isStartSelected || !isEndSelected) {
         Swal.fire({
           title: `Add Stop ${seq}`,
           html: `
-            <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name">
+          <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name">
               <input id="swal-landmark" class="swal2-input" placeholder="Nearby Landmark">
-
-  <label style="font-size:12px; text-align:left; display:block; margin:4px 0 2px;">
-  Approximate Reach Time
-</label>
-<input
-  id="swal-reach-time"
-  type="time"
-  class="swal2-input"
-  style="margin-top:0"
-/>
-
-            <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" >
-            <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" >
+              <input id="swal-reach-time" type="time" class="swal2-input"placeholder="Approximate Reach Time">
+              <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" value="150">
+              <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" value="240">
           `,
           showCancelButton: true,
           confirmButtonText: "Add Stop",
           preConfirm: () => {
             const name = (document.getElementById("swal-stop-name") as HTMLInputElement)?.value;
                const landmark = (document.getElementById("swal-landmark") as HTMLInputElement)?.value;
-    const reachTime = (document.getElementById("swal-reach-time") as HTMLInputElement)?.value;
-            const dwell = Number((document.getElementById("swal-dwell") as HTMLInputElement)?.value || 150);
-            const sla = Number((document.getElementById("swal-sla") as HTMLInputElement)?.value || 240);
+               const reachTime = (document.getElementById("swal-reach-time") as HTMLInputElement)?.value;
+               const dwell = Number((document.getElementById("swal-dwell") as HTMLInputElement)?.value || 150);
+               const sla = Number((document.getElementById("swal-sla") as HTMLInputElement)?.value || 240);
 
             if (!name) {
               Swal.showValidationMessage("Stop name is required");
@@ -758,6 +752,7 @@ const handleView = async (trip: Trip) => {
             <b>Status:</b>
             <span style="margin-left:6px;">${statusBadge}</span>
           </div>
+          <div><b>Trip Type:</b> ${t.trip_type}</div>
         </div>
 
         <hr style="
@@ -1024,9 +1019,14 @@ if (loading)
     <PageShimmer />
   );
 
+
+
+
+  
   return (
     <>
       <PageMeta title="Manage Trips" description="Manage, create, and update scheduled trips" />
+      <div>
       <PageBreadCrumb pageTitle="Trip Management" />
 
       <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow border border-gray-200 dark:border-gray-700 max-w-6xl mx-auto">
@@ -1659,6 +1659,7 @@ if (loading)
 </div>
 
         )}
+      </div>
       </div>
     </>
   );

@@ -2363,14 +2363,14 @@ if (loading)
          <td className="px-3 py-2 whitespace-nowrap">
   <div className="flex items-center gap-2">
     {/* Assign button */}
-    <button
+    {/* <button
       onClick={() => handleAssignPassengers(v)}
       className="text-xs px-3 py-1 rounded-md
       bg-blue-100 text-blue-700 hover:bg-blue-200
       dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800 transition"
     >
       Assign
-    </button>
+    </button> */}
 
     {/* Single View button */}
     {assignedPassengers.length > 0 && (
