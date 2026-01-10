@@ -282,7 +282,7 @@ class TripService {
     return Math.round((actual.getTime() - planned.getTime()) / 1000);
   }
 
-  static buildRoutePointSummary(stop, index = 0, trip = null) {
+static buildRoutePointSummary(stop, index = 0, trip = null) {
     if (!stop) {
       return null;
     }
@@ -300,6 +300,9 @@ class TripService {
       arrival_notified: !!stop.arrival_notified,
       latitude: stop.latitude,
       longitude: stop.longitude,
+      landmark: stop.landmark || null,
+      approximate_reach_time: stop.approximate_reach_time || null,
+      stop_status: stop.stop_status || null,
       checklist: Array.isArray(stop.checklist)
         ? stop.checklist.map((item) => (item?.toObject?.() ? item.toObject() : item))
         : [],
