@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Swal from "sweetalert2";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -144,6 +145,18 @@ const EditIcon = () => (
   </svg>
 );
 
+const FullscreenIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+  </svg>
+);
+
+const ExitFullscreenIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+  </svg>
+);
+
 const showSuccess = (message: string) => {
   const dark = document.documentElement.classList.contains("dark");
   Swal.fire({
@@ -165,6 +178,16 @@ const normalizePhone = (value: string | number): string => {
     .replace(/^91/, "")
     .slice(-10);
 };
+
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }, [map]);
+  return null;
+}
 
 // --- Main Component ---
 
@@ -196,7 +219,10 @@ const [selectedTrip, setSelectedTrip] = useState<string>("");
   const [hasMoreMgmt, setHasMoreMgmt] = useState(true);
   const [loadingMoreMgmt, setLoadingMoreMgmt] = useState(false);
   const pickupMapRef = React.useRef<L.Map | null>(null);
-const dropoffMapRef = React.useRef<L.Map | null>(null);
+  const dropoffMapRef = React.useRef<L.Map | null>(null);
+
+  const [isPickupFullscreen, setIsPickupFullscreen] = useState(false);
+  const [isDropoffFullscreen, setIsDropoffFullscreen] = useState(false);
 
 
 
@@ -285,8 +311,6 @@ const validateStep = () => {
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
 };
-
-
 
   const fetchVehicles = async () => {
   try {
@@ -740,20 +764,55 @@ fetchVehicles();
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="relative">
                           <h4 className="font-semibold mb-2 text-gray-900 dark:text-white flex items-center gap-2">📍 Pickup Location</h4>
-                          <div className="h-64 rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 shadow-inner">
-                     <MapContainer
-  center={defaultCenter as any}
-  zoom={13}
-  ref={(map) => { pickupMapRef.current = map }}
-  className="h-full w-full"
->
-  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-  {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={markerIcon} />}
-</MapContainer>
-
-
-
+                          <div className="h-64 rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 shadow-inner relative">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsPickupFullscreen(true);
+                                setTimeout(() => pickupMapRef.current?.invalidateSize(), 100);
+                              }}
+                              className="absolute top-2 right-2 z-[1001] bg-white dark:bg-gray-800 shadow-md rounded-full p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                              title="Full Screen"
+                            >
+                              <FullscreenIcon />
+                            </button>
+                            <MapContainer
+                              center={defaultCenter as any}
+                              zoom={13}
+                              ref={(map) => { pickupMapRef.current = map }}
+                              className="h-full w-full"
+                            >
+                              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                              {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={markerIcon} />}
+                            </MapContainer>
                           </div>
+
+                          {isPickupFullscreen && createPortal(
+                            <div className="fixed inset-0 z-[100000] h-screen w-screen bg-white dark:bg-gray-900">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsPickupFullscreen(false);
+                                  setTimeout(() => pickupMapRef.current?.invalidateSize(), 100);
+                                }}
+                                className="absolute top-4 right-4 z-[100001] bg-white dark:bg-gray-800 shadow-xl rounded-full p-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700"
+                                title="Exit Fullscreen"
+                              >
+                                <ExitFullscreenIcon />
+                              </button>
+                              <MapContainer
+                                center={pickupCoords ? [pickupCoords.lat, pickupCoords.lng] : defaultCenter as any}
+                                zoom={17}
+                                scrollWheelZoom={true}
+                                className="h-full w-full"
+                              >
+                                <MapResizer />
+                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={markerIcon} />}
+                              </MapContainer>
+                            </div>,
+                            document.body
+                          )}
                           <div className="mt-3 space-y-2">
                             {/* Pickup Route Select */}
 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Pickup Route Point</label>
@@ -809,18 +868,55 @@ fetchVehicles();
 
                         <div className="relative">
                           <h4 className="font-semibold mb-2 text-gray-900 dark:text-white flex items-center gap-2">🏁 Dropoff Location</h4>
-                          <div className="h-64 rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 shadow-inner">
-                    <MapContainer
-  center={defaultCenter as any}
-  zoom={13}
-ref={(map) => { dropoffMapRef.current = map }}
-  className="h-full w-full"
->
-  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-  {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]} icon={markerIcon} />}
-</MapContainer>
-
+                          <div className="h-64 rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 shadow-inner relative">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsDropoffFullscreen(true);
+                                setTimeout(() => dropoffMapRef.current?.invalidateSize(), 100);
+                              }}
+                              className="absolute top-2 right-2 z-[1001] bg-white dark:bg-gray-800 shadow-md rounded-full p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                              title="Full Screen"
+                            >
+                              <FullscreenIcon />
+                            </button>
+                            <MapContainer
+                              center={defaultCenter as any}
+                              zoom={13}
+                              ref={(map) => { dropoffMapRef.current = map }}
+                              className="h-full w-full"
+                            >
+                              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                              {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]} icon={markerIcon} />}
+                            </MapContainer>
                           </div>
+
+                          {isDropoffFullscreen && createPortal(
+                            <div className="fixed inset-0 z-[100000] h-screen w-screen bg-white dark:bg-gray-900">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsDropoffFullscreen(false);
+                                  setTimeout(() => dropoffMapRef.current?.invalidateSize(), 100);
+                                }}
+                                className="absolute top-4 right-4 z-[100001] bg-white dark:bg-gray-800 shadow-xl rounded-full p-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700"
+                                title="Exit Fullscreen"
+                              >
+                                <ExitFullscreenIcon />
+                              </button>
+                              <MapContainer
+                                center={dropoffCoords ? [dropoffCoords.lat, dropoffCoords.lng] : defaultCenter as any}
+                                zoom={17}
+                                scrollWheelZoom={true}
+                                className="h-full w-full"
+                              >
+                                <MapResizer />
+                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]} icon={markerIcon} />}
+                              </MapContainer>
+                            </div>,
+                            document.body
+                          )}
                           <div className="mt-3 space-y-2">
                            {/* Dropoff Route Select */}
 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Dropoff Route Point</label>

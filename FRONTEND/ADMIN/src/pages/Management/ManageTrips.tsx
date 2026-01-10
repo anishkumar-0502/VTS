@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet"; 
 import L from "leaflet";
-import OpenStreetRoute from "../../components/OpenStreetRoute";
+import StreetRoute from "../../components/StreetRoute";
 import PageShimmer from "../../components/common/PageShimmer";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
@@ -71,6 +71,26 @@ const ActivateIcon = () => (
         stroke="currentColor"
         strokeWidth="2"
       />
+    </svg>
+  );
+
+  const FullscreenIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+    </svg>
+  );
+
+  const ExitFullscreenIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M8 3v4a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16a2 2 0 0 1 2-2h4v4a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 0 2-2v-4h3" />
+    </svg>
+  );
+
+  const LocateMeIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" fill="currentColor" />
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
     </svg>
   );
 
@@ -145,6 +165,7 @@ function LocateMeButton({
   setCoords: (coords: { latitude: number; longitude: number }) => void;
 }) {
   const map = useMap();
+  const [isLocating, setIsLocating] = useState(false);
 
   const handleLocate = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -155,16 +176,39 @@ function LocateMeButton({
       return;
     }
 
+    if (isLocating) return;
+
+    setIsLocating(true);
+    
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setCoords({ latitude, longitude });
-        map.setView([latitude, longitude], 17);
-       // Marker removed to only show current location on the map center, not as an explicit marker
+        
+        setTimeout(() => {
+          map.setView([latitude, longitude], 17);
+          setIsLocating(false);
+        }, 100);
       },
       (err) => {
-        Swal.fire("Error", "Unable to fetch your location", "error");
-        console.error(err);
+        setIsLocating(false);
+        let errorMessage = "Unable to fetch your location";
+        
+        if (err.code === 1) {
+          errorMessage = "Location permission denied. Please enable location access in browser settings.";
+        } else if (err.code === 2) {
+          errorMessage = "Unable to retrieve your location. Please try again.";
+        } else if (err.code === 3) {
+          errorMessage = "Location request timed out. Please try again.";
+        }
+        
+        Swal.fire("Location Error", errorMessage, "error");
+        console.error("Geolocation error:", err);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 30000,
+        maximumAge: 0
       }
     );
   };
@@ -173,11 +217,11 @@ function LocateMeButton({
     <button
       type="button"
       onClick={handleLocate}
-      // 🛑 Z-index changed to 4000 to be above the fullscreen map (z-3000)
-      className="absolute top-2 right-2 z-[4000] bg-white dark:bg-gray-800 rounded-full shadow-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700" 
-      title="Locate Me"
+      disabled={isLocating}
+      className="absolute top-2 right-2 z-[4000] bg-white dark:bg-gray-800 rounded-full shadow-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-600 dark:text-indigo-400 transition-all" 
+      title={isLocating ? "Locating..." : "Locate Me"}
     >
-      📍
+      <LocateMeIcon />
     </button>
   );
 }
@@ -238,7 +282,8 @@ if (!isStartSelected || !isEndSelected) {
           html: `
           <input id="swal-stop-name" class="swal2-input" placeholder="Stop Name">
               <input id="swal-landmark" class="swal2-input" placeholder="Nearby Landmark">
-              <input id="swal-reach-time" type="time" class="swal2-input"placeholder="Approximate Reach Time">
+              <label style="display: block; font-weight: 600; margin-bottom: 5px; margin-top: 10px;">Approximate Reach Time</label>
+              <input id="swal-reach-time" type="time" class="swal2-input" placeholder="Approximate Reach Time">
               <input id="swal-dwell" type="number" class="swal2-input" placeholder="Dwell Time (seconds)" value="150">
               <input id="swal-sla" type="number" class="swal2-input" placeholder="SLA Arrival Buffer (seconds)" value="240">
           `,
@@ -1026,6 +1071,124 @@ if (loading)
   return (
     <>
       <PageMeta title="Manage Trips" description="Manage, create, and update scheduled trips" />
+      
+      {/* Fullscreen Start Location Map */}
+      {isStartMapFullscreen && (
+        <div className="fixed top-0 left-0 z-[99999] bg-white dark:bg-gray-900 h-screen w-screen overflow-hidden">
+          <MapContainer
+            center={[startLocation.latitude || 20.5937, startLocation.longitude || 78.9629]}
+            zoom={startLocation.latitude !== 0 ? 14 : 5}
+            className="h-full w-full"
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <LocationMarker setLocation={setStartLocation} />
+            <LocateMeButton
+              setCoords={(coords) => setStartLocation({ ...startLocation, ...coords, address: startLocation.address || 'User Location' })}
+            />
+          </MapContainer>
+          <button
+            type="button"
+            onClick={() => setIsStartMapFullscreen(!isStartMapFullscreen)}
+            className="absolute bottom-2 right-2 z-[4001] bg-white dark:bg-gray-800 rounded-full shadow-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+            title={isStartMapFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            {isStartMapFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+          </button>
+        </div>
+      )}
+
+      {/* Fullscreen End Location Map */}
+      {isEndMapFullscreen && (
+        <div className="fixed top-0 left-0 z-[99999] bg-white dark:bg-gray-900 h-screen w-screen overflow-hidden">
+          <MapContainer
+            center={[endLocation.latitude || 20.5937, endLocation.longitude || 78.9629]}
+            zoom={endLocation.latitude !== 0 ? 14 : 5}
+            className="h-full w-full"
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <LocationMarker setLocation={setEndLocation} />
+            {endLocation.latitude !== 0 && (
+              <Marker position={[endLocation.latitude, endLocation.longitude]} icon={endIcon}>
+                <Popup>End Location</Popup>
+              </Marker>
+            )}
+            <LocateMeButton
+              setCoords={(coords) => setEndLocation({ ...endLocation, ...coords, address: endLocation.address || 'User Location' })}
+            />
+          </MapContainer>
+          <button
+            type="button"
+            onClick={() => setIsEndMapFullscreen(!isEndMapFullscreen)}
+            className="absolute bottom-2 right-2 z-[4001] bg-white dark:bg-gray-800 rounded-full shadow-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+            title={isEndMapFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            {isEndMapFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+          </button>
+        </div>
+      )}
+
+      {/* Fullscreen Route Stops Map */}
+      {isFullscreen && (
+        <div className="fixed top-0 left-0 z-[99999] bg-white dark:bg-gray-900 h-screen w-screen overflow-hidden">
+          <MapContainer
+            center={[startLocation.latitude || 20.5937, startLocation.longitude || 78.9629]}
+            zoom={startLocation.latitude !== 0 ? 12 : 5}
+            className="h-full w-full"
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {startLocation.latitude !== 0 && startLocation.longitude !== 0 && (
+              <Marker position={[startLocation.latitude, startLocation.longitude]} icon={startIcon}>
+                <Popup>Start Location: {startLocation.address || 'Source'}</Popup>
+              </Marker>
+            )}
+            {endLocation.latitude !== 0 && endLocation.longitude !== 0 && (
+              <Marker position={[endLocation.latitude, endLocation.longitude]} icon={endIcon}>
+                <Popup>End Location: {endLocation.address || 'Destination'}</Popup>
+              </Marker>
+            )}
+            {routePoints.map((stop, index) => (
+              <Marker key={index} position={[stop.latitude, stop.longitude]} icon={stopIcon}>
+                <Popup>
+                  <div>
+                    <strong>Stop {stop.sequence}: {stop.name}</strong>
+                    <p className="text-xs mt-1">Lat: {stop.latitude.toFixed(4)}, Lng: {stop.longitude.toFixed(4)}</p>
+                    <button
+                      className="text-red-500 hover:text-red-700 text-xs mt-1"
+                      onClick={() => handleDeleteStop(index)}
+                    >
+                      Remove Stop
+                    </button>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+            {startLocation.latitude !== 0 && endLocation.latitude !== 0 && (
+              <StreetRoute
+                startLocation={startLocation}
+                endLocation={endLocation}
+                stops={[...routePoints].sort((a, b) => a.sequence - b.sequence)}
+              />
+            )}
+            <StopMarker
+              routePoints={routePoints}
+              setRoutePoints={setRoutePoints}
+              startLocation={startLocation}
+              endLocation={endLocation}
+            />
+            <LocateMeButton setCoords={() => {}} />
+          </MapContainer>
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="absolute bottom-2 right-2 z-[4001] bg-white dark:bg-gray-800 rounded-full shadow-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+          </button>
+        </div>
+      )}
+
+      {!isStartMapFullscreen && !isEndMapFullscreen && !isFullscreen && (
       <div>
       <PageBreadCrumb pageTitle="Trip Management" />
 
@@ -1226,7 +1389,15 @@ if (loading)
                   {/* Start Location Map & Address */}
                   <div>
                     <label className="block mb-2 font-medium">Start Location (Click Map to Pin)</label>
-                    <div className={`${isStartMapFullscreen ? "fixed inset-0 z-[3000]" : "h-80"} relative border rounded-lg mb-4`}>
+                    <div className="h-80 relative border rounded-lg mb-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsStartMapFullscreen(!isStartMapFullscreen)}
+                        className="absolute bottom-2 right-2 z-[4001] bg-white dark:bg-gray-800 rounded-full shadow-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+                        title={isStartMapFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                      >
+                        {isStartMapFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+                      </button>
                       <MapContainer
                         center={[startLocation.latitude || 20.5937, startLocation.longitude || 78.9629]} 
                         zoom={startLocation.latitude !== 0 ? 14 : 5}
@@ -1268,7 +1439,15 @@ if (loading)
                   {/* End Location Map & Address */}
                   <div>
                     <label className="block mb-2 font-medium">End Location (Click Map to Pin)</label>
-                    <div className={`${isEndMapFullscreen ? "fixed inset-0 z-[3000]" : "h-80"} relative border rounded-lg mb-4`}>
+                    <div className="h-80 relative border rounded-lg mb-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsEndMapFullscreen(!isEndMapFullscreen)}
+                        className="absolute bottom-2 right-2 z-[4001] bg-white dark:bg-gray-800 rounded-full shadow-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+                        title={isEndMapFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                      >
+                        {isEndMapFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+                      </button>
                       <MapContainer
                         center={[endLocation.latitude || 20.5937, endLocation.longitude || 78.9629]}
                         zoom={endLocation.latitude !== 0 ? 14 : 5}
@@ -1311,7 +1490,15 @@ if (loading)
                   {/* Route Stops */}
                   <div className="relative mt-4">
                     <label className="block mb-2 font-medium">Add Route Stops (Click Map)</label>
-                    <div className={`${isFullscreen ? "fixed inset-0 z-[3000]" : "h-[400px]"} relative border rounded-lg`}>
+                    <div className="h-[400px] relative border rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        className="absolute bottom-2 right-2 z-[4001] bg-white dark:bg-gray-800 rounded-full shadow-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+                        title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                      >
+                        {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+                      </button>
                       <MapContainer
                         center={[startLocation.latitude || 20.5937, startLocation.longitude || 78.9629]} 
                         zoom={startLocation.latitude !== 0 ? 12 : 5} 
@@ -1359,10 +1546,10 @@ if (loading)
                         ))}
 
                         {startLocation.latitude !== 0 && endLocation.latitude !== 0 && (
-                          <OpenStreetRoute
+                          <StreetRoute
                             startLocation={startLocation}
                             endLocation={endLocation}
-                            stops={routePoints}
+                            stops={[...routePoints].sort((a, b) => a.sequence - b.sequence)}
                           />
                         )}
                         
@@ -1661,6 +1848,7 @@ if (loading)
         )}
       </div>
       </div>
+      )}
     </>
   );
 }

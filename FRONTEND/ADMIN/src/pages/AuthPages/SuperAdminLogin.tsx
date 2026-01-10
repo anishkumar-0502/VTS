@@ -6,8 +6,8 @@ export default function SuperAdminLogin() {
   return (
     <>
       <PageMeta
-        title="React.js SuperAdmin Login | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js SuperAdmin Login page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="SuperAdmin Login"
+        description="This is a SuperAdmin Login page "
       />
       <AuthLayout>
         <SignInForm />

@@ -342,6 +342,16 @@ const onDemandTripSchema = new mongoose.Schema(
       ref: 'ScheduledTrip',
       default: null
     },
+    trip_period: {
+      type: String,
+      enum: ['morning', 'afternoon', 'evening'],
+      default: null
+    },
+    trip_type: {
+      type: String,
+      enum: ['pickup', 'drop'],
+      default: null
+    },
     planned_date: {
       type: String,
       index: true,

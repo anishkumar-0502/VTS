@@ -186,6 +186,9 @@ class DriverController {
           scheduled_trip_id: 1,
           planned_date: 1,
           trip_period: 1,
+          trip_type: 1,
+          planned_start_time: 1,
+          planned_end_time: 1,
           total_passengers: 1,
           start_time: 1,
           end_time: 1,
@@ -298,6 +301,13 @@ class DriverController {
           selected_end_point: 1,
           passengers: 1,
           route_points: 1,
+          scheduled_trip_id: 1,
+          planned_date: 1,
+          trip_period: 1,
+          trip_type: 1,
+          planned_start_time: 1,
+          planned_end_time: 1,
+          total_passengers: 1,
           distance_traveled: 1,
           start_time: 1,
           end_time: 1,
@@ -499,7 +509,7 @@ class DriverController {
       const total = await OnDemandTrip.countDocuments(filter);
       let query = OnDemandTrip.find(filter)
         .lean()
-        .select('_id trip_id route_name passengers route_points scheduled_trip_id planned_date trip_period total_passengers start_time end_time status start_location end_location')
+        .select('_id trip_id route_name passengers route_points scheduled_trip_id planned_date trip_period trip_type planned_start_time planned_end_time total_passengers start_time end_time status start_location end_location')
         .sort({ start_time: 1 });
       
       if (isPaginated) {
