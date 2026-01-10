@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import Button from "../../components/ui/button/Button";
-import { LocateFixed } from "lucide-react";
+import { LocateFixed, Maximize, Minimize } from "lucide-react";
 import "leaflet/dist/leaflet.css";
  
 // ✅ Import Leaflet marker images
@@ -141,6 +141,7 @@ interface Device {
 
 export default function Vehicles() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [showForm, setShowForm] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
@@ -288,6 +289,57 @@ useEffect(() => {
   fetchEndUsers(true);
   fetchDevices(true);
 }, []);
+
+useEffect(() => {
+  const handleEsc = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      setIsFullScreen(false);
+    }
+  };
+  window.addEventListener("keydown", handleEsc);
+  return () => window.removeEventListener("keydown", handleEsc);
+}, []);
+
+useEffect(() => {
+  if (isFullScreen) {
+    document.body.style.overflow = "hidden";
+    
+    const header = document.querySelector('header') as HTMLElement | null;
+    const nav = document.querySelector('nav') as HTMLElement | null;
+    const sidebar = document.querySelector('[class*="sidebar"]') as HTMLElement | null;
+    const topNav = document.querySelector('[class*="navbar"]') as HTMLElement | null;
+    
+    if (header) header.style.display = "none";
+    if (nav) nav.style.display = "none";
+    if (sidebar) sidebar.style.display = "none";
+    if (topNav) topNav.style.display = "none";
+  } else {
+    document.body.style.overflow = "";
+    
+    const header = document.querySelector('header') as HTMLElement | null;
+    const nav = document.querySelector('nav') as HTMLElement | null;
+    const sidebar = document.querySelector('[class*="sidebar"]') as HTMLElement | null;
+    const topNav = document.querySelector('[class*="navbar"]') as HTMLElement | null;
+    
+    if (header) header.style.display = "";
+    if (nav) nav.style.display = "";
+    if (sidebar) sidebar.style.display = "";
+    if (topNav) topNav.style.display = "";
+  }
+  return () => {
+    document.body.style.overflow = "";
+    
+    const header = document.querySelector('header') as HTMLElement | null;
+    const nav = document.querySelector('nav') as HTMLElement | null;
+    const sidebar = document.querySelector('[class*="sidebar"]') as HTMLElement | null;
+    const topNav = document.querySelector('[class*="navbar"]') as HTMLElement | null;
+    
+    if (header) header.style.display = "";
+    if (nav) nav.style.display = "";
+    if (sidebar) sidebar.style.display = "";
+    if (topNav) topNav.style.display = "";
+  };
+}, [isFullScreen]);
 
 const fetchDrivers = async (reset = false) => {
   try {
@@ -2091,74 +2143,182 @@ if (loading)
     </div>
   )}
 
+  {/* Full Screen Map Portal */}
+  {isFullScreen && (
+    <div className="fixed inset-0 z-[9999] bg-white dark:bg-gray-900 w-screen h-screen">
+      <button
+        type="button"
+        onClick={() => setIsFullScreen(false)}
+        title="Exit Full Screen"
+        className="
+          absolute top-4 right-16 z-[10000]
+          w-11 h-11 rounded-full
+          bg-white dark:bg-gray-900
+          border border-indigo-300 dark:border-indigo-600
+          flex items-center justify-center
+          shadow-lg
+          hover:bg-gray-100 dark:hover:bg-gray-800
+        "
+      >
+        <Minimize className="w-5 h-5 text-indigo-600" />
+      </button>
+
+      <button
+        type="button"
+        onClick={handleLocateMe}
+        title="Locate me"
+        className="
+          absolute top-4 right-4 z-[10000]
+          w-11 h-11 rounded-full
+          bg-white dark:bg-gray-900
+          border border-indigo-300 dark:border-indigo-600
+          flex items-center justify-center
+          shadow-lg
+          hover:bg-gray-100 dark:hover:bg-gray-800
+          before:absolute before:inset-0 before:rounded-full
+          before:animate-ping before:bg-indigo-400/30
+        "
+      >
+        <LocateFixed className="w-5 h-5 text-indigo-600 relative" />
+      </button>
+
+      <div
+        className="absolute bottom-3 left-3 z-[10000]
+        bg-white/90 dark:bg-gray-800/90
+        backdrop-blur
+        px-3 py-2 rounded-lg text-xs shadow"
+      >
+        <div className="font-medium text-gray-800 dark:text-gray-100">
+          How to set standing location
+        </div>
+        <div className="text-gray-600 dark:text-gray-300 mt-1">
+          1️⃣ Click 📍 to locate<br />
+          2️⃣ Click map to set location
+        </div>
+      </div>
+
+      <MapContainer
+        center={currentLocation || [12.9716, 77.5946]}
+        zoom={7}
+        className="h-full w-full"
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <FlyToLocation location={currentLocation} />
+        <StandingMapHandler />
+        {standingLocation && (
+          <Marker
+            position={[
+              standingLocation.latitude,
+              standingLocation.longitude,
+            ]}
+            icon={standingIcon}
+          >
+            <Popup>
+              <div style={{ fontSize: "13px" }}>
+                <b>{standingLocation.name}</b>
+                <br />
+                {standingLocation.latitude.toFixed(4)},{" "}
+                {standingLocation.longitude.toFixed(4)}
+              </div>
+            </Popup>
+          </Marker>
+        )}
+        {currentLocation && (
+          <Marker position={currentLocation} icon={standingIcon}>
+            <Popup>
+              <strong>Standing Location</strong>
+              <br />
+              {currentLocation[0].toFixed(4)}, {currentLocation[1].toFixed(4)}
+            </Popup>
+          </Marker>
+        )}
+      </MapContainer>
+    </div>
+  )}
+
   {/* ---------------- STEP 3 : STANDING LOCATION ---------------- */}
-  {formStep === 3 && (
+  {formStep === 3 && !isFullScreen && (
     <div className="space-y-4 animate-in fade-in">
 
-      <div className="relative h-[400px] border rounded-xl overflow-hidden">
+      <div className="relative h-[400px] rounded-xl border overflow-hidden">
 
-       <button
-  type="button"
-  onClick={handleLocateMe}
-  title="Locate me"
-  className="
-    absolute top-4 right-4 z-[999]
-    w-11 h-11 rounded-full
-    bg-white dark:bg-gray-900
-    border border-indigo-300 dark:border-indigo-600
-    flex items-center justify-center
-    shadow-lg
-    before:absolute before:inset-0 before:rounded-full
-    before:animate-ping before:bg-indigo-400/30
-  "
->
-  <LocateFixed className="w-5 h-5 text-indigo-600 relative" />
-</button>
+      <button
+        type="button"
+        onClick={() => setIsFullScreen(true)}
+        title="Full Screen"
+        className="
+          absolute top-4 right-16 z-[999]
+          w-11 h-11 rounded-full
+          bg-white dark:bg-gray-900
+          border border-indigo-300 dark:border-indigo-600
+          flex items-center justify-center
+          shadow-lg
+          hover:bg-gray-100 dark:hover:bg-gray-800
+        "
+      >
+        <Maximize className="w-5 h-5 text-indigo-600" />
+      </button>
 
+      <button
+        type="button"
+        onClick={handleLocateMe}
+        title="Locate me"
+        className="
+          absolute top-4 right-4 z-[999]
+          w-11 h-11 rounded-full
+          bg-white dark:bg-gray-900
+          border border-indigo-300 dark:border-indigo-600
+          flex items-center justify-center
+          shadow-lg
+          hover:bg-gray-100 dark:hover:bg-gray-800
+          before:absolute before:inset-0 before:rounded-full
+          before:animate-ping before:bg-indigo-400/30
+        "
+      >
+        <LocateFixed className="w-5 h-5 text-indigo-600 relative" />
+      </button>
 
-          <div
-    className="absolute bottom-3 left-3 z-[999]
-    bg-white/90 dark:bg-gray-800/90
-    backdrop-blur
-    px-3 py-2 rounded-lg text-xs shadow"
-  >
-    <div className="font-medium text-gray-800 dark:text-gray-100">
-      How to set standing location
-    </div>
-    <div className="text-gray-600 dark:text-gray-300 mt-1">
-      1️⃣ Click 📍 to locate<br />
-      2️⃣ Click map to set location
-    </div>
-  </div>
+      <div
+        className="absolute bottom-3 left-3 z-[999]
+        bg-white/90 dark:bg-gray-800/90
+        backdrop-blur
+        px-3 py-2 rounded-lg text-xs shadow"
+      >
+        <div className="font-medium text-gray-800 dark:text-gray-100">
+          How to set standing location
+        </div>
+        <div className="text-gray-600 dark:text-gray-300 mt-1">
+          1️⃣ Click 📍 to locate<br />
+          2️⃣ Click map to set location
+        </div>
+      </div>
 
         <MapContainer
           center={currentLocation || [12.9716, 77.5946]}
           zoom={7}
           className="h-full w-full"
         >
-          
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <FlyToLocation location={currentLocation} />
-            <StandingMapHandler />
-            {standingLocation && (
-  <Marker
-    position={[
-      standingLocation.latitude,
-      standingLocation.longitude,
-    ]}
-    icon={standingIcon}
-  >
-    <Popup>
-      <div style={{ fontSize: "13px" }}>
-        <b>{standingLocation.name}</b>
-        <br />
-        {standingLocation.latitude.toFixed(4)},{" "}
-        {standingLocation.longitude.toFixed(4)}
-      </div>
-    </Popup>
-  </Marker>
-)}
-
+          <StandingMapHandler />
+          {standingLocation && (
+            <Marker
+              position={[
+                standingLocation.latitude,
+                standingLocation.longitude,
+              ]}
+              icon={standingIcon}
+            >
+              <Popup>
+                <div style={{ fontSize: "13px" }}>
+                  <b>{standingLocation.name}</b>
+                  <br />
+                  {standingLocation.latitude.toFixed(4)},{" "}
+                  {standingLocation.longitude.toFixed(4)}
+                </div>
+              </Popup>
+            </Marker>
+          )}
           {currentLocation && (
             <Marker position={currentLocation} icon={standingIcon}>
               <Popup>
@@ -2212,12 +2372,8 @@ if (loading)
     {editingVehicle ? "Update Vehicle" : "Create Vehicle"}
   </Button>
 )}
-
 </div>
-
-
 </form>
-
   </div>
 )}
 

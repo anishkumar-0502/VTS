@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
+import { Maximize, Minimize } from "lucide-react";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import OpenStreetMapLiveTracking from "../../components/OpenStreetMapLiveTracking";
@@ -63,6 +65,7 @@ export default function LiveTracking() {
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<ConnectionState>("connecting");
   const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   const vehicleMapRef = useRef<Map<string, VehicleLive>>(new Map());
   const hasDataRef = useRef(false);
@@ -530,12 +533,28 @@ export default function LiveTracking() {
             Waiting for live tracking updates...
           </div>
         )}
-       <div className="h-[60vh] rounded-lg overflow-hidden">
+<div
+  className={`${
+    isFullScreen
+      ? "fixed inset-0 z-[1000000] bg-white w-screen h-screen overflow-hidden flex flex-col"
+      : "relative h-[100vh] rounded-lg overflow-hidden flex flex-col"
+  }`}
+>
+        <button
+          onClick={() => setIsFullScreen(!isFullScreen)}
+          className="absolute top-4 right-4 z-[1000001] p-2 bg-white rounded-md shadow-md hover:bg-gray-100 transition-colors text-gray-700"
+          title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+        >
+          {isFullScreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+        </button>
+        <div className="flex-1 w-full h-full">
         <OpenStreetMapLiveTracking
           vehicles={filteredVehicles}
           selectedVehicleId={selectedVehicleId ?? undefined}
           onVehicleSelect={handleVehicleSelect}
+          height="100%"
         />
+        </div>
         </div>
         <DebugPanel />
       </div>

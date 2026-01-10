@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+  import { ReactNode } from "react";
 
 interface ButtonProps {
   children: ReactNode;
@@ -10,6 +10,9 @@ interface ButtonProps {
   disabled?: boolean;
   className?: string;
   type?: "button" | "submit" | "reset";
+  style?: React.CSSProperties;
+onMouseMove?: React.MouseEventHandler<HTMLButtonElement>;
+
 }
 
 const Button: React.FC<ButtonProps> = ({
