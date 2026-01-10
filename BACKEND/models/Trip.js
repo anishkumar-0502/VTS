@@ -27,6 +27,9 @@ const normalizeRoutePoints = (routePoints) => {
         typeof data.geofence_radius_meters === 'number' && Number.isFinite(data.geofence_radius_meters)
           ? data.geofence_radius_meters
           : 100;
+      data.landmark = typeof data.landmark === 'string' ? data.landmark : null;
+      data.approximate_reach_time = typeof data.approximate_reach_time === 'string' ? data.approximate_reach_time : null;
+      data.stop_status = typeof data.stop_status === 'string' ? data.stop_status : null;
       if (!data.status) {
         data.status = 'pending';
       }
