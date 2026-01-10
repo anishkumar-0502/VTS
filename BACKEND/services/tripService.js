@@ -70,7 +70,8 @@ const normalizeRoutePointsPayload = (routePoints) => {
   return routePoints
     .filter((point) => point)
     .map((point, index) => {
-      const normalized = { ...point };
+      const pointObj = point && typeof point.toObject === 'function' ? point.toObject() : point;
+      const normalized = { ...pointObj };
       normalized.stop_id = normalized.stop_id || generateRoutePointId();
       normalized.sequence =
         typeof normalized.sequence === 'number' && Number.isFinite(normalized.sequence)
@@ -282,7 +283,7 @@ class TripService {
     return Math.round((actual.getTime() - planned.getTime()) / 1000);
   }
 
-static buildRoutePointSummary(stop, index = 0, trip = null) {
+  static buildRoutePointSummary(stop, index = 0, trip = null) {
     if (!stop) {
       return null;
     }
@@ -1689,15 +1690,20 @@ static buildRoutePointSummary(stop, index = 0, trip = null) {
         operator_id: operator_id,
         route_name: scheduledTrip.route_name,
         start_location: scheduledTrip.start_location,
+        end_location: scheduledTrip.end_location,
         start_time: new Date(),
         trip_period: scheduledTrip.trip_period,
         scheduled_trip_id: scheduledTrip.scheduled_trip_id,
-        status: 'en_route'
+        planned_date: todayKey,
+        status: 'en_route',
+        passengers: await buildPassengerManifest(vehicle.vehicle_id)
       };
 
       if (normalizedRoutePoints.length) {
         tripPayload.route_points = normalizedRoutePoints;
       }
+      
+      tripPayload.total_passengers = tripPayload.passengers.length;
 
       const trip = new OnDemandTrip(tripPayload);
       await trip.save();
