@@ -87,8 +87,8 @@ const SegmentedRoute: React.FC<SegmentedRouteProps> = ({
       const from = allPoints[i];
       const to = allPoints[i + 1];
       segments.push({
-        from: from.address || `Point ${i}`,
-        to: to.address || (to.name ? `Stop: ${to.name}` : `Point ${i + 1}`),
+        from: ("address" in from ? from.address : from.name) || `Point ${i}`,
+        to: ("address" in to ? to.address : to.name) || `Point ${i + 1}`,
         coordinates: [
           [from.longitude, from.latitude],
           [to.longitude, to.latitude],

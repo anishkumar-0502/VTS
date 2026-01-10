@@ -78,8 +78,8 @@ const StreetRoute: React.FC<StreetRouteProps> = ({
         const to = allPoints[i + 1];
         const color = colors[i % colors.length];
 
-        const fromName = from.address || ("name" in from ? from.name : "Start");
-        const toName = to.address || ("name" in to ? to.name : "End");
+        const fromName = ("address" in from ? from.address : from.name) || "Start";
+        const toName = ("address" in to ? to.address : to.name) || "End";
         
         console.log(`Routing segment ${i + 1}/${allPoints.length - 1}: ${fromName} → ${toName}`);
 
