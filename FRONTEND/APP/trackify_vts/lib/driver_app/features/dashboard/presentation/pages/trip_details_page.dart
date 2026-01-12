@@ -681,36 +681,4 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
       ),
     );
   }
-
-  String _formatDate(Object? date) {
-    if (date == null) return 'N/A';
-    DateTime? parsed;
-    if (date is DateTime) {
-      parsed = date;
-    } else if (date is String && date.isNotEmpty) {
-      parsed = DateTime.tryParse(date);
-    }
-    if (parsed == null) return 'N/A';
-    return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
-  }
-
-  Widget _buildStatusBadge(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.25),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.5), width: 1.5),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
 }

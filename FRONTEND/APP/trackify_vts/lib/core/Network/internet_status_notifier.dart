@@ -7,16 +7,20 @@ class InternetStatusNotifier {
   }
 
   static final InternetStatusNotifier instance = InternetStatusNotifier._();
+
   final ValueNotifier<bool> isOnline = ValueNotifier(true);
 
   void _init() {
-    Connectivity().onConnectivityChanged.listen((result) {
-      final connected = result != ConnectivityResult.none;
+    Connectivity().onConnectivityChanged.listen((results) {
+      final connected = results.isNotEmpty &&
+          !results.contains(ConnectivityResult.none);
       isOnline.value = connected;
     });
 
-    Connectivity().checkConnectivity().then((result) {
-      isOnline.value = result != ConnectivityResult.none;
+    Connectivity().checkConnectivity().then((results) {
+      final connected = results.isNotEmpty &&
+          !results.contains(ConnectivityResult.none);
+      isOnline.value = connected;
     });
   }
 }

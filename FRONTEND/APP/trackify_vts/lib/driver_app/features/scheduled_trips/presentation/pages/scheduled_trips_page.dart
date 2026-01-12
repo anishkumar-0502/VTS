@@ -6,7 +6,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/controllers/scheduled_trips_controller.dart';
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/scheduled_trip_model.dart';
 import 'package:trackify_vts/utilities/widgets/status_banner.dart';
-import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/pages/trip_details_page.dart';
 import 'package:trackify_vts/driver_app/features/dashboard/presentation/controllers/driver_dashboard_controller.dart';
 import 'package:trackify_vts/driver_app/features/dashboard/presentation/pages/live_tracking_map_page.dart';
 import 'package:panara_dialogs/panara_dialogs.dart';
@@ -1007,6 +1006,12 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                                           label: 'Trip Period',
                                           value: trip.tripPeriod,
                                         ),
+                                        _InfoRowData(
+                                          icon: Icons.flag,
+                                          label: 'Status',
+                                          value: trip.status,
+                                          isStatus: true,
+                                        ),
 
                                       ], primaryColor),
                                       if (trip.vehicleId != null) ...[
@@ -1460,17 +1465,6 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     );
   }
 
-  void _navigateToTripDetailsPage(ScheduledTrip trip, Color primaryColor) {
-    Get.to(
-      () => ScheduledTripDetailsPage(
-        trip: trip,
-        primaryColor: primaryColor,
-        controller: controller,
-      ),
-      transition: Transition.rightToLeft,
-    );
-  }
-
   Widget _buildStartTripButton({
     required BuildContext context,
     required ScheduledTrip trip,
@@ -1597,276 +1591,6 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     });
   }
 
-  Marker _buildMapMarker({
-    required BuildContext context,
-    required String label,
-    required Color color,
-    required LatLng position,
-    required VoidCallback onTap,
-    bool isStop = false,
-  }) {
-    return Marker(
-      point: position,
-      width: 80,
-      height: 80,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color:
-                      color.computeLuminance() > 0.5
-                          ? Colors.black
-                          : Colors.white,
-                  fontSize: isStop ? 9 : 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Container(
-              padding: EdgeInsets.all(isStop ? 0 : 6),
-              width: isStop ? 40 : null,
-              height: isStop ? 40 : null,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              child:
-                  isStop
-                      ? Center(
-                        child: Text(
-                          // Extract the last segment to display stop index
-                          label.split(' ').last,
-                          style: TextStyle(
-                            color:
-                                color.computeLuminance() > 0.5
-                                    ? Colors.black
-                                    : Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      )
-                      : Icon(
-                        Icons.location_on,
-                        color:
-                            color.computeLuminance() > 0.5
-                                ? Colors.black
-                                : Colors.white,
-                        size: 18,
-                      ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _MapMarkerBadge(
-    BuildContext context,
-    ScheduledTrip trip,
-    Color primaryColor,
-  ) {
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildMapSection(ScheduledTrip trip, Color primaryColor) {
-    final routePoints = trip.routePoints;
-    final polylinePoints = <LatLng>[
-      LatLng(trip.startLocation!.latitude, trip.startLocation!.longitude),
-      ...routePoints.map<LatLng>(
-        (point) => LatLng(point.latitude, point.longitude),
-      ),
-      LatLng(trip.endLocation!.latitude, trip.endLocation!.longitude),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Route Overview',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SizedBox(
-            height: 300,
-            child: Stack(
-              children: [
-                FlutterMap(
-                  options: MapOptions(
-                    interactionOptions: const InteractionOptions(
-                      enableMultiFingerGestureRace: true,
-                    ),
-                    onTap: (_, __) => FocusScope.of(context).unfocus(),
-                    initialCenter: LatLng(
-                      trip.startLocation!.latitude,
-                      trip.startLocation!.longitude,
-                    ),
-                    initialZoom: 12,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c'],
-                      userAgentPackageName: 'com.trackify.driver',
-                    ),
-                    PolylineLayer(
-                      polylines: [
-                        Polyline(
-                          points: polylinePoints,
-                          color: primaryColor.withOpacity(0.7),
-                          strokeWidth: 4,
-                        ),
-                      ],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        // Start location marker
-                        _buildMapMarker(
-                          context: context,
-                          label: 'START',
-                          color: primaryColor,
-                          position: LatLng(
-                            trip.startLocation!.latitude,
-                            trip.startLocation!.longitude,
-                          ),
-                          onTap: () {
-                            _showMarkerDetails(
-                              context,
-                              'Start',
-                              trip.startLocation!.address,
-                            );
-                          },
-                        ),
-                        // End location marker
-                        _buildMapMarker(
-                          context: context,
-                          label: 'END',
-                          color: primaryColor,
-                          position: LatLng(
-                            trip.endLocation!.latitude,
-                            trip.endLocation!.longitude,
-                          ),
-                          onTap: () {
-                            _showMarkerDetails(
-                              context,
-                              'End',
-                              trip.endLocation!.address,
-                            );
-                          },
-                        ),
-                        // Route stops markers
-                        ...trip.routePoints.asMap().entries.map(
-                          (entry) => _buildMapMarker(
-                            context: context,
-                            label: 'STOP ${entry.key + 1}',
-                            color: primaryColor,
-                            position: LatLng(
-                              entry.value.latitude,
-                              entry.value.longitude,
-                            ),
-                            onTap: () {
-                              _showMarkerDetails(
-                                context,
-                                'Stop ${entry.key + 1}',
-                                entry.value.name,
-                              );
-                            },
-                            isStop: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Positioned(
-                  bottom: 16,
-                  right: 16,
-                  child: GestureDetector(
-                    onTap:
-                        () => _openFullScreenMap(context, trip, primaryColor),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Image.asset(
-                          'assets/icons/zoom-in.png',
-                          width: 22,
-                          height: 22,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTripDetailsSection(ScheduledTrip trip, Color primaryColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Trip Details',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        _buildDetailRow('Start Location', trip.startLocation?.address ?? 'N/A'),
-        _buildDetailRow('End Location', trip.endLocation?.address ?? 'N/A'),
-        _buildDetailRow('Start Time', trip.scheduledStartTime),
-        _buildDetailRow('Trip Period', trip.tripPeriod),
-        _buildDetailRow('Status', trip.status, isStatus: true),
-      ],
-    );
-  }
-
-  Widget _buildVehicleDetailsSection(ScheduledTrip trip, Color primaryColor) {
-    if (trip.vehicleId == null) {
-      return const SizedBox.shrink();
-    }
-
-    final vehicle = trip.vehicleId!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Vehicle Information',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        _buildDetailRow('Vehicle Number', vehicle.vehicleNumber),
-        _buildDetailRow('Vehicle Type', vehicle.vehicleType),
-        _buildDetailRow('Color', vehicle.color),
-        _buildDetailRow('Registration', vehicle.registrationNumber),
-        _buildDetailRow('Seating Capacity', '${vehicle.seatingCapacity} seats'),
-      ],
-    );
-  }
-
   Widget _buildRouteStopsSection(
       ScheduledTrip trip,
       Color primaryColor,
@@ -1986,27 +1710,6 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isStatus = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          isStatus
-              ? _buildStatusBadge(value)
-              : Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-        ],
-      ),
-    );
-  }
-
   void _openMapForLocation(double latitude, double longitude, String name) {
     // You can use url_launcher to open Google Maps or integrate with Google Maps SDK
     Get.snackbar(
@@ -2014,14 +1717,6 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
       '$name\nLat: ${latitude.toStringAsFixed(4)}, Lng: ${longitude.toStringAsFixed(4)}',
       duration: const Duration(seconds: 3),
     );
-  }
-
-  void _openFullScreenMap(
-    BuildContext context,
-    ScheduledTrip trip,
-    Color primaryColor,
-  ) {
-    _navigateToTripDetailsPage(trip, primaryColor);
   }
 
   void _showMarkerDetails(BuildContext context, String title, String address) {
@@ -2442,74 +2137,6 @@ extension on _ScheduledTripsPageState {
               ],
             );
           }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRouteStopsSection(ScheduledTrip trip) {
-    if (trip.routePoints.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Route Stops',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          ...trip.routePoints.map(
-            (stop) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${stop.order}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      stop.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );

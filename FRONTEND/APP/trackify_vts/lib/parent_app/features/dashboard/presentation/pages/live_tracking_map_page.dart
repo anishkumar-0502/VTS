@@ -3,9 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../../../../core/core.dart';
-import '../../../../Sessionhandler/session_controller.dart';
 import '../../../profile/domain/models/parent_profile_model.dart';
 
 class LiveTrackingMapPage extends StatefulWidget {

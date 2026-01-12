@@ -7,19 +7,7 @@ import 'personal_details_page.dart';
 import 'associated_operators_page.dart';
 import 'assigned_vehicle_page.dart';
 import 'driver_profile_details_page.dart';
-import 'dart:convert';
 import '../../../../../utilities/widgets/status_banner.dart';
-
-String _formatDateTime(DateTime date) {
-  final day = date.day.toString().padLeft(2, '0');
-  final month = date.month.toString().padLeft(2, '0');
-  final year = date.year.toString();
-  final hour =
-      date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
-  final minute = date.minute.toString().padLeft(2, '0');
-  final period = date.hour >= 12 ? 'PM' : 'AM';
-  return '$day-$month-$year $hour:$minute $period';
-}
 
 String _getInitials(String name) {
   final parts = name.trim().split(' ');
@@ -120,13 +108,13 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                     text: data.phoneNumber.toString(),
                   );
 
-                  String? imageBase64;
+                  String imageBase64 = '';
                   bool hasChanged = false;
 
                   bool _hasAnyChange() {
                     return nameController.text.trim() != data.name ||
                         phoneController.text != data.phoneNumber.toString() ||
-                        imageBase64 != null;
+                        imageBase64.isNotEmpty;
                   }
 
                   showModalBottomSheet(
@@ -159,48 +147,6 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  // GestureDetector(
-                                  //   onTap: () async {
-                                  //     try {
-                                  //       final picked = await ImagePicker()
-                                  //           .pickImage(
-                                  //             source: ImageSource.gallery,
-                                  //           );
-                                  //       if (picked != null) {
-                                  //         final bytes =
-                                  //             await picked.readAsBytes();
-                                  //         imageBase64 = base64Encode(bytes);
-                                  //         setState(
-                                  //           () => hasChanged = _hasAnyChange(),
-                                  //         );
-                                  //       }
-                                  //     } catch (e) {
-                                  //       showStatusBanner(
-                                  //         'Failed to pick image',
-                                  //         Colors.redAccent,
-                                  //         Icons.error_outline,
-                                  //       );
-                                  //     }
-                                  //   },
-                                  //   child: CircleAvatar(
-                                  //     radius: 40,
-                                  //     backgroundColor: Colors.grey[300],
-                                  //     backgroundImage:
-                                  //         imageBase64 != null
-                                  //             ? MemoryImage(
-                                  //               base64Decode(imageBase64!),
-                                  //             )
-                                  //             : null,
-                                  //     child:
-                                  //         imageBase64 == null
-                                  //             ? const Icon(
-                                  //               Icons.camera_alt,
-                                  //               color: Colors.black54,
-                                  //             )
-                                  //             : null,
-                                  //   ),
-                                  // ),
-                                  // const SizedBox(height: 12),
                                   TextField(
                                     controller: nameController,
                                     onChanged:

@@ -590,29 +590,38 @@ class DriverHomeMapPage extends StatelessWidget {
 
                                   // Stop name and Landmark
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                    child: Row(
                                       children: [
-                                        Text(
-                                          stop.name,
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 14 * scale,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        if (stop.landmark != null && stop.landmark!.isNotEmpty)
-                                          Padding(
-                                            padding: EdgeInsets.only(top: 2 * scale),
-                                            child: Text(
-                                              stop.landmark!,
+
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              stop.name,
                                               style: GoogleFonts.poppins(
-                                                fontSize: 12 * scale,
-                                                color: Colors.grey[600],
+                                                fontSize: 14 * scale,
+                                                fontWeight: FontWeight.w500,
                                               ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
+
                                             ),
-                                          ),
+                                            // Text(
+                                            //   stop.landmark ?? '',                                              style: GoogleFonts.poppins(
+                                            //     fontSize: 14 * scale,
+                                            //     fontWeight: FontWeight.w500,
+                                            //   ),
+                                            //
+                                            // ),
+
+                                          ],
+                                        ),
+                                        // Text(
+                                        //  stop.approximateReachTime ?? '--',
+                                        //   style: GoogleFonts.poppins(
+                                        //     fontSize: 14 * scale,
+                                        //     fontWeight: FontWeight.w500,
+                                        //   ),
+                                        //
+                                        // ),
                                       ],
                                     ),
                                   ),

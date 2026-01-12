@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:trackify_vts/core/Network/InternetStatusNotifier.dart';
 
 import '../../../profile/presentation/pages/driver_profile_page.dart';
 import '../controllers/driver_dashboard_controller.dart';
@@ -446,49 +445,4 @@ class _DriverHomePageState extends State<DriverHomePage> {
       ),
     );
   }
-
-  void _showLanguageDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Select Language'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('English'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Implement language change logic
-                },
-              ),
-              ListTile(
-                title: const Text('Spanish'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Implement language change logic
-                },
-              ),
-              ListTile(
-                title: const Text('French'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Implement language change logic
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-
 }

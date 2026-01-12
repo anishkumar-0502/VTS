@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'dart:async';
-import 'dart:math';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,21 +10,10 @@ import '../../features/dashboard/presentation/pages/parent_home_page.dart';
 import '../../features/live-tracking/domain/models/live_tracking_model.dart';
 
 class ParentHomePageContent extends GetView<ParentHomeController> {
-  ParentHomePageContent({super.key});
+  const ParentHomePageContent({super.key});
 
   @override
   String? get tag => 'home';
-
-  final RxBool showRouteBanner = false.obs;
-  Timer? _bannerTimer;
-
-  void _showRouteBannerTemporarily() {
-    _bannerTimer?.cancel();
-    showRouteBanner.value = true;
-    _bannerTimer = Timer(const Duration(seconds: 5), () {
-      showRouteBanner.value = false;
-    });
-  }
 
   void _showAssignedVehicleInfoPopup(BuildContext context, Color primaryColor) {
     final vehicleLocation = controller.assignedVehicleId != null 
@@ -347,61 +333,107 @@ if (!await launchUrl(
           ),
         ),
         Positioned(
-          bottom: 65,
-          left: 0,
-          right: 0,
+          top: 0,
+          left: 12,
+          right: 12,
           child: Obx(() {
-            if (controller.tripMapData.value != null && showRouteBanner.value) {
+            if (controller.tripMapData.value != null && controller.showRouteBanner.value) {
               final tripData = controller.tripMapData.value!;
               final startTime = tripData.scheduledStartTime;
-              return AnimatedOpacity(
-                opacity: showRouteBanner.value ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              tripData.routeName,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+              return Container(
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.route, color: Color(0xFF2764FF), size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  tripData.routeName,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              overflow: TextOverflow.ellipsis,
+                              if (controller.isUpcomingTrip.value)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.orange,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Upcoming Trip',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.orange,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                  ),
+                                )
+                              else if (tripData.associatedTripId.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.green,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Active Trip',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.green,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Start Time: $startTime',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontFamily: 'Poppins',
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Start Time: $startTime',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white70,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               );
             }
@@ -414,7 +446,7 @@ if (!await launchUrl(
           child: Obx(() {
             if (controller.tripMapData.value != null) {
               return GestureDetector(
-                onTap: _showRouteBannerTemporarily,
+                onTap: controller.showRouteBannerTemporarily,
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -446,7 +478,6 @@ if (!await launchUrl(
   Widget _buildFullScreenMap(BuildContext context, ParentLiveTripData tripData, Color primaryColor) {
     return Obx(() {
       final currentLocation = controller.currentVehicleLocation.value;
-      final double scale = (controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
       
       return FlutterMap(
         options: MapOptions(

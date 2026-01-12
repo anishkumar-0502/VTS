@@ -1,7 +1,5 @@
-
 import 'dart:convert';
 import 'package:trackify_vts/driver_app/features/dashboard/domain/models/dashboard_model.dart';
-import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/scheduled_trip_model.dart' as scheduled_models;
 
 void main() {
   final jsonStr = '''

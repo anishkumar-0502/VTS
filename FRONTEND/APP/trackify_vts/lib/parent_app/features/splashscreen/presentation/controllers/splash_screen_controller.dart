@@ -1,9 +1,7 @@
 import "package:flutter/foundation.dart";
 import 'package:get/get.dart';
-
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../auth/presentation/pages/login_page.dart';
-import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
 import '../../../dashboard/presentation/pages/parent_home_page.dart';
 import '../../../dashboard/presentation/bindings/parent_home_binding.dart';
 

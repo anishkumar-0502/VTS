@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
-import '../core/Network/Internet_connectivity.dart';
+import '../core/Network/internet_connectivity.dart';
 import 'Sessionhandler/session_controller.dart';
 import 'features/splashscreen/presentation/pages/splash_screen_page.dart';
 import 'features/dashboard/presentation/bindings/parent_home_binding.dart';
@@ -29,7 +29,7 @@ class ParentApp extends StatelessWidget {
     final Color primaryColor = const Color(0xFF2764FF);
 
     return GetMaterialApp(
-      title: 'Trackify Parent',
+      title: 'Trackit Parent',
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
         return MediaQuery(

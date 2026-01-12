@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:panara_dialogs/panara_dialogs.dart';
-
 import '../../../../Sessionhandler/session_controller.dart';
 import 'package:trackify_vts/shared/widgets/modern_dialog.dart';
 import '../../../auth/presentation/pages/login_page.dart';
@@ -184,7 +182,7 @@ class ParentProfileController extends GetxController {
         );
       } else if (response.data != null) {
         try {
-          profileData.value = response.data as ParentProfileData?;
+          profileData.value = response.data;
           debugPrint('[ParentProfileController] ✅ Profile data set: ${profileData.value?.name}');
           
           final profile = response.data!;
@@ -238,8 +236,6 @@ class ParentProfileController extends GetxController {
   }
 
   Future<void> confirmLogout(BuildContext context) async {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
     showDialog(
       context: context,
       barrierDismissible: false,

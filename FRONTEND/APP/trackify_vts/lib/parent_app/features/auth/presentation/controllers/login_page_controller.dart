@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
 import '../../../dashboard/presentation/pages/parent_home_page.dart';
-import '../../domain/models/login_model.dart';
 import '../../domain/repositories/login_repository.dart';
 import '../../../profile/domain/repositories/parent_profile_repository.dart';
-import '../../data/api.dart';
 import '../../../../../utilities/exception/exception.dart' as exceptions;
 import '../../../../../utilities/widgets/status_banner.dart';
 
@@ -20,7 +17,6 @@ class ParentLoginPageController extends GetxController {
 
   final AuthRepository _authRepository = AuthRepository();
   final SessionController _sessionController = Get.find<SessionController>();
-  final AuthAPICalls _authAPICalls = AuthAPICalls();
 
   @override
   void onClose() {

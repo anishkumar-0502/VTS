@@ -194,16 +194,4 @@ class ParentProfileVehicleDetailsPage extends StatelessWidget {
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-        return Colors.green;
-      case 'inactive':
-        return Colors.red;
-      case 'maintenance':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
-  }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
@@ -35,7 +34,8 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
   final Rx<ParentLiveTripData?> tripMapData = Rxn<ParentLiveTripData>();
   final RxBool isFetchingTripMap = false.obs;
   final RxString tripMapError = ''.obs;
-  final Rx<LatLng?> currentVehicleLocation = Rxn<LatLng>();
+  final Rx<LatLng?> vehicleLocation = Rxn<LatLng>();
+  Rx<LatLng?> get currentVehicleLocation => vehicleLocation;
   final Rx<LatLng?> targetLocation = Rxn<LatLng>();
   final RxList<LatLng> routePolylinePoints = <LatLng>[].obs;
   
@@ -48,11 +48,11 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
   final RxMap<String, DateTime> vehicleTimestamps = <String, DateTime>{}.obs;
   final RxMap<String, String> vehicleNumbers = <String, String>{}.obs;
   final RxMap<String, double> vehicleHeadings = <String, double>{}.obs;
-  final Rx<double> currentVehicleHeading = 0.0.obs;
+  final Rx<double> vehicleHeading = 0.0.obs;
   String? assignedVehicleId;
   String? assignedVehicleNumber;
+  String? assignedDeviceId;
 
-  bool _isDisposed = false;
   bool _autoZoomDone = false;
   final RxBool isInitializationComplete = false.obs;
   final RxBool pageVisibilityTrigger = false.obs;
@@ -73,15 +73,43 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
   void onInit() {
     super.onInit();
     debugPrint('[ParentHome] onInit called');
+    
+    // Auto-fit when data arrives
+    ever(tripMapData, (data) {
+      if (data != null && !_autoZoomDone) {
+        Future.delayed(const Duration(milliseconds: 1000), () => fitMapToRoute());
+        // For upcoming trips, we consider route fitting as the main zoom
+        if (isUpcomingTrip.value) {
+          _autoZoomDone = true;
+        }
+      }
+    });
+
+    ever(vehicleLocation, (loc) {
+      if (loc != null && !isUpcomingTrip.value && shouldAutoZoomOnFirstLogin()) {
+        Future.delayed(const Duration(milliseconds: 1200), () => fitMapToVehicle());
+        markAutoZoomComplete();
+      }
+    });
+
     _initializeData();
-    _setupSocketConnection();
   }
 
   Future<void> _initializeData() async {
     try {
+      // Ensure session is initialized before proceeding
+      await sessionController.ensureInitialized();
+      
       await _fetchProfileAndGetVehicleId();
       await fetchCurrentTrip();
       await fetchTripMapData();
+
+      if (isUpcomingTrip.value) {
+        debugPrint('[ParentHome] Upcoming trip detected. Skipping socket connection.');
+      } else {
+        debugPrint('[ParentHome] Active trip detected. Connecting to socket.');
+        _setupSocketConnection();
+      }
     } catch (e) {
       debugPrint('[Home] Error during initialization: $e');
     } finally {
@@ -127,7 +155,7 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
         debugPrint('[Home] Current trip set: ${currentTrip.value?.tripId} (Upcoming: ${isUpcomingTrip.value})');
       } else {
         debugPrint('[Home] Error fetching trip: ${response.message}');
-        tripError.value = response.message ?? '';
+        tripError.value = response.message;
       }
     } on exceptions.HttpException catch (e) {
       debugPrint('[Home] HttpException: $e');
@@ -167,18 +195,33 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
         final trip = response.data!;
         if (trip.startLocation != null && trip.endLocation != null) {
           debugPrint('[Home] ✅ Using trip data directly from profile API');
+          
+          // Ensure we use the vehicle ID from the active trip for socket tracking
+          if (trip.vehicle.vehicleId.isNotEmpty) {
+            assignedVehicleId = trip.vehicle.vehicleId;
+            assignedVehicleNumber = trip.vehicle.vehicleNumber;
+            assignedDeviceId = trip.vehicle.assignedDeviceId;
+            if (assignedVehicleNumber != null && assignedVehicleNumber != 'N/A') {
+              vehicleNumbers[assignedVehicleId!] = assignedVehicleNumber!;
+            } else {
+              vehicleNumbers[assignedVehicleId!] = 'Vehicle';
+            }
+            vehicleNumbers.refresh();
+            debugPrint('[Home] 🚗 Active Trip Vehicle: $assignedVehicleId ($assignedVehicleNumber), Device: $assignedDeviceId');
+          }
+
           baseData = ParentLiveTripData(
             associatedTripId: trip.tripId,
             routeName: trip.routeName ?? 'Trip',
             status: trip.status,
-            scheduledStartTime: '',
+            scheduledStartTime: trip.scheduledStartTime ?? '',
             driverName: '',
             vehicleId: trip.vehicle.vehicleId,
             startLocation: LatLng(trip.startLocation!.latitude, trip.startLocation!.longitude),
             endLocation: LatLng(trip.endLocation!.latitude, trip.endLocation!.longitude),
-            startAddress: trip.startLocation!.address ?? 'Start',
-            endAddress: trip.endLocation!.address ?? 'End',
-            landmark: trip.routePoints.isNotEmpty ? (trip.routePoints.first.landmark ?? '') : '',
+            startAddress: trip.startLocation!.address,
+            endAddress: trip.endLocation!.address,
+            landmark: trip.routePoints.isNotEmpty ? (trip.routePoints.first.landmark) : '',
             tripType: trip.tripType,
             timeline: trip.routePoints.map((rp) => TripStop(
               id: rp.stopId,
@@ -186,7 +229,7 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
               location: LatLng(rp.latitude, rp.longitude),
               sequence: rp.sequence,
               address: rp.name,
-              landmark: rp.landmark ?? '',
+              landmark: rp.landmark,
               scheduledTime: rp.approximateReachTime ?? '',
               isCompleted: rp.status == 'completed',
             )).toList(),
@@ -264,10 +307,16 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
       debugPrint('[Home] ✅ Start: ${baseData.startLocation}');
       debugPrint('[Home] ✅ End: ${baseData.endLocation}');
       
-      tripMapData.value = baseData;
-      tripMapError.value = '';
+      // Update assigned vehicle if trip map data has one
+      if (baseData.vehicleId.isNotEmpty) {
+        assignedVehicleId = baseData.vehicleId;
+        debugPrint('[Home] 🚗 Tracking vehicle confirmed: $assignedVehicleId');
+      }
       
       await _generateRoutePolyline(baseData);
+      
+      tripMapData.value = baseData;
+      tripMapError.value = '';
       
       if (showLoading) isFetchingTripMap.value = false;
 
@@ -350,9 +399,15 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
         
         if (profile.vehicleDetails != null && assignedVehicleId != null) {
           assignedVehicleNumber = profile.vehicleDetails!.vehicleNumber;
-          vehicleNumbers[assignedVehicleId!] = assignedVehicleNumber!;
+          assignedDeviceId = profile.vehicleDetails!.assignedDeviceId;
+          
+          if (assignedVehicleNumber != null && assignedVehicleNumber != 'N/A') {
+            vehicleNumbers[assignedVehicleId!] = assignedVehicleNumber!;
+          } else {
+            vehicleNumbers[assignedVehicleId!] = 'Vehicle';
+          }
           vehicleNumbers.refresh();
-          debugPrint('[ParentHome] ✅ Assigned Vehicle Number: $assignedVehicleNumber');
+          debugPrint('[ParentHome] ✅ Assigned Vehicle Number: $assignedVehicleNumber, Device: $assignedDeviceId');
         }
       } else {
         debugPrint('[ParentHome] ❌ Error in profile response: ${response.message}');
@@ -363,9 +418,13 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
     }
   }
 
-  void _setupSocketConnection() {
-    debugPrint('[ParentHome] Setting up socket connection');
-    _socketIOService.initialize();
+  void _setupSocketConnection() async {
+    // Wait for session to be ready
+    await sessionController.ensureInitialized();
+    
+    final token = sessionController.token.value;
+    debugPrint('[ParentHome] Setting up socket connection (Token available: ${token.isNotEmpty})');
+    _socketIOService.initialize(authToken: token);
     
     _socketIOService.onFrameUpdate = (data) {
       if (data is Map) {
@@ -382,7 +441,8 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
 
   void _handleSocketData(Map data) {
     try {
-      final vehicleId = data['vehicleId'] ?? data['vehicle_id'] ?? data['id'];
+      final vehicleId = (data['vehicleId'] ?? data['vehicle_id'] ?? data['id'])?.toString();
+      final gpsDeviceId = data['gpsDeviceId']?.toString();
       final latitude = data['latitude'];
       final longitude = data['longitude'];
       final timestamp = data['timestamp'];
@@ -394,7 +454,11 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
         double lat = (latitude is int) ? latitude.toDouble() : (latitude is double ? latitude : double.tryParse(latitude.toString()) ?? 0.0);
         double lng = (longitude is int) ? longitude.toDouble() : (longitude is double ? longitude : double.tryParse(longitude.toString()) ?? 0.0);
 
-        if (lat == 0.0 && lng == 0.0) return;
+        if (lat == 0.0 && lng == 0.0) {
+          // Allow 0,0 for now to see if marker appears, but log it
+          debugPrint('[ParentHome] ⚠️ Received 0,0 coordinates for vehicle $vehicleId');
+          // return; // Uncommenting this to allow 0,0 for testing
+        }
 
         final location = LatLng(lat, lng);
         vehicleLocations[vehicleId] = location;
@@ -406,7 +470,12 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
         }
 
         if (vehicleNumber != null) {
-          vehicleNumbers[vehicleId] = vehicleNumber;
+          final vnStr = vehicleNumber.toString();
+          if (vnStr != 'N/A') {
+            vehicleNumbers[vehicleId] = vnStr;
+          } else if (!vehicleNumbers.containsKey(vehicleId)) {
+            vehicleNumbers[vehicleId] = 'Vehicle';
+          }
           vehicleNumbers.refresh();
         }
 
@@ -414,14 +483,32 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
         vehicleHeadings[vehicleId] = heading;
         vehicleHeadings.refresh();
 
-        if (vehicleId == assignedVehicleId) {
-          currentVehicleLocation.value = location;
-          currentVehicleHeading.value = heading;
-          debugPrint('[ParentHome] Updated currentVehicleLocation for $vehicleId: $location, Heading: $heading');
+        // Update connection status
+        isSocketConnected.value = _socketIOService.isConnected;
+
+        // Use a more robust comparison for IDs (match by vehicle ID OR device ID)
+        bool isMatch = false;
+        String? vidTrim = vehicleId.trim();
+        String? avidTrim = assignedVehicleId?.trim();
+        String? gdidTrim = gpsDeviceId?.trim();
+        String? adidTrim = assignedDeviceId?.trim();
+
+        if (avidTrim != null && vidTrim == avidTrim) {
+          isMatch = true;
+        } else if (adidTrim != null && gdidTrim != null && gdidTrim == adidTrim) {
+          isMatch = true;
+        }
+
+        if (isMatch) {
+          vehicleLocation.value = location;
+          vehicleHeading.value = heading;
+          debugPrint('[ParentHome] ✅ MATCHED VEHICLE: Updated vehicleLocation for $vidTrim: $location, Heading: $heading');
+        } else {
+          debugPrint('[ParentHome] ℹ️ No match for $vidTrim. (Assigned VID: $avidTrim, Frame GID: $gdidTrim, Assigned GID: $adidTrim)');
         }
       }
     } catch (e) {
-      debugPrint('[ParentHome] Error handling socket data: $e');
+      debugPrint('[ParentHome] ❌ Error handling socket data: $e');
     }
   }
 
@@ -454,18 +541,57 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
   void zoomIn() {
     final currentZoom = mapController.camera.zoom;
     // Zoom towards vehicle location if available, otherwise current center
-    final target = currentVehicleLocation.value ?? mapController.camera.center;
-    _animatedMapMove(target, currentZoom + 1);
+    final target = vehicleLocation.value ?? mapController.camera.center;
+    animatedMapMove(target, currentZoom + 1);
   }
 
   void zoomOut() {
     final currentZoom = mapController.camera.zoom;
     // Zoom out from vehicle location if available, otherwise current center
-    final target = currentVehicleLocation.value ?? mapController.camera.center;
-    _animatedMapMove(target, currentZoom - 1);
+    final target = vehicleLocation.value ?? mapController.camera.center;
+    animatedMapMove(target, currentZoom - 1);
   }
 
-  void _animatedMapMove(LatLng destLocation, double destZoom) {
+  void focusOnVehicle() {
+    fitMapToVehicle();
+  }
+
+  void fitMapToRoute() {
+    if (routePolylinePoints.isEmpty && tripMapData.value == null) return;
+
+    final List<LatLng> points = routePolylinePoints.isNotEmpty
+        ? routePolylinePoints
+        : [
+            tripMapData.value!.startLocation,
+            ...tripMapData.value!.timeline.map((s) => s.location),
+            tripMapData.value!.endLocation,
+          ];
+
+    if (points.isEmpty) return;
+
+    final bounds = LatLngBounds.fromPoints(points);
+    mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.all(50.0),
+      ),
+    );
+  }
+
+  void fitMapToVehicle() {
+    final location = vehicleLocation.value ??
+        (assignedVehicleId != null ? vehicleLocations[assignedVehicleId] : null);
+
+    if (location != null) {
+      animatedMapMove(location, 16.0);
+    } else {
+      debugPrint('[ParentHome] Vehicle location not available for fitting');
+      // If no vehicle location, fit to route as fallback
+      fitMapToRoute();
+    }
+  }
+
+  void animatedMapMove(LatLng destLocation, double destZoom) {
     final latTween = Tween<double>(
         begin: mapController.camera.center.latitude, end: destLocation.latitude);
     final lngTween = Tween<double>(
@@ -498,9 +624,14 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
 
   @override
   void onClose() {
-    _isDisposed = true;
     _bannerTimer?.cancel();
     mapController.dispose();
     super.onClose();
+  }
+
+  void reconnectSocket() {
+    final token = sessionController.token.value;
+    debugPrint('[ParentHome] Manual socket reconnection requested');
+    _socketIOService.reconnect(authToken: token);
   }
 }

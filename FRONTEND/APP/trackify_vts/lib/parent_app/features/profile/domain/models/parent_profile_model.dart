@@ -71,26 +71,26 @@ class ParentProfileData {
 
   factory ParentProfileData.fromJson(Map<String, dynamic> json) {
     return ParentProfileData(
-      name: json['name'] != null ? (json['name'] as dynamic?)?.toString() ?? '' : '',
-      email: json['email'] != null ? (json['email'] as dynamic?)?.toString() ?? '' : '',
+      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
+      email: json['email'] != null ? (json['email'] as dynamic)?.toString() ?? '' : '',
       phoneNumber: json['phone_number'] != null
           ? int.tryParse(json['phone_number'].toString()) ?? 0
           : 0,
       roleId: (json['role_id'] as num?)?.toInt() ?? 0,
       status: json['status'] as bool? ?? false,
-      operatorId: json['operator_id'] != null ? (json['operator_id'] as dynamic?)?.toString() ?? '' : '',
-      assignedVehicleId: json['assigned_vehicle_id'] != null ? (json['assigned_vehicle_id'] as dynamic?)?.toString() : null,
-      endUserId: json['end_user_id'] != null ? (json['end_user_id'] as dynamic?)?.toString() ?? '' : '',
+      operatorId: json['operator_id'] != null ? (json['operator_id'] as dynamic)?.toString() ?? '' : '',
+      assignedVehicleId: json['assigned_vehicle_id'] != null ? (json['assigned_vehicle_id'] as dynamic)?.toString() : null,
+      endUserId: json['end_user_id'] != null ? (json['end_user_id'] as dynamic)?.toString() ?? '' : '',
       fcmTokens:
           json['fcm_tokens'] != null
               ? List<String>.from(json['fcm_tokens'])
               : const [],
-      userId: json['user_id'] != null ? (json['user_id'] as dynamic?)?.toString() ?? '' : '',
+      userId: json['user_id'] != null ? (json['user_id'] as dynamic)?.toString() ?? '' : '',
       sosContact:
           json['sos_contact'] != null
               ? SOSContact.fromJson(json['sos_contact'])
               : null,
-      roleName: json['role_name'] != null ? (json['role_name'] as dynamic?)?.toString() ?? '' : '',
+      roleName: json['role_name'] != null ? (json['role_name'] as dynamic)?.toString() ?? '' : '',
       operatorDetails:
           json['operator_details'] != null
               ? (() {
@@ -275,28 +275,28 @@ class TripDetails {
       startLocation: json['start_location'] != null ? Location.fromJson(json['start_location'] as Map<String, dynamic>) : Location(latitude: 0.0, longitude: 0.0, address: '', name: ''),
       endLocation: json['end_location'] != null ? Location.fromJson(json['end_location'] as Map<String, dynamic>) : Location(latitude: 0.0, longitude: 0.0, address: '', name: ''),
       vehicleId: json['vehicle_id'] != null ? TripVehicleDetails.fromJson(json['vehicle_id'] as Map<String, dynamic>) : TripVehicleDetails(id: '', vehicleNumber: '', operatorId: '', assignedDeviceId: '', vehicleType: '', assignedDriverId: '', endUserIds: [], capacity: 0, currentStatus: '', status: false, speed: 0, registrationNumber: '', chassisNumber: '', color: '', seatingCapacity: 0, vehicleId: '', createdAt: '', updatedAt: '', lastUpdate: '', latitude: 0.0, longitude: 0.0, currentTripId: '', deviceId: '', driverId: ''),
-      driverId: (json['driver_id'] as dynamic?)?.toString() ?? '',
-      operatorId: (json['operator_id'] as dynamic?)?.toString() ?? '',
-      routeName: (json['route_name'] as dynamic?)?.toString() ?? '',
-      scheduledTripId: (json['scheduled_trip_id'] as dynamic?)?.toString() ?? '',
-      plannedDate: (json['planned_date'] as dynamic?)?.toString() ?? '',
-      plannedStartTime: (json['planned_start_time'] as dynamic?)?.toString() ?? '',
-      plannedEndTime: (json['planned_end_time'] as dynamic?)?.toString() ?? '',
-      startTime: json['start_time'] != null ? (json['start_time'] as dynamic?)?.toString() : null,
-      status: (json['status'] as dynamic?)?.toString() ?? '',
+      driverId: (json['driver_id'] as dynamic)?.toString() ?? '',
+      operatorId: (json['operator_id'] as dynamic)?.toString() ?? '',
+      routeName: (json['route_name'] as dynamic)?.toString() ?? '',
+      scheduledTripId: (json['scheduled_trip_id'] as dynamic)?.toString() ?? '',
+      plannedDate: (json['planned_date'] as dynamic)?.toString() ?? '',
+      plannedStartTime: (json['planned_start_time'] as dynamic)?.toString() ?? '',
+      plannedEndTime: (json['planned_end_time'] as dynamic)?.toString() ?? '',
+      startTime: json['start_time'] != null ? (json['start_time'] as dynamic)?.toString() : null,
+      status: (json['status'] as dynamic)?.toString() ?? '',
       totalPassengers: _toInt(json['total_passengers']),
       passengers: json['passengers'] != null ? (json['passengers'] as List<dynamic>).map((e) => TripPassenger.fromJson(e as Map<String, dynamic>)).toList() : [],
       routePoints: json['route_points'] != null ? (json['route_points'] as List<dynamic>).map((e) => TripRoutePoint.fromJson(e as Map<String, dynamic>)).toList() : [],
       currentStopIndex: _toInt(json['current_stop_index']),
       speedAlarmEnabled: json['speed_alarm_enabled'] as bool? ?? false,
       speedLimit: _toInt(json['speed_limit']),
-      tripId: (json['trip_id'] as dynamic?)?.toString() ?? '',
+      tripId: (json['trip_id'] as dynamic)?.toString() ?? '',
       stops: (json['stops'] as List<dynamic>?) ?? [],
       speedViolations: (json['speed_violations'] as List<dynamic>?) ?? [],
       routeDeviations: (json['route_deviations'] as List<dynamic>?) ?? [],
       anomalies: (json['anomalies'] as List<dynamic>?) ?? [],
-      createdAt: (json['createdAt'] as dynamic?)?.toString() ?? '',
-      updatedAt: (json['updatedAt'] as dynamic?)?.toString() ?? '',
+      createdAt: (json['createdAt'] as dynamic)?.toString() ?? '',
+      updatedAt: (json['updatedAt'] as dynamic)?.toString() ?? '',
     );
   }
 
@@ -402,30 +402,30 @@ class TripVehicleDetails {
     }
 
     return TripVehicleDetails(
-      id: (json['_id'] as dynamic?)?.toString() ?? '',
-      vehicleNumber: (json['vehicle_number'] as dynamic?)?.toString() ?? '',
-      operatorId: (json['operator_id'] as dynamic?)?.toString() ?? '',
-      assignedDeviceId: (json['assigned_device_id'] as dynamic?)?.toString() ?? '',
-      vehicleType: (json['vehicle_type'] as dynamic?)?.toString() ?? '',
-      assignedDriverId: (json['assigned_driver_id'] as dynamic?)?.toString() ?? '',
+      id: (json['_id'] as dynamic)?.toString() ?? '',
+      vehicleNumber: (json['vehicle_number'] as dynamic)?.toString() ?? '',
+      operatorId: (json['operator_id'] as dynamic)?.toString() ?? '',
+      assignedDeviceId: (json['assigned_device_id'] as dynamic)?.toString() ?? '',
+      vehicleType: (json['vehicle_type'] as dynamic)?.toString() ?? '',
+      assignedDriverId: (json['assigned_driver_id'] as dynamic)?.toString() ?? '',
       endUserIds: json['end_user_ids'] != null ? (json['end_user_ids'] as List).map((e) => e.toString()).toList() : [],
       capacity: _toInt(json['capacity']),
-      currentStatus: (json['current_status'] as dynamic?)?.toString() ?? '',
+      currentStatus: (json['current_status'] as dynamic)?.toString() ?? '',
       status: json['status'] as bool? ?? false,
       speed: _toInt(json['speed']),
-      registrationNumber: (json['registration_number'] as dynamic?)?.toString() ?? '',
-      chassisNumber: (json['chassis_number'] as dynamic?)?.toString() ?? '',
-      color: (json['color'] as dynamic?)?.toString() ?? '',
+      registrationNumber: (json['registration_number'] as dynamic)?.toString() ?? '',
+      chassisNumber: (json['chassis_number'] as dynamic)?.toString() ?? '',
+      color: (json['color'] as dynamic)?.toString() ?? '',
       seatingCapacity: _toInt(json['seating_capacity']),
-      vehicleId: (json['vehicle_id'] as dynamic?)?.toString() ?? '',
-      createdAt: (json['createdAt'] as dynamic?)?.toString() ?? '',
-      updatedAt: (json['updatedAt'] as dynamic?)?.toString() ?? '',
-      lastUpdate: (json['last_update'] as dynamic?)?.toString() ?? '',
+      vehicleId: (json['vehicle_id'] as dynamic)?.toString() ?? '',
+      createdAt: (json['createdAt'] as dynamic)?.toString() ?? '',
+      updatedAt: (json['updatedAt'] as dynamic)?.toString() ?? '',
+      lastUpdate: (json['last_update'] as dynamic)?.toString() ?? '',
       latitude: _toDouble(json['latitude']),
       longitude: _toDouble(json['longitude']),
-      currentTripId: (json['current_trip_id'] as dynamic?)?.toString() ?? '',
-      deviceId: (json['device_id'] as dynamic?)?.toString() ?? '',
-      driverId: (json['driver_id'] as dynamic?)?.toString() ?? '',
+      currentTripId: (json['current_trip_id'] as dynamic)?.toString() ?? '',
+      deviceId: (json['device_id'] as dynamic)?.toString() ?? '',
+      driverId: (json['driver_id'] as dynamic)?.toString() ?? '',
     );
   }
 
@@ -500,18 +500,18 @@ class TripPassenger {
       dropStop: json['drop_stop'] != null
           ? Location.fromJson(json['drop_stop'] as Map<String, dynamic>)
           : Location(latitude: 0.0, longitude: 0.0, address: '', name: ''),
-      userId: (json['user_id'] as dynamic?)?.toString() ?? '',
-      name: json['name'] != null ? (json['name'] as dynamic?)?.toString() : null,
-      phoneNumber: json['phone_number'] != null ? (json['phone_number'] as dynamic?)?.toString() : null,
+      userId: (json['user_id'] as dynamic)?.toString() ?? '',
+      name: json['name'] != null ? (json['name'] as dynamic)?.toString() : null,
+      phoneNumber: json['phone_number'] != null ? (json['phone_number'] as dynamic)?.toString() : null,
       pickedUp: json['picked_up'] as bool? ?? false,
       dropped: json['dropped'] as bool? ?? false,
-      parentContact: json['parent_contact'] != null ? (json['parent_contact'] as dynamic?)?.toString() : null,
+      parentContact: json['parent_contact'] != null ? (json['parent_contact'] as dynamic)?.toString() : null,
       parentConfirmedPickup: json['parent_confirmed_pickup'] as bool? ?? false,
       parentConfirmedDropoff: json['parent_confirmed_dropoff'] as bool? ?? false,
       notificationSentBeforePickup: json['notification_sent_before_pickup'] as bool? ?? false,
       notificationSentBeforeDropoff: json['notification_sent_before_dropoff'] as bool? ?? false,
       geofenceExitAlertSent: json['geofence_exit_alert_sent'] as bool? ?? false,
-      id: (json['_id'] as dynamic?)?.toString() ?? '',
+      id: (json['_id'] as dynamic)?.toString() ?? '',
     );
   }
 
@@ -594,8 +594,8 @@ class TripRoutePoint {
     }
 
     return TripRoutePoint(
-      stopId: (json['stop_id'] as dynamic?)?.toString() ?? '',
-      name: (json['name'] as dynamic?)?.toString() ?? '',
+      stopId: (json['stop_id'] as dynamic)?.toString() ?? '',
+      name: (json['name'] as dynamic)?.toString() ?? '',
       latitude: _toDouble(json['latitude']),
       longitude: _toDouble(json['longitude']),
       sequence: _toInt(json['sequence']),
@@ -603,10 +603,10 @@ class TripRoutePoint {
       dwellTargetSeconds: _toInt(json['dwell_target_seconds']),
       slaArrivalBufferSeconds: _toInt(json['sla_arrival_buffer_seconds']),
       geofenceRadiusMeters: _toInt(json['geofence_radius_meters']),
-      landmark: (json['landmark'] as dynamic?)?.toString() ?? '',
-      status: (json['status'] as dynamic?)?.toString() ?? '',
+      landmark: (json['landmark'] as dynamic)?.toString() ?? '',
+      status: (json['status'] as dynamic)?.toString() ?? '',
       delaySeconds: _toInt(json['delay_seconds']),
-      approximateReachTime: (json['approximate_reach_time'] ?? json['scheduled_time'] as dynamic?)?.toString(),
+      approximateReachTime: (json['approximate_reach_time'] ?? json['scheduled_time'] as dynamic)?.toString(),
       arrivalNotified: json['arrival_notified'] as bool? ?? false,
       requiredActionsCompleted: json['required_actions_completed'] as bool? ?? false,
       checklist: (json['checklist'] as List<dynamic>?) ?? [],
@@ -662,10 +662,10 @@ class TripAnalytics {
 
   factory TripAnalytics.fromJson(Map<String, dynamic> json) {
     return TripAnalytics(
-      tripId: (json['trip_id'] as dynamic?)?.toString() ?? '',
-      vehicleId: (json['vehicle_id'] as dynamic?)?.toString() ?? '',
-      driverId: (json['driver_id'] as dynamic?)?.toString() ?? '',
-      startTime: (json['start_time'] as dynamic?)?.toString() ?? '',
+      tripId: (json['trip_id'] as dynamic)?.toString() ?? '',
+      vehicleId: (json['vehicle_id'] as dynamic)?.toString() ?? '',
+      driverId: (json['driver_id'] as dynamic)?.toString() ?? '',
+      startTime: (json['start_time'] as dynamic)?.toString() ?? '',
       speedViolationsCount: (json['speed_violations_count'] as num?)?.toInt() ?? 0,
       routeDeviationsCount: (json['route_deviations_count'] as num?)?.toInt() ?? 0,
       totalStops: (json['total_stops'] as num?)?.toInt() ?? 0,
@@ -682,7 +682,7 @@ class SOSContact {
 
   factory SOSContact.fromJson(Map<String, dynamic> json) {
     return SOSContact(
-      name: json['name'] != null ? (json['name'] as dynamic?)?.toString() ?? '' : '',
+      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
       phoneNumber: json['phone_number'] != null
           ? int.tryParse(json['phone_number'].toString()) ?? 0
           : 0,
@@ -706,6 +706,7 @@ class VehicleDetails {
   final int? seatingCapacity;
   final String? registrationNumber;
   final String? color;
+  final String? assignedDeviceId;
 
   VehicleDetails({
     required this.id,
@@ -716,18 +717,20 @@ class VehicleDetails {
     this.seatingCapacity,
     this.registrationNumber,
     this.color,
+    this.assignedDeviceId,
   });
 
   factory VehicleDetails.fromJson(Map<String, dynamic> json) {
     return VehicleDetails(
-      id: (json['id'] as dynamic?)?.toString() ?? '',
-      vehicleNumber: (json['vehicle_number'] as dynamic?)?.toString() ?? '',
-      vehicleType: (json['vehicle_type'] as dynamic?)?.toString() ?? '',
-      status: (json['status'] as dynamic?)?.toString() ?? '',
-      currentStatus: json['current_status'] != null ? (json['current_status'] as dynamic?)?.toString() : null,
+      id: (json['id'] as dynamic)?.toString() ?? '',
+      vehicleNumber: (json['vehicle_number'] as dynamic)?.toString() ?? '',
+      vehicleType: (json['vehicle_type'] as dynamic)?.toString() ?? '',
+      status: (json['status'] as dynamic)?.toString() ?? '',
+      currentStatus: json['current_status'] != null ? (json['current_status'] as dynamic)?.toString() : null,
       seatingCapacity: (json['seating_capacity'] as num?)?.toInt(),
-      registrationNumber: json['registration_number'] != null ? (json['registration_number'] as dynamic?)?.toString() : null,
-      color: json['color'] != null ? (json['color'] as dynamic?)?.toString() : null,
+      registrationNumber: json['registration_number'] != null ? (json['registration_number'] as dynamic)?.toString() : null,
+      color: json['color'] != null ? (json['color'] as dynamic)?.toString() : null,
+      assignedDeviceId: json['assigned_device_id'] != null ? (json['assigned_device_id'] as dynamic)?.toString() : null,
     );
   }
 
@@ -741,6 +744,7 @@ class VehicleDetails {
       'seating_capacity': seatingCapacity,
       'registration_number': registrationNumber,
       'color': color,
+      'assigned_device_id': assignedDeviceId,
     };
   }
 }
@@ -760,9 +764,9 @@ class EndUserProfile {
 
   factory EndUserProfile.fromJson(Map<String, dynamic> json) {
     return EndUserProfile(
-      id: json['id'] != null ? (json['id'] as dynamic?)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic?)?.toString() ?? '' : '',
-      email: json['email'] != null ? (json['email'] as dynamic?)?.toString() ?? '' : '',
+      id: json['id'] != null ? (json['id'] as dynamic)?.toString() ?? '' : '',
+      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
+      email: json['email'] != null ? (json['email'] as dynamic)?.toString() ?? '' : '',
       phoneNumber: json['phone_number'] != null
           ? int.tryParse(json['phone_number'].toString())
           : null,
@@ -792,9 +796,9 @@ class AssociatedUser {
 
   factory AssociatedUser.fromJson(Map<String, dynamic> json) {
     return AssociatedUser(
-      id: json['id'] != null ? (json['id'] as dynamic?)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic?)?.toString() ?? '' : '',
-      role: json['role'] != null ? (json['role'] as dynamic?)?.toString() ?? '' : '',
+      id: json['id'] != null ? (json['id'] as dynamic)?.toString() ?? '' : '',
+      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
+      role: json['role'] != null ? (json['role'] as dynamic)?.toString() ?? '' : '',
     );
   }
 
@@ -820,6 +824,7 @@ class CurrentTrip {
   final Location? endLocation;
   final String? scheduledTripId;
   final String? tripType;
+  final String? scheduledStartTime;
 
   CurrentTrip({
     required this.tripId,
@@ -834,6 +839,7 @@ class CurrentTrip {
     this.endLocation,
     this.scheduledTripId,
     this.tripType,
+    this.scheduledStartTime,
   });
 
   factory CurrentTrip.fromJson(Map<String, dynamic> json) {
@@ -844,9 +850,9 @@ class CurrentTrip {
     } else {
       // Create a default vehicle if only vehicle_id is present
       vehicleDetails = TripVehicleDetails(
-        id: (json['vehicle_id'] as dynamic?)?.toString() ?? '',
-        vehicleNumber: (json['vehicle_number'] as dynamic?)?.toString() ?? 'N/A',
-        operatorId: (json['operator_id'] as dynamic?)?.toString() ?? '',
+        id: (json['vehicle_id'] as dynamic)?.toString() ?? '',
+        vehicleNumber: (json['vehicle_number'] as dynamic)?.toString() ?? 'N/A',
+        operatorId: (json['operator_id'] as dynamic)?.toString() ?? '',
         assignedDeviceId: '',
         vehicleType: '',
         assignedDriverId: '',
@@ -859,21 +865,21 @@ class CurrentTrip {
         chassisNumber: '',
         color: '',
         seatingCapacity: 0,
-        vehicleId: (json['vehicle_id'] as dynamic?)?.toString() ?? '',
+        vehicleId: (json['vehicle_id'] as dynamic)?.toString() ?? '',
         createdAt: '',
         updatedAt: '',
         lastUpdate: '',
         latitude: 0.0,
         longitude: 0.0,
-        currentTripId: (json['trip_id'] ?? json['scheduled_trip_id'] as dynamic?)?.toString() ?? '',
+        currentTripId: (json['trip_id'] ?? json['scheduled_trip_id'] as dynamic)?.toString() ?? '',
         deviceId: '',
-        driverId: (json['driver_id'] as dynamic?)?.toString() ?? '',
+        driverId: (json['driver_id'] as dynamic)?.toString() ?? '',
       );
     }
 
     return CurrentTrip(
-      tripId: (json['trip_id'] ?? json['scheduled_trip_id'] as dynamic?)?.toString() ?? '',
-      status: json['status'] != null ? (json['status'] as dynamic?)?.toString() ?? '' : 'scheduled',
+      tripId: (json['trip_id'] ?? json['scheduled_trip_id'] as dynamic)?.toString() ?? '',
+      status: json['status'] != null ? (json['status'] as dynamic)?.toString() ?? '' : 'scheduled',
       currentLocation: json['current_location'] != null
           ? Location.fromJson(json['current_location'])
           : null,
@@ -884,7 +890,7 @@ class CurrentTrip {
       driver: json['driver'] != null
           ? OperatorDetails.fromJson(json['driver'])
           : null,
-      routeName: (json['route_name'] as dynamic?)?.toString(),
+      routeName: (json['route_name'] as dynamic)?.toString(),
       routePoints: json['route_points'] != null
           ? (json['route_points'] as List<dynamic>)
               .map((e) => TripRoutePoint.fromJson(e as Map<String, dynamic>))
@@ -896,8 +902,9 @@ class CurrentTrip {
       endLocation: json['end_location'] != null
           ? Location.fromJson(json['end_location'])
           : null,
-      scheduledTripId: (json['scheduled_trip_id'] as dynamic?)?.toString(),
+      scheduledTripId: (json['scheduled_trip_id'] as dynamic)?.toString(),
       tripType: json['trip_type']?.toString(),
+      scheduledStartTime: json['scheduled_start_time']?.toString(),
     );
   }
 
@@ -914,6 +921,7 @@ class CurrentTrip {
       'start_location': startLocation?.toJson(),
       'end_location': endLocation?.toJson(),
       'scheduled_trip_id': scheduledTripId,
+      'scheduled_start_time': scheduledStartTime,
     };
   }
 }
@@ -931,8 +939,8 @@ class ChildProfile {
 
   factory ChildProfile.fromJson(Map<String, dynamic> json) {
     return ChildProfile(
-      id: json['id'] != null ? (json['id'] as dynamic?)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic?)?.toString() ?? '' : '',
+      id: json['id'] != null ? (json['id'] as dynamic)?.toString() ?? '' : '',
+      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
       phoneNumber: json['phone_number'] != null
           ? int.tryParse(json['phone_number'].toString())
           : null,
@@ -969,12 +977,12 @@ class TrackChild {
 
   factory TrackChild.fromJson(Map<String, dynamic> json) {
     return TrackChild(
-      childId: json['child_id'] != null ? (json['child_id'] as dynamic?)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic?)?.toString() ?? '' : '',
+      childId: json['child_id'] != null ? (json['child_id'] as dynamic)?.toString() ?? '' : '',
+      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
       currentLocation: json['current_location'] != null
           ? Location.fromJson(json['current_location'])
           : null,
-      status: json['status'] != null ? (json['status'] as dynamic?)?.toString() ?? '' : '',
+      status: json['status'] != null ? (json['status'] as dynamic)?.toString() ?? '' : '',
       child: json['child'] != null
           ? ChildProfile.fromJson(json['child'])
           : ChildProfile(id: '', name: 'N/A', phoneNumber: null),
@@ -1018,9 +1026,9 @@ class TrackChild {
       'name': name,
       'current_location': currentLocation?.toJson(),
       'status': status,
-      'child': child?.toJson(),
-      'vehicle': vehicle?.toJson(),
-      'location': location?.toJson(),
+      'child': child.toJson(),
+      'vehicle': vehicle.toJson(),
+      'location': location.toJson(),
     };
   }
 }

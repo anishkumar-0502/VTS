@@ -13,9 +13,6 @@ import '../../../live-tracking/domain/models/live_tracking_model.dart';
 import '../controllers/parent_home_controller.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../../../shared/index.dart';
-import 'package:trackify_vts/shared/widgets/modern_dialog.dart';
-import '../../../live-tracking/presentation/pages/child_location_tracking_page.dart';
-import '../../../live-tracking/presentation/bindings/child_location_tracking_binding.dart';
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../../../core/core.dart';
 import '../../../profile/presentation/pages/parent_profile_page.dart';
@@ -192,6 +189,140 @@ void showAddressPopup(BuildContext context, String title, String address, Color 
   );
 }
 
+class SwipeUpCallButton extends StatefulWidget {
+  final VoidCallback onCall;
+  final Color primaryColor;
+
+  const SwipeUpCallButton({
+    super.key,
+    required this.onCall,
+    required this.primaryColor,
+  });
+
+  @override
+  State<SwipeUpCallButton> createState() => _SwipeUpCallButtonState();
+}
+
+class _SwipeUpCallButtonState extends State<SwipeUpCallButton>
+    with SingleTickerProviderStateMixin {
+  double _dragOffset = 0;
+  static const double _maxDrag = 100;
+
+  late AnimationController _arrowController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _arrowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _arrowController.dispose();
+    super.dispose();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      _dragOffset -= details.delta.dy;
+      _dragOffset = _dragOffset.clamp(0, _maxDrag);
+    });
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    if (_dragOffset > _maxDrag * 0.7) {
+      widget.onCall();
+    }
+    setState(() => _dragOffset = 0);
+  }
+
+  Widget _buildBlinkingArrow(int index) {
+    return AnimatedBuilder(
+      animation: _arrowController,
+      builder: (_, __) {
+        /// stagger effect
+        final double phase = (_arrowController.value - index * 0.2) % 1.0;
+
+        final opacity = phase < 0.5
+            ? Curves.easeOut.transform(phase * 2)
+            : Curves.easeIn.transform((1 - phase) * 2);
+
+        return Opacity(
+          opacity: (_dragOffset > 10) ? 0 : opacity,
+          child: Icon(
+            Icons.keyboard_arrow_up_rounded,
+            color: widget.primaryColor.withOpacity(0.7 - index * 0.15),
+            size: 30,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        /// 🔼 BLINKING ARROWS
+        Column(
+          children: [
+            _buildBlinkingArrow(0),
+            _buildBlinkingArrow(1),
+            _buildBlinkingArrow(2),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        /// 🔵 SWIPE BUTTON
+        GestureDetector(
+          onVerticalDragUpdate: _onDragUpdate,
+          onVerticalDragEnd: _onDragEnd,
+          child: Transform.translate(
+            offset: Offset(0, -_dragOffset),
+            child: Container(
+              height: 85,
+              width: 85,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.primaryColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.primaryColor.withOpacity(0.15),
+                    blurRadius: 30,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.call_rounded,
+                color: Colors.white,
+                size: 48,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        const Text(
+          'Swipe up to make a call',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+
 class VehicleInfoDialog extends StatefulWidget {
   final double latitude;
   final double longitude;
@@ -345,12 +476,13 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
             Obx(() {
               controller.vehicleNumbers.toString();
               
-              String displayVehicleNumber = widget.vehicleNumber ?? 'N/A';
+              String displayVehicleNumber = widget.vehicleNumber ?? 'Vehicle';
+              if (displayVehicleNumber == 'N/A') displayVehicleNumber = 'Vehicle';
               
               if (widget.vehicleId != null && 
                   controller.vehicleNumbers.containsKey(widget.vehicleId)) {
                 final vn = controller.vehicleNumbers[widget.vehicleId];
-                if (vn != null && vn.isNotEmpty) {
+                if (vn != null && vn.isNotEmpty && vn != 'N/A') {
                   displayVehicleNumber = vn;
                 }
               }
@@ -497,119 +629,6 @@ class CurrentLocationMapWithSocket extends StatefulWidget {
   State<CurrentLocationMapWithSocket> createState() => _CurrentLocationMapWithSocketState();
 }
 
-class _VehicleInfoLabelWidget extends StatefulWidget {
-  final String vehicleNumber;
-  final DateTime? baseTime;
-  final Color primaryColor;
-  final ParentHomeController controller;
-  final String? vehicleId;
-
-  const _VehicleInfoLabelWidget({
-    required this.vehicleNumber,
-    required this.baseTime,
-    required this.primaryColor,
-    required this.controller,
-    this.vehicleId,
-  });
-
-  @override
-  State<_VehicleInfoLabelWidget> createState() => _VehicleInfoLabelWidgetState();
-}
-
-class _VehicleInfoLabelWidgetState extends State<_VehicleInfoLabelWidget> {
-  late Timer _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  String _getDisplayTime() {
-    DateTime? displayTime;
-    
-    if (widget.vehicleId != null) {
-      final controllerTimestamp = widget.controller.vehicleTimestamps[widget.vehicleId];
-      if (controllerTimestamp != null) {
-        displayTime = controllerTimestamp;
-      }
-    }
-    
-    if (displayTime == null && widget.baseTime != null) {
-      displayTime = widget.baseTime;
-    }
-    
-    if (displayTime == null) {
-      return 'N/A';
-    }
-    
-    final now = DateTime.now();
-    final difference = now.difference(displayTime);
-    final elapsedSeconds = difference.inSeconds;
-    
-    final updatedTime = displayTime.add(Duration(seconds: elapsedSeconds));
-    return '${updatedTime.hour.toString().padLeft(2, '0')}:${updatedTime.minute.toString().padLeft(2, '0')}:${updatedTime.second.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: widget.primaryColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 4,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.vehicleNumber,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              _getDisplayTime(),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      );
-    });
-  }
-}
-
 class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSocket> with TickerProviderStateMixin {
   late MapController mapController;
   LatLng? currentLocation;
@@ -740,33 +759,6 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
     controller.forward();
   }
 
-  void _showVehicleInfoPopup(BuildContext context) {
-    double latitude = animatedLocation?.latitude ?? currentLocation?.latitude ?? 0.0;
-    double longitude = animatedLocation?.longitude ?? currentLocation?.longitude ?? 0.0;
-    
-    String? vehicleNumber;
-    if (widget.vehicleId != null && controller.vehicleNumbers.containsKey(widget.vehicleId)) {
-      vehicleNumber = controller.vehicleNumbers[widget.vehicleId];
-    }
-    
-    debugPrint("🔍 [_showVehicleInfoPopup] Vehicle ID: ${widget.vehicleId}");
-    debugPrint("🔍 [_showVehicleInfoPopup] Vehicle Number: $vehicleNumber");
-    debugPrint("🔍 [_showVehicleInfoPopup] Timestamp: $lastMovementTime");
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return VehicleInfoDialog(
-          latitude: latitude,
-          longitude: longitude,
-          primaryColor: widget.primaryColor,
-          timestamp: lastMovementTime,
-          vehicleId: widget.vehicleId,
-          vehicleNumber: vehicleNumber,
-        );
-      },
-    );
-  }
 
   @override
   void dispose() {
@@ -775,56 +767,27 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
     super.dispose();
   }
 
-  Marker _buildVehicleInfoMarker(LatLng displayLocation, double scale) {
-    String displayVehicleNumber = widget.vehicleNumber ?? 'Vehicle';
-    
-    if (widget.vehicleId != null) {
-      if (controller.vehicleNumbers.containsKey(widget.vehicleId)) {
-        final vn = controller.vehicleNumbers[widget.vehicleId];
-        if (vn != null && vn.isNotEmpty) {
-          displayVehicleNumber = vn;
-        }
-      }
-    }
-    
-    return Marker(
-      width: 140.0 * scale,
-      height: 60.0 * scale,
-      point: displayLocation,
-      alignment: Alignment.topCenter,
-      child: Transform.translate(
-        offset: Offset(0, -65 * scale),
-        child: _VehicleInfoLabelWidget(
-          vehicleNumber: displayVehicleNumber,
-          baseTime: lastMovementTime,
-          primaryColor: widget.primaryColor,
-          controller: controller,
-          vehicleId: widget.vehicleId,
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final double scale = (controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
-      final vehicleLocation = controller.currentVehicleLocation.value ?? 
+      final vehicleLoc = controller.vehicleLocation.value ?? 
                             controller.vehicleLocations[widget.vehicleId] ?? 
                             currentLocation;
       
-      if (vehicleLocation != null && currentLocation != vehicleLocation) {
-        currentLocation = vehicleLocation;
+      if (vehicleLoc != null && currentLocation != vehicleLoc) {
+        currentLocation = vehicleLoc;
         lastMovementTime = DateTime.now();
         if (locationHistory.isEmpty || 
-            _calculateDistance(locationHistory.last, vehicleLocation) > 0.0001) {
-          locationHistory.add(vehicleLocation);
+            _calculateDistance(locationHistory.last, vehicleLoc) > 0.0001) {
+          locationHistory.add(vehicleLoc);
         }
         
-        _animateToNewLocation(vehicleLocation);
+        _animateToNewLocation(vehicleLoc);
       }
 
-      final displayLocation = animatedLocation ?? vehicleLocation ?? currentLocation ?? widget.initialLocation;
+      final displayLocation = animatedLocation ?? vehicleLoc ?? currentLocation ?? widget.initialLocation;
       
       return FlutterMap(
         mapController: mapController,
@@ -864,12 +827,6 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
               if (controller.routePolylinePoints.isEmpty && locationHistory.isNotEmpty)
                 Polyline(
                   points: locationHistory,
-                  color: Colors.white,
-                  strokeWidth: 6.0 * scale,
-                ),
-              if (controller.routePolylinePoints.isEmpty && locationHistory.isNotEmpty)
-                Polyline(
-                  points: locationHistory,
                   color: widget.primaryColor,
                   strokeWidth: 3.5 * scale,
                 ),
@@ -889,6 +846,8 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
                     height: 40 * scale,
                   ),
                 ),
+              
+              // Vehicle Marker (Mirrored from Driver App)
               Marker(
                 width: 50.0 * scale,
                 height: 50.0 * scale,
@@ -896,10 +855,12 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
                 alignment: Alignment.center,
                 child: GestureDetector(
                   onTap: () {
-                    _showVehicleInfoPopup(context);
+
                   },
                   child: Transform.rotate(
-                    angle: (controller.vehicleHeadings[widget.vehicleId] ?? 0.0) * (pi / 180),
+                    angle: (controller.vehicleHeading.value != 0.0 
+                        ? controller.vehicleHeading.value 
+                        : (controller.vehicleHeadings[widget.vehicleId] ?? 0.0)) * (pi / 180),
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
@@ -917,7 +878,6 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
                   ),
                 ),
               ),
-              _buildVehicleInfoMarker(displayLocation, scale),
             ],
           ),
         ],
@@ -960,13 +920,13 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isDisposed) {
-        final startLocation = widget.controller.currentVehicleLocation.value ?? widget.tripData.startLocation;
+        final startLocation = widget.controller.vehicleLocation.value ?? widget.tripData.startLocation;
         _animateMapMove(startLocation, 13.0);
       }
     });
 
     // Listen for live location updates and animate/move map if it's the first time
-    widget.controller.currentVehicleLocation.listen((location) {
+    widget.controller.vehicleLocation.listen((location) {
       if (location != null && !_isDisposed && mounted) {
         // If the user hasn't interacted much or we want to follow, we could animate here.
         // For now, let's just ensure we have the latest location for markers.
@@ -1029,7 +989,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final currentLocation = widget.controller.currentVehicleLocation.value;
+      final currentLocation = widget.controller.vehicleLocation.value;
       
       return FlutterMap(
         mapController: mapController,
@@ -1090,8 +1050,8 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
           }),
           Obx(() {
             final double scale = (widget.controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
-            final vehicleLocation = widget.controller.currentVehicleLocation.value;
-            final vehicleHeading = widget.controller.currentVehicleHeading.value;
+            final vehicleLocation = widget.controller.vehicleLocation.value;
+            final vehicleHeading = widget.controller.vehicleHeading.value;
 
             final isTargetStart = widget.controller.targetLocation.value != null &&
                 (widget.tripData.startLocation.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
@@ -1101,180 +1061,134 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                 (widget.tripData.endLocation.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
                 (widget.tripData.endLocation.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
 
-            final markers = <Marker>[
-              // Start Location Marker (only show if not the target location, as target is already shown in timeline)
-              if (!isTargetStart)
-                Marker(
-                  width: 40 * scale,
-                  height: 40 * scale,
-                  point: widget.tripData.startLocation,
-                  alignment: Alignment.center,
-                  child: GestureDetector(
-                    onTap: () async {
-                      final address = await getAddressFromLatLng(
-                        widget.tripData.startLocation.latitude,
-                        widget.tripData.startLocation.longitude,
-                      );
-                      if (!mounted) return;
-                      showAddressPopup(context, 'Start Location', address, widget.primaryColor);
-                    },
-                    child: Icon(Icons.location_on, color: Colors.green, size: 40 * scale),
+            return MarkerLayer(
+              markers: [
+                // Start Location Marker
+                if (!isTargetStart)
+                  Marker(
+                    width: 40 * scale,
+                    height: 40 * scale,
+                    point: widget.tripData.startLocation,
+                    alignment: Alignment.center,
+                    child: GestureDetector(
+                      onTap: () async {
+                        final address = await getAddressFromLatLng(
+                          widget.tripData.startLocation.latitude,
+                          widget.tripData.startLocation.longitude,
+                        );
+                        if (!mounted) return;
+                        showAddressPopup(context, 'Start Location', address, widget.primaryColor);
+                      },
+                      child: Icon(Icons.location_on, color: Colors.green, size: 40 * scale),
+                    ),
                   ),
-                ),
-              // Stop Markers (Numbered)
-              ...widget.tripData.timeline.asMap().entries.map((entry) {
-                final index = entry.key + 1;
-                final stop = entry.value;
-                final isTargetStop = widget.controller.targetLocation.value != null &&
-                    (stop.location.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
-                    (stop.location.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
 
-                return Marker(
-                  point: stop.location,
-                  width: isTargetStop ? 40 * scale : 30 * scale,
-                  height: isTargetStop ? 40 * scale : 30 * scale,
-                  alignment: Alignment.center,
-                  child: GestureDetector(
-                    onTap: () async {
-                      final address = await getAddressFromLatLng(
-                        stop.location.latitude,
-                        stop.location.longitude,
-                      );
-                      if (!mounted) return;
-                      showAddressPopup(context, isTargetStop ? 'Your Location' : 'Stop $index', address, widget.primaryColor);
-                    },
-                    child: isTargetStop
-                        ? Image.asset(
-                            'assets/icons/homemarker.png',
-                            width: 40 * scale,
-                            height: 40 * scale,
-                          )
-                        : Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(blurRadius: 2, color: Colors.black26)
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                '$index',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12 * scale,
-                                  color: Colors.black,
-                                  fontFamily: 'Poppins',
+                // End Location Marker
+                if (!isTargetEnd)
+                  Marker(
+                    width: 40 * scale,
+                    height: 40 * scale,
+                    point: widget.tripData.endLocation,
+                    alignment: Alignment.center,
+                    child: GestureDetector(
+                      onTap: () async {
+                        final address = await getAddressFromLatLng(
+                          widget.tripData.endLocation.latitude,
+                          widget.tripData.endLocation.longitude,
+                        );
+                        if (!mounted) return;
+                        showAddressPopup(context, 'End Location', address, widget.primaryColor);
+                      },
+                      child: Icon(Icons.location_on, color: Colors.red, size: 40 * scale),
+                    ),
+                  ),
+
+                // Stop Markers (Numbered)
+                ...widget.tripData.timeline.asMap().entries.map((entry) {
+                  final index = entry.key + 1;
+                  final stop = entry.value;
+                  final isTargetStop = widget.controller.targetLocation.value != null &&
+                      (stop.location.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                      (stop.location.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
+
+                  return Marker(
+                    point: stop.location,
+                    width: isTargetStop ? 40 * scale : 30 * scale,
+                    height: isTargetStop ? 40 * scale : 30 * scale,
+                    alignment: Alignment.center,
+                    child: GestureDetector(
+                      onTap: () async {
+                        final address = await getAddressFromLatLng(
+                          stop.location.latitude,
+                          stop.location.longitude,
+                        );
+                        if (!mounted) return;
+                        showAddressPopup(context, isTargetStop ? 'Your Location' : 'Stop $index', address, widget.primaryColor);
+                      },
+                      child: isTargetStop
+                          ? Image.asset(
+                              'assets/icons/homemarker.png',
+                              width: 40 * scale,
+                              height: 40 * scale,
+                            )
+                          : Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(blurRadius: 2, color: Colors.black26)
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$index',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12 * scale,
+                                    color: Colors.black,
+                                    fontFamily: 'Poppins',
+                                  ),
                                 ),
                               ),
                             ),
+                    ),
+                  );
+                }),
+
+                // Vehicle Marker (Live) - PLOTTED EXACTLY LIKE DRIVER APP SNIPPET
+                if (vehicleLocation != null)
+                  Marker(
+                    point: vehicleLocation,
+                    width: 50 * scale,
+                    height: 50 * scale,
+                    alignment: Alignment.center,
+                    child: GestureDetector(
+                      onTap: () {
+
+                      },
+                      child: Transform.rotate(
+                        angle: vehicleHeading * (3.14159 / 180),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(blurRadius: 4, color: Colors.black26)
+                            ],
                           ),
-                  ),
-                );
-              }),
-              // End Location Marker (only show if not the target location, as target is already shown in timeline)
-              if (!isTargetEnd)
-                Marker(
-                  width: 40 * scale,
-                  height: 40 * scale,
-                  point: widget.tripData.endLocation,
-                  alignment: Alignment.center,
-                  child: GestureDetector(
-                    onTap: () async {
-                      final address = await getAddressFromLatLng(
-                        widget.tripData.endLocation.latitude,
-                        widget.tripData.endLocation.longitude,
-                      );
-                      if (!mounted) return;
-                      showAddressPopup(context, 'End Location', address, widget.primaryColor);
-                    },
-                    child: Icon(Icons.location_on, color: Colors.red, size: 40 * scale),
-                  ),
-                ),
-              // Vehicle Marker (Live)
-              if (vehicleLocation != null) ...[
-                Marker(
-                  width: 50 * scale,
-                  height: 50 * scale,
-                  point: vehicleLocation,
-                  alignment: Alignment.center,
-                  child: GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return VehicleInfoDialog(
-                            latitude: vehicleLocation.latitude,
-                            longitude: vehicleLocation.longitude,
-                            primaryColor: widget.primaryColor,
-                            timestamp: widget.controller.vehicleTimestamps[widget.controller.assignedVehicleId],
-                            vehicleId: widget.controller.assignedVehicleId,
-                            vehicleNumber: widget.controller.assignedVehicleNumber ?? 
-                                (widget.controller.assignedVehicleId != null 
-                                  ? widget.controller.vehicleNumbers[widget.controller.assignedVehicleId]
-                                  : null),
-                          );
-                        },
-                      );
-                    },
-                    child: Transform.rotate(
-                      angle: vehicleHeading * (pi / 180),
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(blurRadius: 4, color: Colors.black26)
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.navigation,
-                          color: Colors.blueAccent,
-                          size: 30 * scale,
+                          child: Icon(
+                            Icons.navigation,
+                            color: Colors.blueAccent,
+                            size: 30 * scale,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                // Vehicle ID Badge
-                Marker(
-                  width: 100.0 * scale,
-                  height: 30.0 * scale,
-                  point: vehicleLocation,
-                  alignment: Alignment.topCenter,
-                  child: Transform.translate(
-                    offset: Offset(0, -35 * scale),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 4 * scale),
-                      decoration: BoxDecoration(
-                        color: widget.primaryColor,
-                        borderRadius: BorderRadius.circular(12 * scale),
-                        border: Border.all(color: Colors.white, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 4 * scale,
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        widget.controller.assignedVehicleNumber ?? 'Vehicle',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11 * scale,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Poppins',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ),
+
+
               ],
-            ];
-            return MarkerLayer(markers: markers);
+            );
           }),
         ],
       );
@@ -1455,165 +1369,145 @@ class ParentHomePage extends GetView<ParentHomeController> {
     );
   }
 
+
+
   Future<void> _showSOSDialog(BuildContext context, Color primaryColor) async {
     try {
-      showDialog(
+      showGeneralDialog(
         context: context,
         barrierDismissible: false,
-        builder: (BuildContext context) {
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 8,
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white,
+        barrierColor: Colors.black.withOpacity(0.25),
+        transitionDuration: const Duration(milliseconds: 450),
+
+        /// 🔥 Slide-up animation
+        transitionBuilder: (context, animation, _, child) {
+          final value =
+              Curves.easeOutCubic.transform(animation.value) - 1.0;
+
+          return Transform.translate(
+            offset: Offset(0, value * -300),
+            child: Opacity(
+              opacity: animation.value,
+              child: child,
+            ),
+          );
+        },
+
+        pageBuilder: (_, __, ___) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+                onPressed: () => Navigator.pop(context),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
+              title: const Text(
+                'Emergency Assistance',
+                style: TextStyle(color: Colors.black),
+              ),
+              centerTitle: true,
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.12),
+                        blurRadius: 20,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Image.asset(
-                          'assets/icons/sos.png',
-                          width: 24,
-                          height: 24,
-                          color: Colors.red[800],
+                      /// 🔵 Title
+                      const Text(
+                        'Need Immediate Help?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
                         ),
                       ),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.center,
-                          child: const Text(
-                            'SOS Contact',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
+
+                      const SizedBox(height: 12),
+
+                      /// Subtitle
+                      const Text(
+                        'Swipe up to instantly contact the\n'
+                            'registered emergency number for\n'
+                            'your child.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.black54,
+                          height: 1.5,
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      /// 🔥 Swipe Button
+                      Obx(() {
+                        final sosContact =
+                            controller.parentProfile.value?.sosContact;
+
+                        return SwipeUpCallButton(
+                          primaryColor: primaryColor,
+                          onCall: () async {
+                            if (sosContact == null) return;
+
+                            final phoneNumber = sosContact.phoneNumber
+                                .toString()
+                                .replaceAll(RegExp(r'[^\d+]'), '');
+
+                            if (phoneNumber.isEmpty) return;
+
+                            final status =
+                            await Permission.phone.request();
+
+                            if (status.isDenied) return;
+
+                            if (status.isPermanentlyDenied) {
+                              openAppSettings();
+                              return;
+                            }
+
+                            final uri = Uri.parse('tel:$phoneNumber');
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                        );
+                      }),
+
+                      const SizedBox(height: 24),
+
+                      /// Info
+                      const Text(
+                        'Use this option only if your child\n'
+                            'requires immediate assistance during\n'
+                            'the vehicle trip.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.black45,
+                          height: 1.5,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Obx(() {
-                    final sosContact = controller.parentProfile.value?.sosContact;
-                    
-                    if (sosContact == null) {
-                      return const Text(
-                        'Loading SOS contact...',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      );
-                    }
-                    
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          sosContact.name,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          sosContact.phoneNumber.toString(),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.red[700],
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ModernDialogButton(
-                      label: 'Call',
-                      icon: Icons.call,
-                      backgroundColor: Colors.red,
-                      onPressed: () async {
-                        final sosContact = controller.parentProfile.value?.sosContact;
-                        if (sosContact != null) {
-                          String phoneNumber = sosContact.phoneNumber.toString();
-                          phoneNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-                          
-                          if (phoneNumber.isEmpty) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Invalid phone number')),
-                              );
-                            }
-                            return;
-                          }
-                          
-                          final permissionStatus = await Permission.phone.request();
-                          
-                          if (permissionStatus.isDenied) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Phone permission denied')),
-                              );
-                            }
-                            return;
-                          }
-                          
-                          if (permissionStatus.isPermanentlyDenied) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please enable phone permission in settings')),
-                              );
-                            }
-                            openAppSettings();
-                            return;
-                          }
-                          
-                         final Uri url = Uri.parse("tel:$phoneNumber");
-
-if (!await launchUrl(
-  url,
-  mode: LaunchMode.externalApplication,
-)) {
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Could not launch phone")),
-    );
-  }
-}
-
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ModernDialogButton(
-                      label: 'Close',
-                      icon: Icons.close,
-                      backgroundColor: Colors.grey[600]!,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           );
@@ -2098,7 +1992,7 @@ if (!await launchUrl(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Trackify',
+                'Trackit',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -2202,63 +2096,135 @@ if (!await launchUrl(
           color: Colors.grey[50],
           child: Stack(
             children: [
+              _buildPageContent(context, primaryColor),
+
               Obx(() {
-                if (controller.tripMapData.value == null) {
+                final tripData = controller.tripMapData.value;
+                if (tripData == null) {
                   return const SizedBox.shrink();
                 }
+
+                String formatTimeWithAmPm(String time) {
+                  try {
+                    if (time.isEmpty || time == 'N/A') return '--:--';
+                    
+                    // Handle HH:mm format
+                    if (time.contains(':') && !time.contains('-')) {
+                      final parts = time.split(':');
+                      int hour = int.parse(parts[0]);
+                      int minute = int.parse(parts[1]);
+                      final amPm = hour >= 12 ? 'PM' : 'AM';
+                      hour = hour % 12 == 0 ? 12 : hour % 12;
+                      return '$hour:${minute.toString().padLeft(2, '0')} $amPm';
+                    }
+
+                    final dt = DateTime.parse(time);
+                    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+                    final minute = dt.minute.toString().padLeft(2, '0');
+                    final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+                    return '$hour:$minute $amPm';
+                  } catch (_) {
+                    return time.isNotEmpty ? time : '--:--';
+                  }
+                }
+
+                String startTime = formatTimeWithAmPm(tripData.scheduledStartTime);
+
                 return Positioned(
                 top: 0,
                 left: 12,
                 right: 12,
                 child: Container(
                   margin: const EdgeInsets.only(top: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 10,
                         spreadRadius: 0,
-                        offset: const Offset(0, 2),
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.green[500],
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.green.withValues(alpha: 0.5),
-                              blurRadius: 4,
+                      const Icon(Icons.route, color: Color(0xFF2764FF), size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    tripData.routeName,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (controller.isUpcomingTrip.value)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: Colors.orange,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Upcoming Trip',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.orange,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
+                                  )
+                                else if (tripData.associatedTripId.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: Colors.green,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Active Trip',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.green,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Start Time: $startTime',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontFamily: 'Poppins',
+                              ),
                             ),
                           ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Trip Active',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        'Real-time tracking enabled',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[500],
-                          fontFamily: 'Poppins',
                         ),
                       ),
                     ],
@@ -2266,6 +2232,8 @@ if (!await launchUrl(
                 ),
               );
               }),
+
+
 
               Obx(() {
                 if (controller.tripMapData.value != null) {
@@ -2329,8 +2297,6 @@ if (!await launchUrl(
                 );
               }),
               
-              _buildPageContent(context, primaryColor),
-
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -2362,7 +2328,7 @@ if (!await launchUrl(
                                     if (controller.tripMapData.value != null) {
                                       return _buildFullScreenMap(context, controller.tripMapData.value!, primaryColor);
                                     }
-                                    final currentLocation = controller.currentVehicleLocation.value;
+                                    final currentLocation = controller.vehicleLocation.value;
                                     if (currentLocation != null) {
                                       return _buildCurrentLocationMap(context, currentLocation, primaryColor);
                                     }
@@ -2423,22 +2389,7 @@ if (!await launchUrl(
                       }),
                       const SizedBox(height: 8),
                       _buildChildLocationButton(() {
-                        final controller = Get.find<ParentHomeController>(tag: 'home'); 
-                        final childId = controller.parentProfile.value?.endUserId; 
-
-                        if (childId != null && childId.isNotEmpty) {
-                          Get.to(
-                            () => const ChildLocationTrackingPage(), 
-                            binding: ChildLocationTrackingBinding(),
-                            arguments: {
-                              'childId': childId,
-                            },
-                            transition: Transition.rightToLeft,
-                            duration: const Duration(milliseconds: 350),
-                          );
-                        } else {
-                          Get.snackbar('Error', 'Child ID not found for tracking.', snackPosition: SnackPosition.BOTTOM);
-                        }
+                        controller.focusOnVehicle();
                       }),
                     ],
                   ),
@@ -2456,7 +2407,7 @@ if (!await launchUrl(
       return _buildFullScreenMap(context, controller.tripMapData.value!, primaryColor);
     }
 
-    final currentLocation = controller.currentVehicleLocation.value;
+    final currentLocation = controller.vehicleLocation.value;
     if (currentLocation != null) {
       return _buildCurrentLocationMap(context, currentLocation, primaryColor);
     }
@@ -2575,64 +2526,64 @@ if (!await launchUrl(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              controller.isUpcomingTrip.value ? 'Upcoming Route' : 'Active Route',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[600],
-                                letterSpacing: 0.5,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                            if (controller.isUpcomingTrip.value)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: Colors.orange,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Upcoming Trip',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.orange,
-                                    fontFamily: 'Poppins',
-                                  ),
-                                ),
-                              )
-                            else if (tripData.associatedTripId.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: Colors.green,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Active Trip',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.green,
-                                    fontFamily: 'Poppins',
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
+                        // Row(
+                        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        //   children: [
+                        //     Text(
+                        //       controller.isUpcomingTrip.value ? 'Upcoming Route' : 'Active Route',
+                        //       style: TextStyle(
+                        //         fontSize: 12,
+                        //         fontWeight: FontWeight.w500,
+                        //         color: Colors.grey[600],
+                        //         letterSpacing: 0.5,
+                        //         fontFamily: 'Poppins',
+                        //       ),
+                        //     ),
+                        //     if (controller.isUpcomingTrip.value)
+                        //       Container(
+                        //         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        //         decoration: BoxDecoration(
+                        //           color: Colors.orange.withValues(alpha: 0.1),
+                        //           borderRadius: BorderRadius.circular(4),
+                        //           border: Border.all(
+                        //             color: Colors.orange,
+                        //             width: 1,
+                        //           ),
+                        //         ),
+                        //         child: const Text(
+                        //           'Upcoming Trip',
+                        //           style: TextStyle(
+                        //             fontSize: 10,
+                        //             fontWeight: FontWeight.w500,
+                        //             color: Colors.orange,
+                        //             fontFamily: 'Poppins',
+                        //           ),
+                        //         ),
+                        //       )
+                        //     else if (tripData.associatedTripId.isNotEmpty)
+                        //       Container(
+                        //         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        //         decoration: BoxDecoration(
+                        //           color: Colors.green.withValues(alpha: 0.1),
+                        //           borderRadius: BorderRadius.circular(4),
+                        //           border: Border.all(
+                        //             color: Colors.green,
+                        //             width: 1,
+                        //           ),
+                        //         ),
+                        //         child: const Text(
+                        //           'Active Trip',
+                        //           style: TextStyle(
+                        //             fontSize: 10,
+                        //             fontWeight: FontWeight.w500,
+                        //             color: Colors.green,
+                        //             fontFamily: 'Poppins',
+                        //           ),
+                        //         ),
+                        //       ),
+                        //   ],
+                        // ),
+                        // const SizedBox(height: 4),
                         Row(
                           children: [
                             Expanded(
