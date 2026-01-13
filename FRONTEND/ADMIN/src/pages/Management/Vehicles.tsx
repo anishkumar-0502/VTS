@@ -1072,10 +1072,24 @@ const handleViewDevice = async (deviceId: string, vehicle?: Vehicle) => {
   // Assign device to vehicle
 const handleAssignDevice = async (vehicle: Vehicle) => {
   const unassignedDevices = devices.filter(d => !d.assigned_vehicle_id);
-  if (unassignedDevices.length === 0) {
-    showSuccess("No unassigned devices available");
-    return;
-  }
+if (unassignedDevices.length === 0) {
+  const darkMode = document.documentElement.classList.contains("dark");
+
+  await Swal.fire({
+    icon: "info",
+    title: "No Available Devices",
+    text: "All devices are already assigned to vehicles.",
+    confirmButtonText: "OK",
+    confirmButtonColor: "#4f46e5",
+    background: darkMode ? "#1f2937" : "#ffffff",
+    color: darkMode ? "#e5e7eb" : "#111827",
+    customClass: {
+      popup: "rounded-xl shadow-lg",
+    },
+  });
+  return;
+}
+
 
   const inputOptions: Record<string, string> = {};
   unassignedDevices.forEach(d => {
@@ -1800,8 +1814,6 @@ const handleViewPassenger = async (passengerId: string, vehicle?: Vehicle) => {
     Swal.fire("Error", "Unable to fetch passenger", "error");
   }
 };
-
-
 
 
   // Assign passengers (single or multiple)

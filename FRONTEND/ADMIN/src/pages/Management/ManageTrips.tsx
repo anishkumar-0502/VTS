@@ -315,9 +315,9 @@ if (!isStartSelected || !isEndSelected) {
                     dwell_target_seconds: dwell,
                     sla_arrival_buffer_seconds: sla,
                     approximate_reach_time: reachTime || "",
-        landmark: landmark || "",
+                    landmark: landmark || "",
                   },
-                ].sort((a, b) => a.sequence - b.sequence) // Maintain sort order
+                ].sort((a, b) => a.sequence - b.sequence) // Maintain sort order      
             );
           }
         });

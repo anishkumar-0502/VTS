@@ -1104,25 +1104,14 @@ fetchVehicles();
                 </table>
               </div>
             )}
+            
+         
 
-            {hasMoreMgmt && (
-              <div className="flex justify-center py-4">
-                <Button variant="primary" size="sm" disabled={loadingMoreMgmt} onClick={() => fetchManagementUsers(mgmtPage + 1)}>
-                  {loadingMoreMgmt ? "Loading..." : "Load More"}
-                </Button>
-              </div>
-            )}
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 shadow p-6 dark:bg-gray-900 dark:border-gray-800 max-w-6xl mx-auto">
             {selectedAllType === "driver" ? renderAllUsersTable(drivers, "Drivers") : renderAllUsersTable(allEndUsers, "End Users")}
-            {allPage < totalAllPages && (
-              <div className="flex justify-center mt-4">
-                <button onClick={() => fetchAllUsers(allPage + 1)} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" disabled={loadingMoreAll}>
-                  {loadingMoreAll ? "Loading..." : "Load More"}
-                </button>
-              </div>
-            )}
+       
           </div>
         )}
       </div>
