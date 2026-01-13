@@ -41,7 +41,7 @@ class WebhookController {
 
         try {
           const parsed = WebhookController.parseMessage(message);
-          
+
           if (!parsed) {
             const reason = 'Invalid message format: requires message_type and tracker_id';
             logger.loggerError(`Webhook Rejected: ${reason} | Payload: ${JSON.stringify(message)}`);
@@ -164,8 +164,8 @@ class WebhookController {
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Length', Buffer.byteLength(jsonResponse));
-      res.setHeader('Connection', 'close');
-      
+      // res.setHeader('Connection', 'close');
+
       res.status(200).send(jsonResponse);
     } catch (error) {
       next(error);
