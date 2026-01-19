@@ -8,7 +8,47 @@ import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import Button from "../../components/ui/button/Button";
 
+function cleanAddress(raw: string) {
+  if (!raw) return "";
 
+  const parts = raw.split(",").map(p => p.trim());
+
+  const removeTamilKannada = p =>
+    p.replace(/[^\x00-\x7F]/g, ""); // removes non-ASCII (Tamil/Kannada etc)
+
+  const english = parts
+    .map(removeTamilKannada)
+    .filter(p => p.length > 0);
+
+  // now pick only meaningful parts
+  const preferred: string[] = [];
+
+  if (english[0]) preferred.push(english[0]); // Place / Business
+  if (english[2]) preferred.push(english[2]); // Locality / Layout
+
+  if (english.includes("Bengaluru")) preferred.push("Bengaluru");
+  if (english.find(p => p === "Karnataka")) preferred.push("Karnataka");
+
+  const pin = english.find(p => /^\d{6}$/.test(p));
+  if (pin) preferred.push(pin);
+
+  preferred.push("India");
+
+  return preferred.join(", ");
+}
+
+
+async function reverseGeocode(lat: number, lng: number) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=en`
+    );
+    const data = await res.json();
+    return cleanAddress(data.display_name || "");
+  } catch {
+    return "";
+  }
+}
 
 const startIcon = new L.Icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
@@ -235,16 +275,21 @@ const LocationMarker = ({
   >;
 }) => {
   useMapEvents({
-    click(e) {
+    async click(e) {
+      const { lat, lng } = e.latlng;
+      const address = await reverseGeocode(lat, lng);
+
       setLocation({
-        address: "", 
-        latitude: e.latlng.lat,
-        longitude: e.latlng.lng,
+        address,
+        latitude: lat,
+        longitude: lng,
       });
     },
   });
+
   return null;
 };
+
 
 const StopMarker = ({
   routePoints,
@@ -1101,11 +1146,25 @@ if (loading)
       {isEndMapFullscreen && (
         <div className="fixed top-0 left-0 z-[99999] bg-white dark:bg-gray-900 h-screen w-screen overflow-hidden">
           <MapContainer
-            center={[endLocation.latitude || 20.5937, endLocation.longitude || 78.9629]}
+            center={[
+  endLocation.latitude || startLocation.latitude || 20.5937,
+  endLocation.longitude || startLocation.longitude || 78.9629
+]}
+
             zoom={endLocation.latitude !== 0 ? 14 : 5}
             className="h-full w-full"
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+           {startLocation.latitude !== 0 && (
+  <Marker
+    position={[startLocation.latitude, startLocation.longitude]}
+    icon={startIcon}
+  >
+    <Popup>Start Location</Popup>
+  </Marker>
+)}
+
+
             <LocationMarker setLocation={setEndLocation} />
             {endLocation.latitude !== 0 && (
               <Marker position={[endLocation.latitude, endLocation.longitude]} icon={endIcon}>
@@ -1449,11 +1508,24 @@ if (loading)
                         {isEndMapFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
                       </button>
                       <MapContainer
-                        center={[endLocation.latitude || 20.5937, endLocation.longitude || 78.9629]}
+                       center={[
+  endLocation.latitude || startLocation.latitude || 20.5937,
+  endLocation.longitude || startLocation.longitude || 78.9629
+]}
+
                         zoom={endLocation.latitude !== 0 ? 14 : 5}
                         className="h-full w-full rounded border border-gray-300 dark:border-gray-700"
                       >
                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        {startLocation.latitude !== 0 && (
+  <Marker
+    position={[startLocation.latitude, startLocation.longitude]}
+    icon={startIcon}
+  >
+    <Popup>Start Location</Popup>
+  </Marker>
+)}
+
                         <LocationMarker setLocation={setEndLocation} />
                         {endLocation.latitude !== 0 && (
                           <Marker

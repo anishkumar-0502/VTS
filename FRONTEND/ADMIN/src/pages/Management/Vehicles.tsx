@@ -1172,7 +1172,7 @@ const { value: device_id } = await Swal.fire({
     if (!data.error) {
       showSuccess(data.message || "Device assigned");
       fetchVehicles(true);
-      fetchDevices(true); // Refresh devices list
+      fetchDevices(true); // Refresh ` devices list
     } else {
       Swal.fire("Error", data.message || "Failed to assign device", "error");
     }
