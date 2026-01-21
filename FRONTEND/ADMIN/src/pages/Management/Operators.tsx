@@ -222,6 +222,59 @@ const fetchDevices = async (pageNum = 1) => {
   // Create / Update
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // PHONE VALIDATION
+if (!/^\d{10}$/.test(operatorForm.phone_number)) {
+  Swal.fire({
+    icon: "warning",
+    title: "Invalid Phone Number",
+    text: "Phone Number must be 10 digits and contain only numbers."
+  });
+  return; // stop submit
+}
+
+// DUPLICATE PHONE CHECK (optional)
+const duplicatePhone = operators.some(o =>
+  (o.phone_number || o.phone) === operatorForm.phone_number &&
+  o.operator_id !== editingOperator?.operator_id
+);
+
+if (duplicatePhone) {
+  Swal.fire({
+    icon: "error",
+    title: "Duplicate Phone Number",
+    text: "Another operator already uses this phone number."
+  });
+  return;
+}
+
+// EMAIL VALIDATION
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+if (!emailRegex.test(operatorForm.email)) {
+  Swal.fire({
+    icon: "warning",
+    title: "Invalid Email",
+    text: "Please enter a valid email address."
+  });
+  return;
+}
+// DUPLICATE EMAIL CHECK (Frontend)
+const duplicateEmail = operators.some(o =>
+  o.email.toLowerCase() === operatorForm.email.toLowerCase() &&
+  o.operator_id !== editingOperator?.operator_id
+);
+
+if (duplicateEmail) {
+  Swal.fire({
+    icon: "error",
+    title: "Duplicate Email",
+    text: "Another operator already uses this email."
+  });
+  return;
+}
+
+
+
    const body = {
   name: operatorForm.name,
   email: operatorForm.email,
@@ -250,7 +303,24 @@ const fetchDevices = async (pageNum = 1) => {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      if (!res.ok) {
+  let msg = data.message;
+
+  // Convert backend DB cast error → user-friendly
+  if (msg?.includes("Cast to Number failed")) {
+    msg = "Phone Number must be 10 digits and contain only numbers.";
+  }
+
+  Swal.fire({
+    ...swalBaseConfig,
+    icon: "error",
+    title: "Validation Error",
+    text: msg,
+  });
+
+  return; // ⛔ stop submit
+}
+
 
      showSuccess(editingOperator ? "Operator updated successfully!" : "Operator created successfully!");
 
@@ -805,30 +875,62 @@ if (loading)
 
   {/* STEP FIELDS */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {stepFields[formStep].map((field) => (
-      <div key={field}>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-          {field.replace("_", " ")}
-        </label>
-       <input
-  name={field}
-  type={field === "email" ? "email" : "text"}
-  value={operatorForm[field]}
-  onChange={(e) =>
-    setOperatorForm({
-      ...operatorForm,
-      [field]: e.target.value,
-    })
-  }
-  required
-  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2
-  dark:border-gray-600 dark:bg-gray-700 dark:text-white
-  focus:ring-2 focus:ring-indigo-500"
-/>
+  {stepFields[formStep].map((field) => (
+    <div key={field}>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
+        {field.replace("_", " ")}
+      </label>
 
-      </div>
-    ))}
-  </div>
+      {field === "email" ? (
+        <input
+          name="email"
+          type="email"
+          value={operatorForm.email}
+          onChange={(e) => {
+            const val = e.target.value.replace(/\s/g, ""); // prevent space
+            setOperatorForm({ ...operatorForm, email: val });
+          }}
+          required
+          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2
+          dark:border-gray-600 dark:bg-gray-700 dark:text-white
+          focus:ring-2 focus:ring-indigo-500"
+        />
+
+      ) : field === "phone_number" ? (
+        <input
+          name="phone_number"
+          maxLength={10}
+          value={operatorForm.phone_number}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (/^\d*$/.test(val)) {
+              setOperatorForm({ ...operatorForm, phone_number: val }); // digits only
+            }
+          }}
+          required
+          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2
+          dark:border-gray-600 dark:bg-gray-700 dark:text-white
+          focus:ring-2 focus:ring-indigo-500"
+        />
+
+      ) : (
+        <input
+          name={field}
+          type="text"
+          value={operatorForm[field]}
+          onChange={(e) =>
+            setOperatorForm({ ...operatorForm, [field]: e.target.value })
+          }
+          required
+          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2
+          dark:border-gray-600 dark:bg-gray-700 dark:text-white
+          focus:ring-2 focus:ring-indigo-500"
+        />
+      )}
+    </div>
+  ))}
+</div>
+
 
   {/* NAVIGATION */}
   <div className="flex justify-between items-center mt-6">
