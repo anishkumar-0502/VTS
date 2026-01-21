@@ -87,9 +87,11 @@ function LocationSelector({ onSelect }: { onSelect: (lat: number, lng: number) =
 //   }
 // }
 
-function LocateMeButton({ setCoords }: { setCoords: (coords: { lat: number; lng: number }) => void }) {
+function LocateMeButton({ setCoords, className }: { setCoords: (coords: { lat: number; lng: number }) => void, className?: string }) {
   const map = useMap();
-  const handleLocate = () => {
+  const handleLocate = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!navigator.geolocation) {
       Swal.fire("Error", "Geolocation is not supported by your browser.", "error");
       return;
@@ -109,10 +111,10 @@ function LocateMeButton({ setCoords }: { setCoords: (coords: { lat: number; lng:
     <button
       type="button"
       onClick={handleLocate}
-      className="absolute top-2 right-2 z-[1000] bg-white dark:bg-gray-800 shadow-md rounded-full p-2 text-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+      className={className || "absolute top-2 right-12 z-[1001] bg-white dark:bg-gray-800 shadow-md rounded-full p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"}
       title="Locate Me"
     >
-      📍
+      <CurrentLocationIcon />
     </button>
   );
 }
@@ -154,6 +156,17 @@ const FullscreenIcon = () => (
 const ExitFullscreenIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+  </svg>
+);
+
+const CurrentLocationIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="3" />
+    <line x1="12" y1="2" x2="12" y2="5" />
+    <line x1="12" y1="19" x2="12" y2="22" />
+    <line x1="2" y1="12" x2="5" y2="12" />
+    <line x1="19" y1="12" x2="22" y2="12" />
   </svg>
 );
 
@@ -240,10 +253,19 @@ const [selectedTrip, setSelectedTrip] = useState<string>("");
   const [errors, setErrors] = useState<any>({});
 
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target;
+
+  // Restrict phone + sos_phone to only digits and max 10
+  if (name === "phone_number" || name === "sos_phone") {
+    const numeric = value.replace(/\D/g, "").slice(0, 10);
+    setFormData(prev => ({ ...prev, [name]: numeric }));
+    return;
+  }
+
+  setFormData(prev => ({ ...prev, [name]: value }));
+};
+
 
   // --- All User States ---
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -288,29 +310,48 @@ const [selectedTrip, setSelectedTrip] = useState<string>("");
 const validateStep = () => {
   let newErrors: any = {};
 
+  // --- STEP 1 VALIDATION ---
   if (formStep === 1) {
-    if (!formData.name) newErrors.name = "Name is required";
-    if (!formData.email) newErrors.email = "Email is required";
-    if (!formData.phone_number) newErrors.phone_number = "Phone is required";
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      newErrors.email = "Invalid email format";
+    }
+
+    const phone = normalizePhone(formData.phone_number);
+    if (!phone) newErrors.phone_number = "Phone is required";
+    else if (phone.length !== 10) newErrors.phone_number = "Phone must be 10 digits";
   }
 
+  // --- STEP 2 VALIDATION ---
   if (formStep === 2) {
-    if (!formData.sos_name) newErrors.sos_name = "SOS name required";
-    if (!formData.sos_phone) newErrors.sos_phone = "SOS phone required";
+    if (!formData.sos_name.trim()) newErrors.sos_name = "SOS name required";
+
+    const sosPhone = normalizePhone(formData.sos_phone);
+    if (!sosPhone) newErrors.sos_phone = "SOS phone required";
+    else if (sosPhone.length !== 10) newErrors.sos_phone = "SOS phone must be 10 digits";
+
     if (!selectedVehicle) newErrors.vehicle = "Select a vehicle";
     if (!selectedTrip) newErrors.trip = "Select a trip";
   }
 
+  // --- STEP 3 VALIDATION ---
   if (formStep === 3) {
-    if (!formData.pickup_name) newErrors.pickup_name = "Pickup label required";
-    if (!pickupAddress) newErrors.pickup_address = "Pickup address required";
-    if (!formData.dropoff_name) newErrors.dropoff_name = "Dropoff label required";
-    if (!dropoffAddress) newErrors.dropoff_address = "Dropoff address required";
+    if (!formData.pickup_name.trim()) newErrors.pickup_name = "Pickup label required";
+    if (!pickupAddress.trim()) newErrors.pickup_address = "Pickup address required";
+    if (!pickupCoords) newErrors.pickup_map = "Select pickup on map or route";
+
+    if (!formData.dropoff_name.trim()) newErrors.dropoff_name = "Dropoff label required";
+    if (!dropoffAddress.trim()) newErrors.dropoff_address = "Dropoff address required";
+    if (!dropoffCoords) newErrors.dropoff_map = "Select dropoff on map or route";
   }
 
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
 };
+
 
   const fetchVehicles = async () => {
   try {
@@ -666,26 +707,35 @@ fetchVehicles();
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* STEP 1: BASIC INFO */}
-                  {formStep === 1 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-left-4 duration-300">
-                      {["name", "email", "phone_number"].map((field) => (
-                        <div key={field}>
-                          <label className="block text-sm font-medium capitalize text-gray-700 dark:text-gray-300 mb-1">
-                            {field.replace("_", " ")}
-                          </label>
-                          <input 
-                            name={field} 
-                            type={field === "email" ? "email" : "text"} 
-                            value={(formData as any)[field]} 
-                            onChange={handleInputChange}
-                            required 
-                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all" 
-                          />
-                          {errors[field] && <p className="text-xs text-red-500 mt-1">{errors[field]}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {formStep === 1 && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-left-4 duration-300">
+    {["name", "email", "phone_number"].map((field) => (
+      <div key={field}>
+        <label className="block text-sm font-medium capitalize text-gray-700 dark:text-gray-300 mb-1">
+          {field.replace("_", " ")}
+        </label>
+
+        <input
+          name={field}
+          type={field === "email" ? "email" : "text"}
+          value={(formData as any)[field]}
+          onChange={handleInputChange}
+          required
+          {...(field === "phone_number" && {
+            inputMode: "numeric",
+            maxLength: 10
+          })}
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+        />
+
+        {errors[field] && (
+          <p className="text-xs text-red-500 mt-1">{errors[field]}</p>
+        )}
+      </div>
+    ))}
+  </div>
+)}
+
 
                   {/* STEP 2: SOS INFO */}
                   {formStep === 2 && (
@@ -706,11 +756,15 @@ fetchVehicles();
                         <input 
                           name="sos_phone" 
                           type="text" 
+                           inputMode="numeric"
+                           maxLength={10}
                           value={formData.sos_phone} 
                           onChange={handleInputChange}
                           required 
                           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 p-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" 
                         />
+                       
+
                       </div>
                       <div>
     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Vehicle</label>
@@ -782,6 +836,7 @@ fetchVehicles();
                               ref={(map) => { pickupMapRef.current = map }}
                               className="h-full w-full"
                             >
+                              <LocateMeButton setCoords={setPickupCoords} />
                               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                               {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={markerIcon} />}
                             </MapContainer>
@@ -806,6 +861,10 @@ fetchVehicles();
                                 scrollWheelZoom={true}
                                 className="h-full w-full"
                               >
+                                <LocateMeButton 
+                                  setCoords={setPickupCoords} 
+                                  className="absolute top-4 right-16 z-[100001] bg-white dark:bg-gray-800 shadow-xl rounded-full p-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700"
+                                />
                                 <MapResizer />
                                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                                 {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={markerIcon} />}
@@ -886,6 +945,7 @@ fetchVehicles();
                               ref={(map) => { dropoffMapRef.current = map }}
                               className="h-full w-full"
                             >
+                              <LocateMeButton setCoords={setDropoffCoords} />
                               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                               {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]} icon={markerIcon} />}
                             </MapContainer>
@@ -910,6 +970,10 @@ fetchVehicles();
                                 scrollWheelZoom={true}
                                 className="h-full w-full"
                               >
+                                <LocateMeButton 
+                                  setCoords={setDropoffCoords} 
+                                  className="absolute top-4 right-16 z-[100001] bg-white dark:bg-gray-800 shadow-xl rounded-full p-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700"
+                                />
                                 <MapResizer />
                                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                                 {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]} icon={markerIcon} />}

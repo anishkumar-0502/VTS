@@ -156,6 +156,10 @@ const showSuccess = (message: string) => {
     setSuccess("");
 
     if (!profileData.name.trim()) return setError("Name is required");
+    if (profileData.phone_number && profileData.phone_number.length !== 10) {
+  return setError("Phone number must be 10 digits");
+}
+
 
     try {
       setLoading(true);
@@ -366,16 +370,20 @@ const showSuccess = (message: string) => {
                 <div>
                   <Label>Phone</Label>
                   <Input
-                    type="tel"
-                    value={profileData.phone_number}
-                    onChange={(e) =>
-                      setProfileData({
-                        ...profileData,
-                        phone_number: e.target.value,
-                      })
-                    }
-                    disabled={loading}
-                  />
+  type="tel"
+  value={profileData.phone_number}
+  maxLength={10}
+  onChange={(e) => {
+    const value = e.target.value.replace(/\D/g, ""); // digits only
+    if (value.length <= 10) {
+      setProfileData({
+        ...profileData,
+        phone_number: value,
+      });
+    }
+  }}
+  disabled={loading}
+/>
                 </div>
               </div>
 
