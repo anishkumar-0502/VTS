@@ -69,9 +69,6 @@ class _ParentBottomNavbarState extends State<ParentBottomNavbar> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
-
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF2764FF),

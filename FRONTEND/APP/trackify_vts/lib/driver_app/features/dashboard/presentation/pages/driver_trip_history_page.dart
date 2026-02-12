@@ -123,16 +123,7 @@ class DriverTripHistoryPage extends GetView<DriverDashboardController> {
     trip.routeName?.isNotEmpty == true
         ? trip.routeName!
         : trip.vehicleId?.routeName ?? 'Trip';
-    // Note: We need to implement or import helper methods like _formatTripEndpoint if they were local to DriverDashboardPage
-    // For now, I'll assuming we need to duplicate or extract them. 
-    // Given the constraints and to avoid errors, I'll reimplement necessary helpers here or simplify.
-    
-    // Simplification for immediate fix:
-    final startAddress = trip.startLocation?.address ?? '';
-    final endAddress = trip.endLocation?.address ?? '';
-    
     final startLabel = trip.startTime.isNotEmpty ? trip.startTime : (trip.createdAt?.toIso8601String() ?? '');
-    
     final statusColor = _statusColor(trip.status, primaryColor);
 
     return InkWell(

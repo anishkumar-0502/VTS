@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:trackify_vts/driver_app/features/auth/presentation/controllers/login_page_controller.dart';
-
-import '../core/Network/Internet_connectivity.dart';
+import '../core/Network/internet_connectivity.dart';
 import 'Sessionhandler/session_controller.dart';
-import 'features/profile/presentation/controllers/driver_profile_controller.dart';
 import 'features/splashscreen/presentation/pages/splash_screen_page.dart';
 
 void main() {

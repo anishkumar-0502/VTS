@@ -50,11 +50,6 @@ class SessionController extends GetxController {
     }
   }
 
-  @override
-  void onInit() {
-    super.onInit();
-    // No need to call loadSession here as it's handled in _initializePrefs
-  }
 
   // Load session from shared preferences
   Future<void> loadSession() async {

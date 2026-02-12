@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:panara_dialogs/panara_dialogs.dart';
-
 import '../../../../Sessionhandler/session_controller.dart';
 import 'package:trackify_vts/shared/widgets/modern_dialog.dart';
 import '../../../auth/presentation/pages/login_page.dart';
@@ -171,9 +169,9 @@ class ParentProfileController extends GetxController {
         );
         return;
       }
-      print('[ParentProfileController] Fetching parent profile...');
+      debugPrint('[ParentProfileController] Fetching parent profile...');
       final response = await _profileRepository.getParentProfile(token);
-      print(
+      debugPrint(
         '[ParentProfileController] Got response: error=${response.error}, message=${response.message}, data!=null=${response.data != null}',
       );
       if (response.error) {
@@ -184,8 +182,8 @@ class ParentProfileController extends GetxController {
         );
       } else if (response.data != null) {
         try {
-          profileData.value = response.data as ParentProfileData?;
-          print('[ParentProfileController] ✅ Profile data set: ${profileData.value?.name}');
+          profileData.value = response.data;
+          debugPrint('[ParentProfileController] ✅ Profile data set: ${profileData.value?.name}');
           
           final profile = response.data!;
           final rawData = <String, dynamic>{
@@ -205,9 +203,9 @@ class ParentProfileController extends GetxController {
             username: profile.name,
             rawData: rawData,
           );
-          print('[ParentProfileController] ✅ Session updated with complete profile data');
+          debugPrint('[ParentProfileController] ✅ Session updated with complete profile data');
         } catch (e) {
-          print('[ParentProfileController] ❌ Error setting profile data: $e');
+          debugPrint('[ParentProfileController] ❌ Error setting profile data: $e');
           showStatusBanner(
             'Failed to parse profile data',
             Colors.redAccent,
@@ -215,7 +213,7 @@ class ParentProfileController extends GetxController {
           );
         }
       } else {
-        print('[ParentProfileController] ⚠️ Response data is null');
+        debugPrint('[ParentProfileController] ⚠️ Response data is null');
         showStatusBanner(
           'No profile data received',
           Colors.redAccent,
@@ -223,10 +221,10 @@ class ParentProfileController extends GetxController {
         );
       }
     } on exceptions.HttpException catch (e) {
-      print('[ParentProfileController] HttpException: $e');
+      debugPrint('[ParentProfileController] HttpException: $e');
       showStatusBanner(e.message, Colors.redAccent, Icons.error_outline);
     } catch (e) {
-      print('[ParentProfileController] Exception in fetchProfile: $e');
+      debugPrint('[ParentProfileController] Exception in fetchProfile: $e');
       showStatusBanner(
         'Failed to load profile',
         Colors.redAccent,
@@ -238,8 +236,6 @@ class ParentProfileController extends GetxController {
   }
 
   Future<void> confirmLogout(BuildContext context) async {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -339,7 +335,7 @@ class ParentProfileController extends GetxController {
     } on exceptions.HttpException catch (e) {
       showStatusBanner(e.message, Colors.redAccent, Icons.error_outline);
     } catch (e) {
-      print('Exception in updateProfile: $e');
+      debugPrint('Exception in updateProfile: $e');
       showStatusBanner(
         'Failed to update profile',
         Colors.redAccent,
@@ -392,7 +388,7 @@ class ParentProfileController extends GetxController {
     } on exceptions.HttpException catch (e) {
       showStatusBanner(e.message, Colors.redAccent, Icons.error_outline);
     } catch (e) {
-      print('Exception in changePassword: $e');
+      debugPrint('Exception in changePassword: $e');
       showStatusBanner(
         'Failed to change password',
         Colors.redAccent,

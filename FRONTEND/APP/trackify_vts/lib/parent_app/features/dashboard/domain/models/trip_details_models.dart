@@ -398,8 +398,8 @@ class Location {
     return Location(
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
-      address: json['address'] != null ? (json['address'] as dynamic?)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic?)?.toString() ?? '' : '',
+      address: json['address'] != null ? (json['address'] as dynamic)?.toString() ?? '' : '',
+      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
     );
   }
 

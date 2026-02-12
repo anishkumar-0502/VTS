@@ -36,7 +36,11 @@ FrameUpdateCallback? onFrameUpdate;
   Future<void> initialize({String? authToken}) async {
     try {
       print('🔌 Attempting Socket.IO connection...');
-      final token = authToken ?? await _getAuthToken();
+      String? token = authToken;
+      if (token == null || token.isEmpty) {
+        token = await _getAuthToken();
+      }
+      
       if (token.isEmpty) {
         print('[SocketIO] ❌ NO AUTH TOKEN - Socket.IO initialization failed');
         return;

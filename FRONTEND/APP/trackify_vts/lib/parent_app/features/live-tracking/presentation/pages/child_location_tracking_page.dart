@@ -265,110 +265,112 @@
     }
 
     Widget _buildMap(MapController mapController, LatLng childLocation, Color primaryColor) {
-      return FlutterMap(
-        mapController: mapController, 
-        options: MapOptions(
-          initialCenter: childLocation,
-          initialZoom: 14.0,
-          interactionOptions: const InteractionOptions(
-            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+      return Obx(() {
+        final double scale = (controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
+        
+        return FlutterMap(
+          mapController: mapController, 
+          options: MapOptions(
+            initialCenter: childLocation,
+            initialZoom: 14.0,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            ),
+            onPositionChanged: (position, hasGesture) {
+              if (position.zoom != null) {
+                controller.currentZoom.value = position.zoom!;
+              }
+            },
           ),
-        ),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.trackifyvts',
-          ),
-          Obx(() {
-            if (controller.routePolylinePoints.isNotEmpty) {
-              return PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: controller.routePolylinePoints,
-                    color: Colors.white,
-                    strokeWidth: 6.0,
-                  ),
-                  Polyline(
-                    points: controller.routePolylinePoints,
-                    color: primaryColor,
-                    strokeWidth: 3.5,
-                  ),
-                ],
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-          MarkerLayer(
-            markers: [
-              Marker(
-                width: 50,
-                height: 50,
-                point: childLocation,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: primaryColor.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+              subdomains: const ['a', 'b', 'c'],
+              userAgentPackageName: 'com.trackify.parent',
+            ),
+            MarkerLayer(
+              markers: [
+                if (controller.childStandingLocation.value != null)
+                  Marker(
+                    width: 50 * scale,
+                    height: 50 * scale,
+                    point: controller.childStandingLocation.value!,
+                    child: Image.asset(
+                      'assets/icons/homemarker.png',
+                      width: 50 * scale,
+                      height: 50 * scale,
                     ),
-                    Container(
-                      width: 40,
-                      height: 40,
+                  ),
+                Marker(
+                  width: 50 * scale,
+                  height: 50 * scale,
+                  point: childLocation,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 50 * scale,
+                        height: 50 * scale,
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      Container(
+                        width: 40 * scale,
+                        height: 40 * scale,
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          borderRadius: BorderRadius.circular(50),
+                          border: Border.all(color: Colors.white, width: 3 * scale),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryColor.withValues(alpha: 0.4),
+                              blurRadius: 8 * scale,
+                              spreadRadius: 2 * scale,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.location_on,
+                          color: Colors.white,
+                          size: 20 * scale,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (controller.nextStopLatLng.value != null)
+                  Marker(
+                    width: 50.0 * scale,
+                    height: 50.0 * scale,
+                    point: controller.nextStopLatLng.value!,
+                    alignment: Alignment.center,
+                    child: Container(
                       decoration: BoxDecoration(
-                        color: primaryColor,
-                        borderRadius: BorderRadius.circular(50),
-                        border: Border.all(color: Colors.white, width: 3),
+                        color: const Color(0xFFFF9800),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3 * scale),
                         boxShadow: [
                           BoxShadow(
-                            color: primaryColor.withValues(alpha: 0.4),
-                            blurRadius: 8,
-                            spreadRadius: 2,
+                            color: const Color(0xFFFF9800).withValues(alpha: 0.5),
+                            blurRadius: 12 * scale,
+                            spreadRadius: 3 * scale,
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.location_on,
+                      child: Icon(
+                        Icons.flag_rounded,
                         color: Colors.white,
-                        size: 20,
+                        size: 24 * scale
                       ),
                     ),
-                  ],
-                ),
-              ),
-              if (controller.nextStopLatLng.value != null)
-                Marker(
-                  width: 50.0,
-                  height: 50.0,
-                  point: controller.nextStopLatLng.value!,
-                  alignment: Alignment.center,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF9800),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF9800).withValues(alpha: 0.5),
-                          blurRadius: 12,
-                          spreadRadius: 3,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.flag_rounded,
-                      color: Colors.white,
-                      size: 24
-                    ),
                   ),
-                ),
-            ],
-          ),
-        ],
-      );
+              ],
+            ),
+          ],
+        );
+      });
     }
 
     Widget _buildLocationCard({

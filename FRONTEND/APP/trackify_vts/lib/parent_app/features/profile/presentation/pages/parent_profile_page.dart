@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:panara_dialogs/panara_dialogs.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../domain/models/parent_profile_model.dart';
 import '../controllers/parent_profile_controller.dart';
@@ -51,7 +50,7 @@ class ParentProfilePage extends GetView<ParentProfileController> {
     const primaryColor = Color(0xFF2764FF);
     
     return Obx(() {
-      print(
+      debugPrint(
         'Building ParentProfilePage, isLoading: ${controller.isLoading.value}, data: ${controller.profileData.value?.name}',
       );
       if (controller.isLoading.value) {
@@ -284,13 +283,6 @@ class ParentProfilePage extends GetView<ParentProfileController> {
           ),
         ],
         _buildMenuDivider(),
-        _buildMenuItem(
-          context,
-          Icons.location_on_outlined,
-          'Track Child Location',
-          'track_child',
-          data,
-        ),
         _buildMenuDivider(),
         _buildLogoutButton(context),
       ],

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
 import '../../../dashboard/presentation/pages/parent_home_page.dart';
-import '../../domain/models/login_model.dart';
 import '../../domain/repositories/login_repository.dart';
 import '../../../profile/domain/repositories/parent_profile_repository.dart';
-import '../../data/api.dart';
 import '../../../../../utilities/exception/exception.dart' as exceptions;
 import '../../../../../utilities/widgets/status_banner.dart';
 
@@ -20,7 +17,6 @@ class ParentLoginPageController extends GetxController {
 
   final AuthRepository _authRepository = AuthRepository();
   final SessionController _sessionController = Get.find<SessionController>();
-  final AuthAPICalls _authAPICalls = AuthAPICalls();
 
   @override
   void onClose() {
@@ -127,7 +123,7 @@ class ParentLoginPageController extends GetxController {
         );
       }
     } catch (e) {
-      print('Error saving session: $e');
+      debugPrint('Error saving session: $e');
     }
   }
 
@@ -135,11 +131,11 @@ class ParentLoginPageController extends GetxController {
     try {
       final token = _sessionController.token.value;
       if (token.isEmpty) {
-        print('Token not available for profile fetch after login');
+        debugPrint('Token not available for profile fetch after login');
         return;
       }
 
-      print('[LoginController] Fetching full profile after login');
+      debugPrint('[LoginController] Fetching full profile after login');
       
       final profileRepository = ParentProfileRepository();
       final response = await profileRepository.getParentProfile(token);
@@ -166,12 +162,12 @@ class ParentLoginPageController extends GetxController {
           rawData: completeProfileData,
         );
         
-        print('[LoginController] ✅ Full profile fetched and session updated with all required fields');
+        debugPrint('[LoginController] ✅ Full profile fetched and session updated with all required fields');
       } else {
-        print('[LoginController] ⚠️ Failed to fetch full profile after login: ${response.message}');
+        debugPrint('[LoginController] ⚠️ Failed to fetch full profile after login: ${response.message}');
       }
     } catch (e) {
-      print('[LoginController] ⚠️ Error fetching profile after login: $e');
+      debugPrint('[LoginController] ⚠️ Error fetching profile after login: $e');
     }
   }
 

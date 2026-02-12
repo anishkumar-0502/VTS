@@ -5,6 +5,7 @@ class TripStop {
   final String id;
   final String name;
   final String address;
+  final String landmark;
   final LatLng location;
   final int sequence;
   final String scheduledTime; // Added this field to fix UI error
@@ -16,6 +17,7 @@ class TripStop {
     required this.id,
     required this.name,
     required this.address,
+    required this.landmark,
     required this.location,
     required this.sequence,
     required this.scheduledTime,
@@ -35,12 +37,13 @@ class TripStop {
       id: json['stop_id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Unknown Stop',
       address: address, 
+      landmark: json['landmark']?.toString() ?? '',
       location: LatLng(lat, lng),
       sequence: json['sequence'] as int? ?? 0,
-      scheduledTime: json['scheduled_time']?.toString() ?? '00:00', // Placeholder fix
-      isCompleted: json['is_completed'] as bool? ?? false, // Placeholder
-      isChildStop: json['is_child_stop'] as bool? ?? false, // Placeholder
-      isReminder: json['is_reminder'] as bool? ?? false, // Placeholder
+      scheduledTime: json['approximate_reach_time']?.toString() ?? json['scheduled_time']?.toString() ?? '00:00',
+      isCompleted: json['is_completed'] as bool? ?? false, 
+      isChildStop: json['is_child_stop'] as bool? ?? false, 
+      isReminder: json['is_reminder'] as bool? ?? false, 
     );
   }
 }
@@ -103,6 +106,8 @@ class ParentLiveTripData {
   final LatLng endLocation;
   final String startAddress;
   final String endAddress;
+  final String landmark;
+  final String? tripType;
 
   // Live/Dynamic properties
   final LatLng? currentVehicleLocation; 
@@ -121,6 +126,8 @@ class ParentLiveTripData {
     required this.endLocation,
     required this.startAddress,
     required this.endAddress,
+    required this.landmark,
+    this.tripType,
     this.currentVehicleLocation,
     this.childStatus,
     this.nextStop,
@@ -139,6 +146,8 @@ class ParentLiveTripData {
     LatLng? endLocation,
     String? startAddress,
     String? endAddress,
+    String? landmark,
+    String? tripType,
     LatLng? currentVehicleLocation,
     String? childStatus,
     NextStopDetails? nextStop,
@@ -155,6 +164,8 @@ class ParentLiveTripData {
       endLocation: endLocation ?? this.endLocation,
       startAddress: startAddress ?? this.startAddress,
       endAddress: endAddress ?? this.endAddress,
+      landmark: landmark ?? this.landmark,
+      tripType: tripType ?? this.tripType,
       currentVehicleLocation: currentVehicleLocation ?? this.currentVehicleLocation,
       childStatus: childStatus ?? this.childStatus,
       nextStop: nextStop ?? this.nextStop,
@@ -179,7 +190,14 @@ class ParentLiveTripData {
     final endLat = (endLocData['latitude'] as num?)?.toDouble() ?? 0.0;
     final endLng = (endLocData['longitude'] as num?)?.toDouble() ?? 0.0;
     final endAddress = endLocData['address']?.toString() ?? 'End Point';
-    
+
+    final String landmark =
+    routePointsData.isNotEmpty
+        ? (routePointsData.first['landmark']?.toString() ?? '')
+        : '';
+
+
+
     return ParentLiveTripData(
       associatedTripId: data['associated_trip_id']?.toString() ?? '',
       routeName: data['route_name']?.toString() ?? 'N/A',
@@ -192,6 +210,8 @@ class ParentLiveTripData {
       endLocation: LatLng(endLat, endLng),
       startAddress: startAddress,
       endAddress: endAddress,
+      landmark: landmark,
+      tripType: data['trip_type']?.toString(),
     );
   }
 }

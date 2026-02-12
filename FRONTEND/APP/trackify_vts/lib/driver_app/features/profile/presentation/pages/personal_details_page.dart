@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../domain/models/profile_model.dart';
 
 class PersonalDetailsPage extends StatelessWidget {
@@ -147,32 +146,6 @@ class PersonalDetailsPage extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  // ---------------------
-  // Phone & Email launch functions
-  // ---------------------
-  Future<void> _callNumber(String number) async {
-    final Uri uri = Uri(scheme: 'tel', path: number);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _openEmail(String email) async {
-    final Uri uri = Uri(scheme: 'mailto', path: email);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  // ---------------------
-  // Date Formatting
-  // ---------------------
-  String _formatDateTime(DateTime date) {
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final y = date.year;
-    final h = date.hour > 12 ? date.hour - 12 : date.hour == 0 ? 12 : date.hour;
-    final min = date.minute.toString().padLeft(2, '0');
-    final period = date.hour >= 12 ? "PM" : "AM";
-    return "$d-$m-$y  $h:$min $period";
   }
 }
 

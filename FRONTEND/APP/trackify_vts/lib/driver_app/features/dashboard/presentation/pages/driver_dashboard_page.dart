@@ -56,7 +56,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
             ? 2
             : 1;
         final double metricSpacing = 12;
-        final double metricWidth =
         metricColumns == 1
             ? available
             : (available - metricSpacing * (metricColumns - 1)).clamp(
@@ -551,165 +550,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                       );
                     }),
                     const SizedBox(height: 24),
-                    // Container(
-                    //   padding: const EdgeInsets.all(20),
-                    //   decoration: BoxDecoration(
-                    //     color: Colors.white,
-                    //     borderRadius: BorderRadius.circular(18),
-                    //     border: Border.all(color: Colors.grey.shade200),
-                    //     boxShadow: [
-                    //       BoxShadow(
-                    //         color: Colors.black.withOpacity(0.05),
-                    //         blurRadius: 16,
-                    //         offset: const Offset(0, 8),
-                    //       ),
-                    //     ],
-                    //   ),
-                    //   child: Column(
-                    //     crossAxisAlignment: CrossAxisAlignment.start,
-                    //     children: [
-                    //       const Text(
-                    //         'Upcoming stops',
-                    //         style: TextStyle(
-                    //           fontSize: 18,
-                    //           fontWeight: FontWeight.w600,
-                    //         ),
-                    //       ),
-                    //       const SizedBox(height: 12),
-                    //       ...controller.upcomingStops.map(
-                    //         (stop) => Padding(
-                    //           padding: const EdgeInsets.symmetric(
-                    //             vertical: 10,
-                    //           ),
-                    //           child: Row(
-                    //             children: [
-                    //               Container(
-                    //                 width: 46,
-                    //                 height: 46,
-                    //                 decoration: BoxDecoration(
-                    //                   color: primaryColor.withOpacity(0.1),
-                    //                   borderRadius: BorderRadius.circular(14),
-                    //                 ),
-                    //                 alignment: Alignment.center,
-                    //                 child: Text(
-                    //                   stop['time'] ?? '',
-                    //                   style: TextStyle(
-                    //                     color: primaryColor,
-                    //                     fontWeight: FontWeight.w600,
-                    //                     fontSize: 12,
-                    //                   ),
-                    //                 ),
-                    //               ),
-                    //               const SizedBox(width: 12),
-                    //               Expanded(
-                    //                 child: Column(
-                    //                   crossAxisAlignment:
-                    //                       CrossAxisAlignment.start,
-                    //                   children: [
-                    //                     Text(
-                    //                       stop['name'] ?? '',
-                    //                       style: const TextStyle(
-                    //                         fontSize: 16,
-                    //                         fontWeight: FontWeight.w600,
-                    //                       ),
-                    //                     ),
-                    //                     const SizedBox(height: 4),
-                    //                     Text(
-                    //                       stop['status'] ?? '',
-                    //                       style: const TextStyle(
-                    //                         fontSize: 13,
-                    //                         color: Colors.black54,
-                    //                       ),
-                    //                     ),
-                    //                   ],
-                    //                 ),
-                    //               ),
-                    //               Icon(
-                    //                 Icons.chevron_right,
-                    //                 color: Colors.grey.shade400,
-                    //               ),
-                    //             ],
-                    //           ),
-                    //         ),
-                    //       ),
-                    //     ],
-                    //   ),
-                    // ),
-                    // const SizedBox(height: 24),
-                    // Container(
-                    //   padding: const EdgeInsets.all(20),
-                    //   decoration: BoxDecoration(
-                    //     color: Colors.white,
-                    //     borderRadius: BorderRadius.circular(18),
-                    //     border: Border.all(color: Colors.grey.shade200),
-                    //     boxShadow: [
-                    //       BoxShadow(
-                    //         color: Colors.black.withOpacity(0.04),
-                    //         blurRadius: 12,
-                    //         offset: const Offset(0, 8),
-                    //       ),
-                    //     ],
-                    //   ),
-                    //   child: Column(
-                    //     crossAxisAlignment: CrossAxisAlignment.start,
-                    //     children: [
-                    //       const Text(
-                    //         'Quick actions',
-                    //         style: TextStyle(
-                    //           fontSize: 18,
-                    //           fontWeight: FontWeight.w600,
-                    //         ),
-                    //       ),
-                    //       const SizedBox(height: 16),
-                    //       ...controller.quickActions.map(
-                    //         (action) => Container(
-                    //           margin: const EdgeInsets.only(bottom: 12),
-                    //           padding: const EdgeInsets.symmetric(
-                    //             horizontal: 16,
-                    //             vertical: 14,
-                    //           ),
-                    //           decoration: BoxDecoration(
-                    //             borderRadius: BorderRadius.circular(16),
-                    //             color: Colors.grey.shade100,
-                    //           ),
-                    //           child: Row(
-                    //             children: [
-                    //               Icon(Icons.bolt, color: primaryColor),
-                    //               const SizedBox(width: 12),
-                    //               Expanded(
-                    //                 child: Column(
-                    //                   crossAxisAlignment:
-                    //                       CrossAxisAlignment.start,
-                    //                   children: [
-                    //                     Text(
-                    //                       action['title'] ?? '',
-                    //                       style: const TextStyle(
-                    //                         fontSize: 15,
-                    //                         fontWeight: FontWeight.w600,
-                    //                       ),
-                    //                     ),
-                    //                     const SizedBox(height: 4),
-                    //                     Text(
-                    //                       action['subtitle'] ?? '',
-                    //                       style: const TextStyle(
-                    //                         fontSize: 13,
-                    //                         color: Colors.black54,
-                    //                       ),
-                    //                     ),
-                    //                   ],
-                    //                 ),
-                    //               ),
-                    //               Icon(
-                    //                 Icons.chevron_right,
-                    //                 color: Colors.grey.shade500,
-                    //               ),
-                    //             ],
-                    //           ),
-                    //         ),
-                    //       ),
-                    //     ],
-                    //   ),
-                    // ),
+
                   ],
                 ),
               ),
@@ -1227,7 +1068,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
         createdAt: detailTrip.createdAt,
         updatedAt: detailTrip.updatedAt,
       );
-      final normalizedStatus = detailTrip.status.toLowerCase();
 
 
       _showTripHistoryDetails(
@@ -1337,8 +1177,7 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     trip.routeName?.isNotEmpty == true
         ? trip.routeName!
         : trip.vehicleId?.routeName ?? 'Trip';
-    final startLocation = _formatTripEndpoint(trip, isStart: true);
-    final endLocation = _formatTripEndpoint(trip, isStart: false);
+
     final startLabel = _formatHistoryTimestamp(
       trip.startTime.isNotEmpty
           ? trip.startTime
@@ -1536,87 +1375,6 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
     return '${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}';
   }
 
-  static String _formatTripEndpoint(
-      dashboard_models.DriverTripHistory trip, {
-        required bool isStart,
-      }) {
-    final location = isStart ? trip.startLocation : trip.endLocation;
-    if (location != null && location.address.trim().isNotEmpty) {
-      return location.address.trim();
-    }
-    final fallback = _resolveRoutePointName(
-      trip,
-      location: location,
-      isStart: isStart,
-    );
-    if (fallback.isNotEmpty) {
-      return fallback;
-    }
-    final formatted = _formatLocation(location);
-    if (formatted == '0.0000, 0.0000') {
-      return '';
-    }
-    return formatted;
-  }
-
-  static String _resolveRoutePointName(
-      dashboard_models.DriverTripHistory trip, {
-        required dashboard_models.Location? location,
-        required bool isStart,
-      }) {
-    final points = _collectTripRoutePoints(trip);
-    if (points.isEmpty) {
-      return '';
-    }
-    scheduled_models.RoutePoint? candidate;
-    if (location != null) {
-      candidate = _matchRoutePoint(points, location);
-    }
-    candidate ??= isStart ? points.first : points.last;
-    final name = candidate.name.trim();
-    if (name.isNotEmpty) {
-      return name;
-    }
-    return '';
-  }
-
-  static List<scheduled_models.RoutePoint> _collectTripRoutePoints(
-      dashboard_models.DriverTripHistory trip,
-      ) {
-    final combined = <scheduled_models.RoutePoint>[];
-    combined.addAll(trip.routePoints);
-    if (combined.isEmpty) {
-      return combined;
-    }
-    final seen = <String>{};
-    final filtered = <scheduled_models.RoutePoint>[];
-    for (final point in combined) {
-      if (point.latitude == 0 && point.longitude == 0) {
-        continue;
-      }
-      final key =
-          '${point.latitude.toStringAsFixed(6)}_${point.longitude.toStringAsFixed(6)}';
-      if (seen.add(key)) {
-        filtered.add(point);
-      }
-    }
-    filtered.sort((a, b) => a.order.compareTo(b.order));
-    return filtered;
-  }
-
-  static scheduled_models.RoutePoint? _matchRoutePoint(
-      List<scheduled_models.RoutePoint> points,
-      dashboard_models.Location location,
-      ) {
-    for (final point in points) {
-      if ((point.latitude - location.latitude).abs() < 0.0005 &&
-          (point.longitude - location.longitude).abs() < 0.0005) {
-        return point;
-      }
-    }
-    return null;
-  }
-
   static Color _statusColor(String status, Color primaryColor) {
     switch (status.toLowerCase()) {
       case 'completed':
@@ -1796,20 +1554,17 @@ class _TripHistoryDetailsPage extends StatelessWidget {
     trip.routeName?.isNotEmpty == true
         ? trip.routeName!
         : trip.vehicleId?.routeName ?? 'Trip';
-    final statusColor =
     DriverDashboardPage._statusColor(trip.status, primaryColor);
     final startTimeLabel = DriverDashboardPage._formatHistoryTimestamp(
       trip.startTime.isNotEmpty
           ? trip.startTime
           : trip.createdAt?.toIso8601String() ?? '',
     );
-    final updatedLabel =
     trip.updatedAt != null
         ? DriverDashboardPage._formatHistoryTimestamp(
       trip.updatedAt!.toIso8601String(),
     )
         : '';
-    final createdLabel =
     trip.createdAt != null
         ? DriverDashboardPage._formatHistoryTimestamp(
       trip.createdAt!.toIso8601String(),
@@ -1818,14 +1573,7 @@ class _TripHistoryDetailsPage extends StatelessWidget {
     final startLocation = DriverDashboardPage._formatLocation(trip.startLocation);
     final endLocation = DriverDashboardPage._formatLocation(trip.endLocation);
     final vehicleNumber = trip.vehicleId?.vehicleNumber ?? 'Not assigned';
-    final scheduleId = trip.scheduledTripId ?? '';
-    final stopsCount = trip.stops.length;
-    final passengersCount = trip.passengers.length;
-    final violationsCount = trip.speedViolations.length;
-    final deviationsCount = trip.routeDeviations.length;
-    final speedLimitLabel =
     trip.speedLimit > 0 ? '${trip.speedLimit} km/h' : 'Not set';
-    final speedAlarmLabel = trip.speedAlarmEnabled ? 'Enabled' : 'Disabled';
     final waypoints = trip.routePoints.isNotEmpty
         ? trip.routePoints
         : (trip.vehicleId?.routePoints ?? []);
@@ -1854,8 +1602,6 @@ class _TripHistoryDetailsPage extends StatelessWidget {
     }
     final previewStops = DriverDashboardPage._extractStops(waypoints);
     final hasRoutePreview = previewPoints.length >= 2;
-    final analyticsData = analytics;
-
     final canShowStopAction = enableStopAction ;
 
     return Scaffold(
@@ -2182,110 +1928,6 @@ class _TripHistoryDetailsPage extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildInsightCard(
-      Color statusColor,
-      String title,
-      String value,
-      String subtitle,
-      ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: 12, color: statusColor),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: statusColor,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: statusColor.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(String value, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Trip insights',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnalyticsMetric(IconData icon, String label, String value) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: primaryColor),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _ActiveTripMap extends StatefulWidget {
@@ -2371,17 +2013,6 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
       setState(() => _isLoading = false);
     }
   }
-
-  LatLng _averageLatLng(List<LatLng> points) {
-    final lat =
-        points.fold<double>(0, (sum, value) => sum + value.latitude) /
-            points.length;
-    final lon =
-        points.fold<double>(0, (sum, value) => sum + value.longitude) /
-            points.length;
-    return LatLng(lat, lon);
-  }
-
   String _signatureFor(List<_GeoCoordinate> points) {
     return points
         .map(
@@ -2463,10 +2094,6 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
       widget.points.last.latitude,
       widget.points.last.longitude,
     );
-    final avg = _averageLatLng(
-      widget.points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
-    );
-
     final markers = <Marker>[
       Marker(
         width: 38,
@@ -2642,13 +2269,6 @@ class _FullScreenMapState extends State<_FullScreenMap> {
     widget.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
     final startPoint = latLngPoints.first;
     final endPoint = latLngPoints.last;
-    final avgLat =
-        latLngPoints.fold(0.0, (sum, p) => sum + p.latitude) /
-            latLngPoints.length;
-    final avgLng =
-        latLngPoints.fold(0.0, (sum, p) => sum + p.longitude) /
-            latLngPoints.length;
-
     final markers = <Marker>[
       Marker(
         point: startPoint,
