@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  // 🔐 LOGIN FUNCTION
+  //  LOGIN FUNCTION
   const login = async ({ email, password, role }: LoginPayload) => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -126,12 +126,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // 🚪 LOGOUT FUNCTION
-  const logout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    setUser(null);
-    setIsAuthenticated(false);
-  };
+ const logout = () => {
+  const currentRole = user?.role;
+
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  setUser(null);
+  setIsAuthenticated(false);
+
+  if (currentRole === "operator") {
+    window.location.href = "/operatorlogin";
+  } else if (currentRole === "superadmin") {
+    window.location.href = "/superadminlogin";
+  } else {
+    window.location.href = "/";
+  }
+};
+
 
   return (
     <AuthContext.Provider
