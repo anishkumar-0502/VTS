@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const API_BASE_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem("user"); 
     if (storedUser) {
       setUser(JSON.parse(storedUser));
       setIsAuthenticated(true);

@@ -136,7 +136,7 @@ const showSuccess = (message: string) => {
         setProfileData({
           name: p.name || p.full_name || "",
           email: p.email || "",
-          phone_number: p.phone_number?.toString() || "",
+          phone_number: p.phone_number ? String(p.phone_number) : "",
           role_id: p.role_id || 0,
           createdAt: p.createdAt || "",
           updatedAt: p.updatedAt || "",
@@ -178,20 +178,27 @@ const showSuccess = (message: string) => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: profileData.name,
-          phone_number: profileData.phone_number,
+            name: profileData.name,
+  phone_number: profileData.phone_number,
+  sos_contact: profileData.phone_number, // or separate state if needed
+  profile_image: "", // keep empty if not using image upload
         }),
       });
 
       const data = await res.json();
 
-     if (!data.error) {
-      showSuccess("Profile updated successfully");
-      setEditMode(false);
-      fetchProfile();
-    } else {
-      setError(data.message || "Failed to update profile");
-    }
+    if (!data.error) {
+  showSuccess(data.message || "Profile updated successfully");
+  setEditMode(false);
+  await fetchProfile(); // refresh latest data
+} else {
+  Swal.fire({
+    icon: "error",
+    title: "Update Failed",
+    text: data.message || "Failed to update profile",
+  });
+}
+
   } catch {
     setError("An error occurred while updating profile");
   } finally {

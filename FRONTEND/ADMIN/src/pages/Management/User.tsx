@@ -456,6 +456,15 @@ const handleView = async (userId: string) => {
       Swal.fire({ ...swalBase, icon: "warning", title: "Validation", text: "Name and email are required" });
       return;
     }
+     if (!/^\d{10}$/.test(form.phone_number)) {
+    Swal.fire({
+      ...swalBase,
+      icon: "warning",
+      title: "Invalid Phone Number",
+      text: "Phone number must be exactly 10 digits",
+    });
+    return;
+  }
     try {
       setLoading(true);
       if (editingUser) {
@@ -576,20 +585,35 @@ const handleView = async (userId: string) => {
       />
 
       {/* Email */}
-      <input
-        value={form.email}
-        onChange={(e) => setForm({ ...form, email: e.target.value })}
-        placeholder="Email Address"
-        className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
-      />
+     <input
+  value={form.email}
+  onChange={(e) => setForm({ ...form, email: e.target.value })}
+  placeholder="Email Address"
+  readOnly={!!editingUser}   // ← read-only only in edit mode
+  className={`px-3 py-2 rounded-md border
+    ${editingUser
+      ? "bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
+      : "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200"}
+    border-gray-300 dark:border-gray-600
+    focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none`}
+ />
+
 
       {/* Phone */}
-      <input
-        value={form.phone_number}
-        onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
-        placeholder="Phone Number"
-        className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
-      />
+     <input
+  value={form.phone_number}
+  onChange={(e) => {
+    const onlyNums = e.target.value.replace(/\D/g, ""); // remove non-digits
+    if (onlyNums.length <= 10) {
+      setForm({ ...form, phone_number: onlyNums });
+    }
+  }}
+  placeholder="Phone Number"
+  maxLength={10}
+  inputMode="numeric"
+  className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:outline-none"
+/>
+
 
       {/* Role Select */}
       <select

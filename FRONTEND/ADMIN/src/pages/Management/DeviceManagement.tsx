@@ -67,7 +67,7 @@ export default function ManageDevices() {
   const [formData, setFormData] = useState({
     device_id: "",
     imei: "",
-    device_type: "",
+    device_type: "gps-device", 
     sim_number: "",
     firmware_version: "",
   });
@@ -168,11 +168,19 @@ const fetchDevices = async (page = 1) => {
   // SAVE (CREATE / UPDATE)
   // ===========================
   const handleSave = async () => {
-    if (!formData.device_id || !formData.imei || !formData.device_type) {
+    if (!formData.device_id || !formData.imei || !formData.device_type || !formData.sim_number || !formData.firmware_version) {
       Swal.fire("Validation Error", "Please fill all required fields.", "warning");
       return;
     }
+     if (!/^\d{1,15}$/.test(formData.imei)) {
+    Swal.fire("Invalid IMEI", "IMEI must be numeric and up to 15 digits.", "warning");
+    return;
+  }
 
+  if (!/^\d{1,12}$/.test(formData.sim_number)) {
+    Swal.fire("Invalid SIM", "SIM number must be numeric and up to 12 digits.", "warning");
+    return;
+  }
     try {
       let res;
       if (editingDevice) {
@@ -181,15 +189,22 @@ const fetchDevices = async (page = 1) => {
           {
             method: "PUT",
             headers: authHeaders,
-            body: JSON.stringify(formData),
+           body: JSON.stringify({
+  ...formData,
+  device_type: "gps_tracker", // value sent to backend
+}),
           }
         );
       } else {
-        res = await fetch(`${API_BASE_URL}/superadmin/devices/create`, {
-          method: "POST",
-          headers: authHeaders,
-          body: JSON.stringify(formData),
-        });
+       res = await fetch(`${API_BASE_URL}/superadmin/devices/create`, {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({
+      ...formData,
+      device_type: "gps_tracker", // ✅ send correct value to backend
+    }),
+      });
+
       }
 
       const data = await res.json();
@@ -404,7 +419,7 @@ const handleView = async (device_id: string) => {
     setFormData({
       device_id: "",
       imei: "",
-      device_type: "",
+      device_type: "gps-device",
       sim_number: "",
       firmware_version: "",
     });
@@ -506,16 +521,44 @@ if (loading)
                   (field) => (
                     <div key={field}>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-                        {field.replace("_", " ")}
+                        {field.replace("_", " ")} <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={(formData as any)[field]}
-                        onChange={(e) =>
-                          setFormData({ ...formData, [field]: e.target.value })
-                        }
-                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                      />
+               <input
+  type="text"
+  value={(formData as any)[field]}
+  readOnly={field === "device_type"}
+  onChange={(e) => {
+    if (field === "device_type") return;
+
+    let value = e.target.value;
+
+    // Allow only digits for IMEI & SIM
+    if (field === "imei" || field === "sim_number") {
+      value = value.replace(/\D/g, "");
+    }
+
+    // Limit length
+    if (field === "imei" && value.length > 15) return;
+    if (field === "sim_number" && value.length > 12) return;
+
+    setFormData({ ...formData, [field]: value });
+  }}
+  maxLength={
+    field === "imei" ? 15 :
+    field === "sim_number" ? 12 :
+    undefined
+  }
+  inputMode={
+    field === "imei" || field === "sim_number" ? "numeric" : "text"
+  }
+  className={`mt-1 w-full rounded-lg border px-4 py-2
+    ${field === "device_type"
+      ? "bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
+      : "bg-white dark:bg-gray-700 dark:text-white"}
+    border-gray-300 dark:border-gray-600`}
+/>
+
+
                     </div>
                   )
                 )}

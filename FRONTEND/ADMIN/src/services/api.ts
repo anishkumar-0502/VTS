@@ -6,7 +6,7 @@ interface ApiResponse<T = any> {
   data?: T;
   errors?: any[];
   status?: number;
-  
+  totalPages?: number;
 }
 
 const getAuthToken = () => {
@@ -262,13 +262,14 @@ export const profileAPI = {
 };
 
 export const rolesAPI = {
-  getAll: () => api.get('/roles'),
-  getById: (roleId: string) => api.get(`/roles/${roleId}`),
-  create: (data: any) => api.post('/roles', data),
+  list: (page = 1, limit = 10) =>
+    api.get(`/superadmin/roles/list?page=${page}&limit=${limit}`),
+  getById: (roleId: string) => api.get(`/superadmin/roles/${roleId}/view`),
+  create: (data: any) => api.post('/superadmin/roles/create', data),
   update: (roleId: string, data: any) =>
-    api.put(`/roles/${roleId}`, data),
-  delete: (roleId: string) =>
-    api.delete(`/roles/${roleId}`),
+    api.put(`/superadmin/roles/${roleId}/update`, data),
+  toggleStatus: (roleId: string) =>
+    api.put(`/superadmin/roles/${roleId}/deactivate`),
 };
 
 export const appUsersAPI = {

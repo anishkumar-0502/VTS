@@ -3,8 +3,9 @@ import Swal from "sweetalert2";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadCrumb from "../../components/common/PageBreadCrumb";
 import PageShimmer from "../../components/common/PageShimmer";
+import { rolesAPI } from "../../services/api";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.39:8787";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://192.168.0.50:8787";
 
 interface Role {
   role_id?: string;
@@ -16,16 +17,12 @@ interface Role {
   updatedAt?: string;
 }
 
-// const defaultPermissions = [
-//   "read:vehicles",
-//   "write:vehicles",
-//   "read:drivers",
-//   "write:drivers",
-//   "read:alerts",
-//   "write:alerts",
-//   "read:analytics",
-//   "write:analytics",
-// ];
+const defaultPermissions = [
+  "read:vehicles",
+  "write:vehicles",
+  "read:drivers",
+  "write:drivers",
+];
 
 export default function ManageRoles() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -69,6 +66,13 @@ const EditIcon = () => (
   </svg>
 );
 
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path d="M2 12C4.5 7 8 5 12 5s7.5 2 10 7c-2.5 5-6 7-10 7s-7.5-2-10-7Z" stroke="currentColor" strokeWidth="2" />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
 const showSuccess = (message: string) => {
   const dark = document.documentElement.classList.contains("dark");
 
@@ -87,32 +91,28 @@ const showSuccess = (message: string) => {
 
 
   /** Fetch roles */
-const fetchRoles = async (pageNum = 1) => {
-  try {
-    if (pageNum === 1) setLoading(true);
-    else setLoadingMoreRoles(true);
+  const fetchRoles = async (pageNum = 1) => {
+    try {
+      if (pageNum === 1) setLoading(true);
+      else setLoadingMoreRoles(true);
 
-    const token = localStorage.getItem("token");
-    const res = await fetch(`${BASE_URL}/superadmin/roles/list?page=${pageNum}&limit=${pageSize}`, {
-      headers: { Authorization: token ? `Bearer ${token}` : "" },
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to fetch roles");
+      const res = await rolesAPI.list(pageNum, pageSize);
+      if (res.status !== 200) throw new Error(res.message || "Failed to fetch roles");
 
-    const fetchedRoles = data.data || [];
-    setRoles(pageNum === 1 ? fetchedRoles : [...roles, ...fetchedRoles]);
+      const fetchedRoles = res.data || [];
+      setRoles(pageNum === 1 ? fetchedRoles : [...roles, ...fetchedRoles]);
 
-    // Update total pages if API provides it
-    setRoleTotalPages(data.totalPages || 1);
-    setRolePage(pageNum);
-  } catch (err: any) {
-    console.error(err);
-    setError(err.message || "Failed to fetch roles.");
-  } finally {
-    setLoading(false);
-    setLoadingMoreRoles(false);
-  }
-};
+      // Update total pages if API provides it
+      setRoleTotalPages(res.totalPages || 1);
+      setRolePage(pageNum);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to fetch roles.");
+    } finally {
+      setLoading(false);
+      setLoadingMoreRoles(false);
+    }
+  };
 
 
   useEffect(() => {
@@ -129,17 +129,16 @@ const fetchRoles = async (pageNum = 1) => {
   /** Open edit form */
   const handleEdit = async (role: Role) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/superadmin/roles/${role.role_id}/view`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to fetch role details");
-      setEditingRole(data.data);
+      if (!role.role_id) return;
+      const res = await rolesAPI.getById(role.role_id);
+      if (res.status !== 200) throw new Error(res.message || "Failed to fetch role details");
+      
+      const roleData = res.data;
+      setEditingRole(roleData);
       setFormData({
-        role_name: data.data.role_name,
-        description: data.data.description,
-        permissions: data.data.permissions || [],
+        role_name: roleData.role_name,
+        description: roleData.description,
+        permissions: roleData.permissions || [],
       });
       setShowForm(true);
     } catch (err: any) {
@@ -165,21 +164,13 @@ const fetchRoles = async (pageNum = 1) => {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const url = editingRole
-        ? `${BASE_URL}/superadmin/roles/${editingRole.role_id}/update`
-        : `${BASE_URL}/superadmin/roles/create`;
-      const method = editingRole ? "PUT" : "POST";
+      const res = editingRole
+        ? await rolesAPI.update(editingRole.role_id!, formData)
+        : await rolesAPI.create(formData);
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to save role");
+      if (res.status !== 200 && res.status !== 201) throw new Error(res.message || "Failed to save role");
 
-     showSuccess(editingRole ? "Role updated!" : "Role created!");
+      showSuccess(editingRole ? "Role updated!" : "Role created!");
       setShowForm(false);
       setEditingRole(null);
       fetchRoles();
@@ -191,47 +182,77 @@ const fetchRoles = async (pageNum = 1) => {
   /** Deactivate role */
   const handleToggleStatus = async (role: Role) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/superadmin/roles/${role.role_id}/deactivate`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to change status");
-showSuccess(`Role ${role.status ? "deactivated" : "activated"}!`);
+      if (!role.role_id) return;
+      const res = await rolesAPI.toggleStatus(role.role_id);
+      if (res.status !== 200) throw new Error(res.message || "Failed to change status");
+      
+      showSuccess(`Role ${role.status ? "deactivated" : "activated"}!`);
       fetchRoles();
     } catch (err: any) {
       Swal.fire("Error", err.message || "Failed to change status.", "error");
     }
   };
 
-  /** View role */
-  // const handleView = async (role: Role) => {
-  //   try {
-  //     const token = localStorage.getItem("token");
-  //     const res = await fetch(`${BASE_URL}/superadmin/roles/${role.role_id}/view`, {
-  //       headers: { Authorization: `Bearer ${token}` },
-  //     });
-  //     const data = await res.json();
-  //     if (!res.ok) throw new Error(data.message || "Failed to fetch role details");
+  /** View role details */
+  const handleView = async (role: Role) => {
+    try {
+      if (!role.role_id) return;
+      const res = await rolesAPI.getById(role.role_id);
+      if (res.status !== 200 || !res.data)
+        throw new Error(res.message || "Failed to load role details");
 
-  //     const r = data.data;
-  //     Swal.fire({
-  //       title: `<strong>${r.role_name}</strong>`,
-  //       html: `
-  //         <p><b>Description:</b> ${r.description}</p>
-  //         <p><b>Status:</b> ${r.status ? "Active" : "Inactive"}</p>
-  //         <p><b>Permissions:</b> ${r.permissions.join(", ") || "-"}</p>
-  //         <p><b>Created At:</b> ${new Date(r.createdAt).toLocaleString()}</p>
-  //         <p><b>Updated At:</b> ${new Date(r.updatedAt).toLocaleString()}</p>
-  //       `,
-  //       confirmButtonText: "Close",
-  //       confirmButtonColor: "#4F46E5",
-  //     });
-  //   } catch (err: any) {
-  //     Swal.fire("Error", err.message || "Failed to load role details.", "error");
-  //   }
-  // };
+      const r = res.data;
+      const darkMode = document.documentElement.classList.contains("dark");
+
+      const formatVal = (val: any) => {
+        if (val === null || val === undefined || val === "" || val === "—") return "N/A";
+        return val;
+      };
+
+      const infoRow = (label: string, value: any) =>
+        `<div style="padding:6px 0; font-size:14px; color:${darkMode ? "#e5e7eb" : "#111827"}"><b>${label}:</b> ${formatVal(value)}</div>`;
+
+      Swal.fire({
+        showCloseButton: true,
+        showConfirmButton: false,
+        width: 560,
+        padding: "0",
+        background: "transparent",
+        html: `
+        <div style="border-radius:22px; padding:2px; background:linear-gradient(135deg,#6366f1,#22d3ee,#a855f7,#4f46e5); box-shadow:0 22px 60px rgba(0,0,0,.35);">
+          <div style="background:${darkMode ? "#020617" : "#ffffff"}; border-radius:20px; overflow:hidden; font-family:Inter,system-ui,sans-serif; position:relative; text-align:left;">
+            
+            <div style="position:absolute; inset:0; pointer-events:none; background: radial-gradient(520px at top left, rgba(99,102,241,.14), transparent 40%), radial-gradient(420px at bottom right, rgba(34,211,238,.10), transparent 45%);"></div>
+
+            <div style="position:relative; padding:16px 18px; background:linear-gradient(135deg,#4f46e5,#6366f1); display:flex; align-items:center; gap:12px;">
+              <div style="width:46px;height:46px;border-radius:14px; background:rgba(255,255,255,.22); display:flex;align-items:center;justify-content:center; font-size:20px;font-weight:800;color:white; box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);">
+                ${(r.role_name || "?").charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style="font-size:17px;font-weight:700;color:white">${r.role_name}</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.85)">System Role</div>
+              </div>
+            </div>
+
+            <div style="position:relative; padding:18px; color:${darkMode ? "#e5e7eb" : "#111827"}; font-size:13px">
+              ${infoRow("Description", r.description)}
+              ${infoRow("Permissions", Array.isArray(r.permissions) ? r.permissions.join(", ") : "None")}
+              ${infoRow("Status", r.status ? `<span style="background:#10b98122;color:#10b981;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">Active</span>` : `<span style="background:#ef444422;color:#ef4444;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600">Inactive</span>`)}
+
+              <hr style="border:none; border-top:1px solid ${darkMode ? "#374151" : "#e5e7eb"}; margin:14px 0"/>
+
+              ${infoRow("Created At", new Date(r.createdAt).toLocaleString())}
+              ${infoRow("Last Updated", new Date(r.updatedAt).toLocaleString())}
+            </div>
+          </div>
+        </div>
+        `,
+        customClass: { popup: "shadow-none" },
+      });
+    } catch (err: any) {
+      Swal.fire("Error", err.message || "Failed to load role details.", "error");
+    }
+  };
 
 if (loading)
   return (
@@ -265,7 +286,7 @@ if (loading)
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Role Name</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Role Name <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     value={formData.role_name}
@@ -284,7 +305,7 @@ if (loading)
                   />
                 </div>
 
-                {/* <div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Permissions</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {defaultPermissions.map((perm) => (
@@ -301,7 +322,7 @@ if (loading)
                       </label>
                     ))}
                   </div>
-                </div> */}
+                </div>
 
                 <div className="flex justify-end gap-3 pt-4">
                   <button
@@ -402,6 +423,15 @@ if (loading)
                 {/* ACTIONS */}
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
+                    <button
+                      title="View Role"
+                      onClick={() => handleView(role)}
+                      className="p-2 rounded-md text-blue-600 dark:text-blue-400
+                      hover:bg-blue-50 dark:hover:bg-blue-900/40 transition"
+                    >
+                      <EyeIcon />
+                    </button>
+
                     <button
                       title="Toggle Status"
                       onClick={() => handleToggleStatus(role)}

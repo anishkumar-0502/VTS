@@ -88,6 +88,8 @@ const [operatorForm, setOperatorForm] = useState<any>({
   postal_code: "",
   country: "",
 });
+const [errors, setErrors] = useState<Record<string, string>>({});
+
 
   const isDark = document.documentElement.classList.contains("dark");
 
@@ -132,6 +134,42 @@ const stepFields: Record<number, string[]> = {
   2: ["company_name", "address", "city", "state"],
   3: ["postal_code", "country"],
 };
+const validateStep = () => {
+  const fields = stepFields[formStep];
+  let newErrors: Record<string, string> = {};
+
+  fields.forEach((field) => {
+    if (!operatorForm[field]?.toString().trim()) {
+      newErrors[field] = `Please fill in the ${field.replace("_", " ")} field.`;
+    }
+  });
+
+  if (formStep === 1) {
+    if (operatorForm.phone_number && !/^\d{10}$/.test(operatorForm.phone_number)) {
+      newErrors.phone_number = "Phone number must be 10 digits.";
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (operatorForm.email && !emailRegex.test(operatorForm.email)) {
+      newErrors.email = "Enter a valid email address.";
+    }
+
+    if (operatorForm.registration_number && !/^\d{12}$/.test(operatorForm.registration_number)) {
+      newErrors.registration_number = "Registration number must be 12 digits.";
+    }
+  }
+
+  if (formStep === 3) {
+    if (operatorForm.postal_code && !/^\d{6}$/.test(operatorForm.postal_code)) {
+      newErrors.postal_code = "Enter a valid Postal Code";
+    }
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+
+
 
 
   const swalBaseConfig = {
@@ -222,6 +260,7 @@ const fetchDevices = async (pageNum = 1) => {
   // Create / Update
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!validateStep()) return;
 
     // PHONE VALIDATION
 if (!/^\d{10}$/.test(operatorForm.phone_number)) {
@@ -269,6 +308,27 @@ if (duplicateEmail) {
     icon: "error",
     title: "Duplicate Email",
     text: "Another operator already uses this email."
+  });
+  return;
+}
+
+// REGISTRATION NUMBER VALIDATION
+if (operatorForm.registration_number && !/^\d{12}$/.test(operatorForm.registration_number)) {
+  Swal.fire({
+    icon: "warning",
+    title: "Invalid Registration Number",
+    text: "Registration number must be exactly 12 digits."
+  });
+  return;
+}
+
+// POSTAL CODE VALIDATION
+const postalCodeRegex = /^\d{6}$/;
+if (!postalCodeRegex.test(operatorForm.postal_code)) {
+  Swal.fire({
+    icon: "warning",
+    title: "Invalid Postal Code",
+    text: "Enter a valid Postal Code"
   });
   return;
 }
@@ -875,74 +935,143 @@ if (loading)
 
   {/* STEP FIELDS */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-  {stepFields[formStep].map((field) => (
-    <div key={field}>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-        {field.replace("_", " ")}
-      </label>
+ {stepFields[formStep].map((field) => (
+  <div key={field}>
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
+      {field.replace("_", " ")} <span className="text-red-500">*</span>
+    </label>
 
-      {field === "email" ? (
+    {/* EMAIL */}
+    {field === "email" ? (
+      <>
         <input
-          name="email"
           type="email"
           value={operatorForm.email}
           onChange={(e) => {
-            const val = e.target.value.replace(/\s/g, ""); // prevent space
+            const val = e.target.value.replace(/\s/g, "");
             setOperatorForm({ ...operatorForm, email: val });
+            setErrors({ ...errors, email: "" });
           }}
-          required
-          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2
-          dark:border-gray-600 dark:bg-gray-700 dark:text-white
-          focus:ring-2 focus:ring-indigo-500"
+          className={`mt-1 w-full rounded-lg border px-4 py-2
+            ${errors.email ? "border-red-500" : "border-gray-300"}
+            dark:border-gray-600 dark:bg-gray-700 dark:text-white
+            focus:ring-2 focus:ring-indigo-500`}
         />
 
-      ) : field === "phone_number" ? (
+        {errors.email && (
+          <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+        )}
+      </>
+    ) : field === "phone_number" ? (
+
+      /* PHONE */
+      <>
         <input
-          name="phone_number"
           maxLength={10}
           value={operatorForm.phone_number}
           onChange={(e) => {
             const val = e.target.value;
             if (/^\d*$/.test(val)) {
-              setOperatorForm({ ...operatorForm, phone_number: val }); // digits only
+              setOperatorForm({ ...operatorForm, phone_number: val });
+              setErrors({ ...errors, phone_number: "" });
             }
           }}
-          required
-          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2
-          dark:border-gray-600 dark:bg-gray-700 dark:text-white
-          focus:ring-2 focus:ring-indigo-500"
+          className={`mt-1 w-full rounded-lg border px-4 py-2
+            ${errors.phone_number ? "border-red-500" : "border-gray-300"}
+            dark:border-gray-600 dark:bg-gray-700 dark:text-white
+            focus:ring-2 focus:ring-indigo-500`}
         />
 
-      ) : (
+        {errors.phone_number && (
+          <p className="text-red-500 text-xs mt-1">{errors.phone_number}</p>
+        )}
+      </>
+    ) : field === "registration_number" ? (
+
+      /* REGISTRATION NUMBER */
+      <>
         <input
-          name={field}
+          maxLength={12}
+          value={operatorForm.registration_number}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (/^\d*$/.test(val)) {
+              setOperatorForm({ ...operatorForm, registration_number: val });
+              setErrors({ ...errors, registration_number: "" });
+            }
+          }}
+          className={`mt-1 w-full rounded-lg border px-4 py-2
+            ${errors.registration_number ? "border-red-500" : "border-gray-300"}
+            dark:border-gray-600 dark:bg-gray-700 dark:text-white
+            focus:ring-2 focus:ring-indigo-500`}
+        />
+
+        {errors.registration_number && (
+          <p className="text-red-500 text-xs mt-1">{errors.registration_number}</p>
+        )}
+      </>
+    ) : field === "postal_code" ? (
+
+      /* POSTAL CODE */
+      <>
+        <input
+          value={operatorForm.postal_code}
+          onChange={(e) => {
+            setOperatorForm({ ...operatorForm, postal_code: e.target.value });
+            setErrors({ ...errors, postal_code: "" });
+          }}
+          className={`mt-1 w-full rounded-lg border px-4 py-2
+            ${errors.postal_code ? "border-red-500" : "border-gray-300"}
+            dark:border-gray-600 dark:bg-gray-700 dark:text-white
+            focus:ring-2 focus:ring-indigo-500`}
+        />
+
+        {errors.postal_code && (
+          <p className="text-red-500 text-xs mt-1">{errors.postal_code}</p>
+        )}
+      </>
+    ) : (
+
+      /* NORMAL FIELD */
+      <>
+        <input
           type="text"
           value={operatorForm[field]}
-          onChange={(e) =>
-            setOperatorForm({ ...operatorForm, [field]: e.target.value })
-          }
-          required
-          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-4 py-2
-          dark:border-gray-600 dark:bg-gray-700 dark:text-white
-          focus:ring-2 focus:ring-indigo-500"
+          onChange={(e) => {
+            setOperatorForm({ ...operatorForm, [field]: e.target.value });
+            setErrors({ ...errors, [field]: "" });
+          }}
+          className={`mt-1 w-full rounded-lg border px-4 py-2
+            ${errors[field] ? "border-red-500" : "border-gray-300"}
+            dark:border-gray-600 dark:bg-gray-700 dark:text-white
+            focus:ring-2 focus:ring-indigo-500`}
         />
-      )}
-    </div>
-  ))}
+
+        {errors[field] && (
+          <p className="text-red-500 text-xs mt-1">{errors[field]}</p>
+        )}
+      </>
+    )}
+  </div>
+))}
+
 </div>
 
 
   {/* NAVIGATION */}
   <div className="flex justify-between items-center mt-6">
-    <Button
+      {formStep > 1 ? (
+     <Button
       type="button"
       variant="outline"
       size="sm"
-      disabled={formStep === 1}
       onClick={() => setFormStep((s) => s - 1)}
     >
       Back
     </Button>
+     ) : (
+    <div />   // keeps spacing alignment
+  )}
 
     <div className="flex gap-3">
       <Button
@@ -962,13 +1091,18 @@ if (loading)
       </Button>
 
       {formStep < 3 ? (
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => setFormStep((s) => s + 1)}
-        >
-          Next
-        </Button>
+       <Button
+  type="button"
+  size="sm"
+  onClick={() => {
+    if (validateStep()) {
+      setFormStep((s) => s + 1);
+    }
+  }}
+>
+  Next
+</Button>
+
       ) : (
         <Button size="sm" type="submit">
           {editingOperator ? "Update Operator" : "Create Operator"}
