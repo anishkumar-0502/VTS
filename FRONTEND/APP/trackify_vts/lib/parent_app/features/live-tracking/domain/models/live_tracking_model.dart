@@ -96,6 +96,7 @@ class NextStopDetails {
 class ParentLiveTripData {
   // From API 1: current-trip
   final String associatedTripId;
+  final String? scheduledTripId;
   final String routeName;
   final String status;
   final String scheduledStartTime;
@@ -116,6 +117,7 @@ class ParentLiveTripData {
 
   ParentLiveTripData({
     required this.associatedTripId,
+    this.scheduledTripId,
     required this.routeName,
     required this.status,
     required this.scheduledStartTime,
@@ -136,6 +138,7 @@ class ParentLiveTripData {
   // FIX: The required copyWith method
   ParentLiveTripData copyWith({
     String? associatedTripId,
+    String? scheduledTripId,
     String? routeName,
     String? status,
     String? scheduledStartTime,
@@ -154,6 +157,7 @@ class ParentLiveTripData {
   }) {
     return ParentLiveTripData(
       associatedTripId: associatedTripId ?? this.associatedTripId,
+      scheduledTripId: scheduledTripId ?? this.scheduledTripId,
       routeName: routeName ?? this.routeName,
       status: status ?? this.status,
       scheduledStartTime: scheduledStartTime ?? this.scheduledStartTime,
@@ -199,7 +203,8 @@ class ParentLiveTripData {
 
 
     return ParentLiveTripData(
-      associatedTripId: data['associated_trip_id']?.toString() ?? '',
+      associatedTripId: data['associated_trip_id']?.toString() ?? data['trip_id']?.toString() ?? '',
+      scheduledTripId: data['scheduled_trip_id']?.toString(),
       routeName: data['route_name']?.toString() ?? 'N/A',
       status: data['status']?.toString() ?? 'inactive',
       scheduledStartTime: data['scheduled_start_time']?.toString() ?? 'N/A',

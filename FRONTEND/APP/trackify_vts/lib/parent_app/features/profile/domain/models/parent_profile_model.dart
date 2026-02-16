@@ -813,6 +813,7 @@ class AssociatedUser {
 
 class CurrentTrip {
   final String tripId;
+  final String? associatedTripId;
   final String status;
   final Location? currentLocation;
   final TripDetails? tripDetails;
@@ -828,6 +829,7 @@ class CurrentTrip {
 
   CurrentTrip({
     required this.tripId,
+    this.associatedTripId,
     required this.status,
     this.currentLocation,
     this.tripDetails,
@@ -871,7 +873,7 @@ class CurrentTrip {
         lastUpdate: '',
         latitude: 0.0,
         longitude: 0.0,
-        currentTripId: (json['trip_id'] ?? json['scheduled_trip_id'] as dynamic)?.toString() ?? '',
+        currentTripId: (json['associated_trip_id'] ?? json['trip_id'] ?? json['scheduled_trip_id'] as dynamic)?.toString() ?? '',
         deviceId: '',
         driverId: (json['driver_id'] as dynamic)?.toString() ?? '',
       );
@@ -879,6 +881,7 @@ class CurrentTrip {
 
     return CurrentTrip(
       tripId: (json['trip_id'] ?? json['scheduled_trip_id'] as dynamic)?.toString() ?? '',
+      associatedTripId: (json['associated_trip_id'] as dynamic)?.toString(),
       status: json['status'] != null ? (json['status'] as dynamic)?.toString() ?? '' : 'scheduled',
       currentLocation: json['current_location'] != null
           ? Location.fromJson(json['current_location'])

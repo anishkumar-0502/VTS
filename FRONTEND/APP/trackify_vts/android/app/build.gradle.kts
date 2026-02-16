@@ -37,13 +37,9 @@ android {
     // ✅ Define both debug & release properly
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = true              // Enables code shrinking
-            isShrinkResources = true            // Removes unused resources
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            signingConfig = signingConfigs.getByName("debug") // Temporary
+            isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("debug")
         }
 
         getByName("debug") {

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:trackify_vts/driver_app/features/scheduled_trips/data/url.dart';
 
+import '../../../../utilities/network_utils.dart';
 import '../../../../utilities/exception/exception.dart';
 
 class ScheduledTripsAPICalls {
@@ -27,18 +28,7 @@ class ScheduledTripsAPICalls {
   }
 
   Map<String, dynamic> _handleResponse(http.Response response) {
-    Map<String, dynamic> responseBody;
-
-    try {
-      responseBody = jsonDecode(response.body);
-    } catch (e) {
-      throw HttpException(
-        response.statusCode,
-        _getDefaultErrorMessage(response.statusCode),
-      );
-    }
-
-    return responseBody;
+    return NetworkUtils.handleResponse(response, isDriver: true);
   }
 
   Future<Map<String, dynamic>> getAllScheduledTrips(String token) async {
@@ -75,6 +65,7 @@ class ScheduledTripsAPICalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -114,6 +105,7 @@ class ScheduledTripsAPICalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -153,6 +145,7 @@ class ScheduledTripsAPICalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Active Trip Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -198,6 +191,7 @@ class ScheduledTripsAPICalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Start Trip Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -243,6 +237,7 @@ class ScheduledTripsAPICalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("End Trip Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }

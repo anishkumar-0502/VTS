@@ -211,11 +211,12 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
           }
 
           baseData = ParentLiveTripData(
-            associatedTripId: trip.tripId,
+            associatedTripId: trip.associatedTripId ?? trip.tripId,
+            scheduledTripId: trip.scheduledTripId,
             routeName: trip.routeName ?? 'Trip',
             status: trip.status,
             scheduledStartTime: trip.scheduledStartTime ?? '',
-            driverName: '',
+            driverName: trip.driver?.name ?? '',
             vehicleId: trip.vehicle.vehicleId,
             startLocation: LatLng(trip.startLocation!.latitude, trip.startLocation!.longitude),
             endLocation: LatLng(trip.endLocation!.latitude, trip.endLocation!.longitude),

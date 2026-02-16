@@ -21,7 +21,8 @@ class DriverSplashScreenController extends GetxController {
     await _sessionController.loadSession();
     final hasToken = _sessionController.token.value.isNotEmpty;
     final loggedIn = _sessionController.isLoggedIn.value;
-    if (loggedIn && hasToken) {
+    final isValid = _sessionController.isSessionValid.value;
+    if (loggedIn && hasToken && isValid) {
       _goToHome();
     } else {
       await _sessionController.clearSession();

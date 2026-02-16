@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:trackify_vts/driver_app/features/profile/data/url.dart';
 
+import '../../../../utilities/network_utils.dart';
 import '../../../../utilities/exception/exception.dart';
 
 class ProfileAPICalls {
@@ -27,19 +28,7 @@ class ProfileAPICalls {
   }
 
   Map<String, dynamic> _handleResponse(http.Response response) {
-    Map<String, dynamic> responseBody;
-
-    try {
-      responseBody = jsonDecode(response.body);
-    } catch (e) {
-      throw HttpException(
-        response.statusCode,
-        _getDefaultErrorMessage(response.statusCode),
-      );
-    }
-
-    // Always return the JSON response, whether success or error
-    return responseBody;
+    return NetworkUtils.handleResponse(response, isDriver: true);
   }
 
   Future<Map<String, dynamic>> getDriverProfile(String token) async {
@@ -76,6 +65,7 @@ class ProfileAPICalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -122,6 +112,7 @@ class ProfileAPICalls {
     } on TimeoutException {
       throw HttpException(408, 'Request timed out. Please try again.');
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -155,6 +146,7 @@ class ProfileAPICalls {
       throw HttpException(503,
           'Unable to reach the server. Please check your connection or try again later.');
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Error: $e");
       throw HttpException(500, 'Something went wrong. Please try again later.');
     }

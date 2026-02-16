@@ -27,13 +27,14 @@ class ParentSplashScreenController extends GetxController {
       
       final hasToken = _sessionController.token.value.isNotEmpty;
       final loggedIn = _sessionController.isLoggedIn.value;
+      final isValid = _sessionController.isSessionValid.value;
       final hasRequiredData = _sessionController.parentData.value?.containsKey('end_user_id') ?? false;
       
-      if (loggedIn && hasToken && hasRequiredData) {
+      if (loggedIn && hasToken && isValid && hasRequiredData) {
         debugPrint('[SplashScreen] ✅ Valid session found, navigating to home');
         _goToHome();
       } else {
-        debugPrint('[SplashScreen] ⚠️ Invalid session (loggedIn=$loggedIn, hasToken=$hasToken, hasData=$hasRequiredData), clearing and going to login');
+        debugPrint('[SplashScreen] ⚠️ Invalid session (loggedIn=$loggedIn, hasToken=$hasToken, isValid=$isValid, hasData=$hasRequiredData), clearing and going to login');
         await _sessionController.clearSession();
         _goToLogin();
       }

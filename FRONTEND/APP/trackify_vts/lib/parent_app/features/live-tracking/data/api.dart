@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../../../../utilities/network_utils.dart';
 import '../../../../utilities/exception/exception.dart';
 import 'url.dart';
 
@@ -37,16 +38,7 @@ class LiveTrackingApiClient {
   }
 
   Map<String, dynamic> _handleResponse(http.Response response) {
-    Map<String, dynamic> responseBody;
-
-    try {
-      responseBody = jsonDecode(response.body);
-    } catch (e) {
-      throw HttpException(
-        response.statusCode,
-        'Invalid server response format.',
-      );
-    }
+    final responseBody = NetworkUtils.handleResponse(response, isDriver: false);
 
     if (response.statusCode >= 400) {
       final errorMessage = responseBody['message']?.toString() ?? 'Server error';

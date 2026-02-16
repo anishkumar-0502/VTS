@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:trackify_vts/parent_app/features/auth/data/url.dart';
 
+import '../../../../utilities/network_utils.dart';
 import '../../../../utilities/exception/exception.dart';
 
 class AuthAPICalls {
@@ -28,18 +29,7 @@ class AuthAPICalls {
   }
 
   Map<String, dynamic> _handleResponse(http.Response response) {
-    Map<String, dynamic> responseBody;
-
-    try {
-      responseBody = jsonDecode(response.body);
-    } catch (e) {
-      throw HttpException(
-        response.statusCode,
-        _getDefaultErrorMessage(response.statusCode),
-      );
-    }
-
-    return responseBody;
+    return NetworkUtils.handleResponse(response, isDriver: false);
   }
 
   Future<Map<String, dynamic>> loginParent(
@@ -81,6 +71,7 @@ class AuthAPICalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint('Parent login error: $e');
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -126,6 +117,7 @@ class AuthAPICalls {
         'Unable to register FCM token. Please check your connection.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint('FCM registration error: $e');
       throw HttpException(500, _getDefaultErrorMessage(500));
     }

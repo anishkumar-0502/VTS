@@ -25,11 +25,15 @@ class DriverHomeMapPage extends StatelessWidget {
     final double scale = width / 375.0; // Base width of 375px
     final double topPadding = mediaQuery.viewPadding.top;
 
-    return Stack(
-      children: [
-        /// ================= MAP =================
-        Builder(
-          builder: (context) {
+    return Obx(() {
+      final bool hasNoTrips = !controller.isLoading.value &&
+          controller.activeTrip.value == null &&
+          controller.scheduledTrips.isEmpty;
+
+      return Stack(
+        children: [
+          /// ================= MAP =================
+          Builder(builder: (context) {
             // Determine initial center once
             LatLng center = const LatLng(11.1271, 78.6569);
             if (controller.startLocation.value != null) {
@@ -44,7 +48,8 @@ class DriverHomeMapPage extends StatelessWidget {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                  urlTemplate:
+                      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
                   subdomains: const ['a', 'b', 'c'],
                   userAgentPackageName: 'com.trackify.driver',
                 ),
@@ -53,7 +58,7 @@ class DriverHomeMapPage extends StatelessWidget {
                 Obx(() {
                   final points = controller.routePolyline;
                   if (points.isEmpty) return const SizedBox.shrink();
-                  
+
                   return PolylineLayer(
                     polylines: [
                       Polyline(
@@ -83,7 +88,6 @@ class DriverHomeMapPage extends StatelessWidget {
                           child: Icon(Icons.location_on,
                               color: Colors.green, size: 40 * scale),
                         ),
-
                       if (end != null)
                         Marker(
                           point: end,
@@ -92,14 +96,14 @@ class DriverHomeMapPage extends StatelessWidget {
                           child: Icon(Icons.location_on,
                               color: Colors.red, size: 40 * scale),
                         ),
-
                       if (controller.vehicleLocation.value != null)
                         Marker(
                           point: controller.vehicleLocation.value!,
                           width: 50 * scale,
                           height: 50 * scale,
                           child: Transform.rotate(
-                            angle: (controller.vehicleHeading.value) * (3.14159 / 180),
+                            angle: (controller.vehicleHeading.value) *
+                                (3.14159 / 180),
                             child: Container(
                               decoration: const BoxDecoration(
                                 color: Colors.white,
@@ -117,9 +121,8 @@ class DriverHomeMapPage extends StatelessWidget {
                             ),
                           ),
                         ),
-
                       ...stops.map(
-                            (stop) => Marker(
+                        (stop) => Marker(
                           point: LatLng(stop.latitude, stop.longitude),
                           width: 30 * scale,
                           height: 30 * scale,
@@ -128,15 +131,15 @@ class DriverHomeMapPage extends StatelessWidget {
                               color: Colors.white,
                               shape: BoxShape.circle,
                               boxShadow: [
-                                BoxShadow(
-                                    blurRadius: 2, color: Colors.black26)
+                                BoxShadow(blurRadius: 2, color: Colors.black26)
                               ],
                             ),
                             child: Center(
                               child: Text(
                                 '${stop.order}',
                                 style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 12 * scale),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12 * scale),
                               ),
                             ),
                           ),
@@ -147,135 +150,224 @@ class DriverHomeMapPage extends StatelessWidget {
                 }),
               ],
             );
-          }
-        ),
+          }),
 
-        /// ================= TRIP INFO OVERLAY =================
-        Positioned(
-          top: topPadding + (10 * scale),
-          right: 16 * scale,
-          left: 16 * scale,
-          child: Obx(() {
-            if (controller.isLoading.value) {
-              return Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(
-                  height: 70 * scale,
+          // Optional dimming when no trips
+          if (hasNoTrips)
+            Container(
+              color: Colors.white.withOpacity(0.4),
+            ),
+
+          /// ================= TRIP INFO OVERLAY =================
+          if (!hasNoTrips)
+            Positioned(
+              top: topPadding + (10 * scale),
+              right: 16 * scale,
+              left: 16 * scale,
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return Shimmer.fromColors(
+                    baseColor: Colors.grey[300]!,
+                    highlightColor: Colors.grey[100]!,
+                    child: Container(
+                      height: 70 * scale,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14 * scale),
+                      ),
+                    ),
+                  );
+                }
+
+                final activeTrip = controller.activeTrip.value;
+                final scheduledTrips = controller.scheduledTrips;
+
+                String routeName = 'No Trip Selected';
+                String startTime = '--:--';
+                String tripStatus = 'No Trip'; // Added tripStatus
+
+                // Helper function to format time with AM/PM
+                String formatTimeWithAmPm(String time) {
+                  try {
+                    final dt = DateTime.parse(time);
+
+                    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+                    final minute = dt.minute.toString().padLeft(2, '0');
+                    final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+
+                    return '$hour:$minute $amPm';
+                  } catch (_) {
+                    return time.isNotEmpty ? time : '--:--';
+                  }
+                }
+
+                if (activeTrip != null) {
+                  final trip = scheduledTrips.first;
+                  routeName = trip.routeName;
+                  startTime = formatTimeWithAmPm(trip.scheduledStartTime);
+                  tripStatus = 'Active Trip';
+                } else if (scheduledTrips.isNotEmpty) {
+                  final trip = scheduledTrips.first;
+                  routeName = trip.routeName;
+                  startTime = formatTimeWithAmPm(trip.scheduledStartTime);
+                  tripStatus = 'Upcoming Trip';
+                }
+
+                return Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 16 * scale, vertical: 12 * scale),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14 * scale),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8 * scale,
+                        offset: Offset(0, 4 * scale),
+                      ),
+                    ],
                   ),
-                ),
-              );
-            }
-
-            final activeTrip = controller.activeTrip.value;
-            final scheduledTrips = controller.scheduledTrips;
-
-            String routeName = 'No Trip Selected';
-            String startTime = '--:--';
-            String tripStatus = 'No Trip'; // Added tripStatus
-
-            // Helper function to format time with AM/PM
-            String formatTimeWithAmPm(String time) {
-              try {
-                final dt = DateTime.parse(time);
-
-                final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-                final minute = dt.minute.toString().padLeft(2, '0');
-                final amPm = dt.hour >= 12 ? 'PM' : 'AM';
-
-                return '$hour:$minute $amPm';
-              } catch (_) {
-                return time.isNotEmpty ? time : '--:--';
-              }
-            }
-
-            if (activeTrip != null) {
-              final trip = scheduledTrips.first;
-              routeName = trip.routeName;
-              startTime = formatTimeWithAmPm(trip.scheduledStartTime);
-              tripStatus = 'Active Trip';
-            } else if (scheduledTrips.isNotEmpty) {
-              final trip = scheduledTrips.first;
-              routeName = trip.routeName;
-              startTime = formatTimeWithAmPm(trip.scheduledStartTime);
-              tripStatus = 'Upcoming Trip';
-            }
-
-
-            return Container(
-              padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14 * scale),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 8 * scale,
-                    offset: Offset(0, 4 * scale),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.route, color: Colors.blue, size: 24 * scale),
-                  SizedBox(width: 12 * scale),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Row(
+                    children: [
+                      Icon(Icons.route, color: Colors.blue, size: 24 * scale),
+                      SizedBox(width: 12 * scale),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                routeName,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14 * scale,
-                                  fontWeight: FontWeight.w600,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    routeName,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14 * scale,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 8 * scale, vertical: 2 * scale),
+                                  decoration: BoxDecoration(
+                                    color: tripStatus == 'Active Trip'
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4 * scale),
+                                    border: Border.all(
+                                      color: tripStatus == 'Active Trip'
+                                          ? Colors.green
+                                          : Colors.orange,
+                                      width: 1 * scale,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tripStatus,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10 * scale,
+                                      fontWeight: FontWeight.w500,
+                                      color: tripStatus == 'Active Trip'
+                                          ? Colors.green
+                                          : Colors.orange,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 2 * scale),
-                              decoration: BoxDecoration(
-                                color: tripStatus == 'Active Trip' ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4 * scale),
-                                border: Border.all(
-                                  color: tripStatus == 'Active Trip' ? Colors.green : Colors.orange,
-                                  width: 1 * scale,
-                                ),
-                              ),
-                              child: Text(
-                                tripStatus,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 10 * scale,
-                                  fontWeight: FontWeight.w500,
-                                  color: tripStatus == 'Active Trip' ? Colors.green : Colors.orange,
-                                ),
+                            SizedBox(height: 4 * scale),
+                            Text(
+                              'Start Time: $startTime',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12 * scale,
+                                color: Colors.grey[600],
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 4 * scale),
-                        Text(
-                          'Start Time: $startTime',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12 * scale,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                );
+              }),
+            ),
+
+          /// ================= NO TRIPS UNIQUE VIEW =================
+          if (hasNoTrips)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 40 * scale),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(20 * scale),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.1),
+                            blurRadius: 20 * scale,
+                            spreadRadius: 10 * scale,
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/images/nodata.png',
+                        height: 180 * scale,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    SizedBox(height: 30 * scale),
+                    Text(
+                      'No Trips Assigned',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 22 * scale,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 12 * scale),
+                    Text(
+                      'You are all caught up! New trips will appear here once they are assigned to you.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14 * scale,
+                        color: Colors.grey[600],
+                        height: 1.5,
+                      ),
+                    ),
+                    SizedBox(height: 32 * scale),
+                    ElevatedButton.icon(
+                      onPressed: () => controller.loadData(),
+                      icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                      label: Text(
+                        'Refresh Status',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16 * scale,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24 * scale,
+                          vertical: 12 * scale,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30 * scale),
+                        ),
+                        elevation: 4,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            );
-          }),
-        ),
+            ),
 
         /// ================= FLOATING BUTTONS =================
         Positioned(
@@ -407,8 +499,9 @@ class DriverHomeMapPage extends StatelessWidget {
           ),
         ),
         
-        Positioned(
-          bottom: (height * 0.25) + (20 * scale),
+        if (!hasNoTrips)
+          Positioned(
+            bottom: (height * 0.25) + (20 * scale),
           right: 16 * scale,
           child: Column(
             children: [
@@ -441,7 +534,8 @@ class DriverHomeMapPage extends StatelessWidget {
         ),
 
         /// ================= BOTTOM SHEET =================
-        DraggableScrollableSheet(
+        if (!hasNoTrips)
+          DraggableScrollableSheet(
           initialChildSize: 0.25,
           minChildSize: 0.25,
           maxChildSize: 0.85,
@@ -659,6 +753,19 @@ class DriverHomeMapPage extends StatelessWidget {
                         padding: EdgeInsets.all(5 * scale),
                         width: double.infinity,
                         child: Obx(() {
+                          if (controller.isLoading.value) {
+                            return Shimmer.fromColors(
+                              baseColor: Colors.grey[300]!,
+                              highlightColor: Colors.grey[100]!,
+                              child: Container(
+                                height: 56 * scale,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(28 * scale),
+                                ),
+                              ),
+                            );
+                          }
                           final isActive = controller.activeTrip.value != null;
                           return SlideActionButton(
                             text: isActive ? 'SLIDE TO STOP TRIP' : 'SLIDE TO START TRIP',
@@ -688,5 +795,6 @@ class DriverHomeMapPage extends StatelessWidget {
         ),
       ],
     );
-  }
+  });
+}
 }

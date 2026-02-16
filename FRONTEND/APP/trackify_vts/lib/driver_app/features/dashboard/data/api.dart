@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:trackify_vts/driver_app/features/dashboard/data/url.dart';
 
+import '../../../../utilities/network_utils.dart';
 import '../../../../utilities/exception/exception.dart';
 
 class DashboardApicalls {
@@ -27,19 +28,7 @@ class DashboardApicalls {
   }
 
   Map<String, dynamic> _handleResponse(http.Response response) {
-    Map<String, dynamic> responseBody;
-
-    try {
-      responseBody = jsonDecode(response.body);
-    } catch (e) {
-      throw HttpException(
-        response.statusCode,
-        _getDefaultErrorMessage(response.statusCode),
-      );
-    }
-
-    // Always return the JSON response, whether success or error
-    return responseBody;
+    return NetworkUtils.handleResponse(response, isDriver: true);
   }
 
   Future<Map<String, dynamic>> gettodaystrip(String token) async {
@@ -76,6 +65,7 @@ class DashboardApicalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -115,6 +105,7 @@ class DashboardApicalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Driver trips Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }
@@ -157,6 +148,7 @@ class DashboardApicalls {
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
     } catch (e) {
+      if (e is HttpException) rethrow;
       debugPrint("Driver trip detail Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));
     }

@@ -1848,6 +1848,17 @@ class ParentHomePage extends GetView<ParentHomeController> {
       isFetching.value = true;
       errorMessage.value = '';
 
+      // Check if we already have the driver data in the current trip
+      final trip = controller.currentTrip.value;
+      if (trip != null && trip.driver != null) {
+        debugPrint('✅ Using driver data from currentTrip model');
+        driverName.value = trip.driver!.name;
+        driverPhone.value = trip.driver!.phone;
+        vehicleNumber.value = trip.vehicle.vehicleNumber;
+        isFetching.value = false;
+        return;
+      }
+
       final token = Get.find<SessionController>().token.value;
       final tripData = controller.tripMapData.value;
 
@@ -1857,7 +1868,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
       }
 
       final tripId = tripData.associatedTripId;
-      final childId = Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
+      final childId = controller.parentProfile.value?.endUserId ?? 
+                     Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
 
       if (tripId.isEmpty || childId.isEmpty) {
         errorMessage.value = 'Missing trip or child ID';
@@ -1867,6 +1879,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
       final baseUrl = trackify_vts.baseUrl;
       final url = Uri.parse('$baseUrl/parent/driver-contact?tripId=$tripId&childId=$childId');
 
+      debugPrint('🔍 Fetching Driver Contact: $url');
+
       final response = await http.get(
         url,
         headers: {
@@ -1874,6 +1888,9 @@ class ParentHomePage extends GetView<ParentHomeController> {
           'Content-Type': 'application/json',
         },
       ).timeout(const Duration(seconds: 15));
+
+      debugPrint('📡 Driver Contact Response Status: ${response.statusCode}');
+      debugPrint('📡 Driver Contact Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final jsonBody = json.decode(response.body);
@@ -1885,6 +1902,36 @@ class ParentHomePage extends GetView<ParentHomeController> {
           vehicleNumber.value = data['vehicle_number']?.toString() ?? 'N/A';
         } else {
           errorMessage.value = 'No driver data found';
+        }
+      } else if (tripData.scheduledTripId != null && tripData.scheduledTripId != tripId) {
+        // Fallback to scheduledTripId if initial call failed
+        final fallbackTripId = tripData.scheduledTripId!;
+        debugPrint('🔄 Retrying Driver Contact with fallback ID: $fallbackTripId');
+        
+        final fallbackUrl = Uri.parse('$baseUrl/parent/driver-contact?tripId=$fallbackTripId&childId=$childId');
+        final fallbackResponse = await http.get(
+          fallbackUrl,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 15));
+
+        debugPrint('📡 Fallback Response Status: ${fallbackResponse.statusCode}');
+        
+        if (fallbackResponse.statusCode == 200) {
+          final jsonBody = json.decode(fallbackResponse.body);
+          final data = jsonBody['data'] as Map<String, dynamic>?;
+
+          if (data != null) {
+            driverName.value = data['driver_name']?.toString() ?? 'Unknown';
+            driverPhone.value = data['driver_phone']?.toString() ?? '';
+            vehicleNumber.value = data['vehicle_number']?.toString() ?? 'N/A';
+          } else {
+            errorMessage.value = 'No driver data found';
+          }
+        } else {
+          errorMessage.value = 'Failed to fetch driver contact';
         }
       } else {
         errorMessage.value = 'Failed to fetch driver contact';
@@ -1908,7 +1955,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
       }
 
       final tripId = tripData.associatedTripId;
-      final childId = Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
+      final childId = controller.parentProfile.value?.endUserId ?? 
+                     Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
 
       if (tripId.isEmpty || childId.isEmpty) {
         debugPrint('Error: Missing trip or child ID');
