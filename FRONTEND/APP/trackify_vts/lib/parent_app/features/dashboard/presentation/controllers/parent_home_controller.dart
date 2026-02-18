@@ -92,7 +92,41 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
       }
     });
 
+    // Listen to token changes to refresh data when a new user logs in
+    ever(sessionController.token, (String token) {
+      if (token.isNotEmpty) {
+        debugPrint('[ParentHome] Token changed, re-initializing data...');
+        clearState();
+        _initializeData();
+      } else {
+        debugPrint('[ParentHome] Token cleared, clearing state...');
+        clearState();
+      }
+    });
+
     _initializeData();
+  }
+
+  void clearState() {
+    currentTrip.value = null;
+    tripMapData.value = null;
+    vehicleLocation.value = null;
+    targetLocation.value = null;
+    routePolylinePoints.clear();
+    parentProfile.value = null;
+    vehicleLocations.clear();
+    vehicleColors.clear();
+    vehicleTimestamps.clear();
+    vehicleNumbers.clear();
+    vehicleHeadings.clear();
+    assignedVehicleId = null;
+    assignedVehicleNumber = null;
+    assignedDeviceId = null;
+    _autoZoomDone = false;
+    isInitializationComplete.value = false;
+    tripError.value = '';
+    tripMapError.value = '';
+    _socketIOService.dispose();
   }
 
   Future<void> _initializeData() async {

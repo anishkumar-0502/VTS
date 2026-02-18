@@ -43,26 +43,13 @@ class _ParentBottomNavbarState extends State<ParentBottomNavbar> {
 
     switch (index) {
       case 0:
-        Get.offAll(
-          () => ParentHomePage(),
-          binding: ParentHomeBinding(),
-          popGesture: false,
-        );
+        Get.offAllNamed('/dashboard');
         break;
       case 1:
-        Get.offAll(
-          () => const LiveTrackingChildrenPage(),
-          popGesture: false,
-        );
+        Get.offAllNamed('/live-tracking');
         break;
       case 2:
-        Get.offAll(
-          () => const ParentProfilePage(),
-          binding: BindingsBuilder(() {
-            Get.put(ParentProfileController(), tag: 'parent_profile');
-          }),
-          popGesture: false,
-        );
+        Get.offAllNamed('/profile');
         break;
     }
   }

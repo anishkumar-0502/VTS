@@ -15,6 +15,26 @@ class ParentProfileController extends GetxController {
   final RxBool isLoading = true.obs;
   final Rx<ParentProfileData?> profileData = Rxn<ParentProfileData>();
 
+  // Edit Profile Fields
+  late final TextEditingController nameController;
+  late final TextEditingController phoneController;
+  final RxString currentName = ''.obs;
+  final RxString currentPhone = ''.obs;
+
+  bool get hasChanges {
+    final data = profileData.value;
+    if (data == null) return false;
+    return currentName.value != data.name ||
+        currentPhone.value != data.phoneNumber.toString();
+  }
+
+  void initializeEditFields(ParentProfileData data) {
+    nameController.text = data.name;
+    phoneController.text = data.phoneNumber.toString();
+    currentName.value = data.name;
+    currentPhone.value = data.phoneNumber.toString();
+  }
+
   Map<String, String> get parentDetails {
     final data = profileData.value;
     if (data != null) {
@@ -151,9 +171,25 @@ class ParentProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    nameController = TextEditingController();
+    phoneController = TextEditingController();
+
+    nameController.addListener(() => currentName.value = nameController.text.trim());
+    phoneController.addListener(() => currentPhone.value = phoneController.text.trim());
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await sessionController.ensureInitialized();
       fetchProfile();
+    });
+
+    // Listen to token changes to refresh data when a new user logs in
+    ever(sessionController.token, (String token) {
+      if (token.isNotEmpty) {
+        debugPrint('[ParentProfileController] Token changed, refreshing profile...');
+        fetchProfile();
+      } else {
+        profileData.value = null;
+      }
     });
   }
 
@@ -183,9 +219,16 @@ class ParentProfileController extends GetxController {
       } else if (response.data != null) {
         try {
           profileData.value = response.data;
+          
+          // Sync edit fields with new profile data
+          final profile = response.data!;
+          nameController.text = profile.name;
+          phoneController.text = profile.phoneNumber.toString();
+          currentName.value = profile.name;
+          currentPhone.value = profile.phoneNumber.toString();
+
           debugPrint('[ParentProfileController] ✅ Profile data set: ${profileData.value?.name}');
           
-          final profile = response.data!;
           final rawData = <String, dynamic>{
             'name': profile.name,
             'email': profile.email,

@@ -911,6 +911,7 @@ class LiveTripMap extends StatefulWidget {
 class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin {
   late MapController mapController;
   bool _isDisposed = false;
+  AnimationController? _animationController;
 
   @override
   void initState() {
@@ -939,12 +940,15 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
   @override
   void dispose() {
     _isDisposed = true;
+    _animationController?.dispose();
     super.dispose();
   }
 
   void _animateMapMove(LatLng destLocation, double destZoom) {
     if (_isDisposed) return;
     
+    _animationController?.dispose();
+
     final latTween = Tween<double>(
       begin: mapController.camera.center.latitude,
       end: destLocation.latitude,
@@ -958,17 +962,17 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
       end: destZoom,
     );
 
-    final controller = AnimationController(
+    _animationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     
     final animation = CurvedAnimation(
-      parent: controller,
+      parent: _animationController!,
       curve: Curves.fastOutSlowIn,
     );
 
-    controller.addListener(() {
+    _animationController!.addListener(() {
       if (!_isDisposed && mounted) {
         mapController.move(
           LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
@@ -977,13 +981,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
       }
     });
 
-    animation.addStatusListener((status) {
-      if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
-        controller.dispose();
-      }
-    });
-
-    controller.forward();
+    _animationController!.forward();
   }
 
   @override

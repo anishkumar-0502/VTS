@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../domain/models/parent_profile_model.dart';
 import '../../controllers/parent_profile_controller.dart';
@@ -6,8 +7,9 @@ import '../../../../../../utilities/widgets/app_text_field.dart';
 
 class ParentProfileEditPage extends GetView<ParentProfileController> {
   final ParentProfileData data;
+  final _formKey = GlobalKey<FormState>();
 
-  const ParentProfileEditPage({required this.data, super.key});
+  ParentProfileEditPage({required this.data, super.key});
 
   @override
   String get tag => 'parent_profile';
@@ -17,9 +19,8 @@ class ParentProfileEditPage extends GetView<ParentProfileController> {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
 
-    final nameController = TextEditingController(text: data.name);
-    final phoneController = TextEditingController(text: data.phoneNumber.toString());
-    final formKey = GlobalKey<FormState>();
+    // Initialize controllers with initial data
+    controller.initializeEditFields(data);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
@@ -33,11 +34,14 @@ class ParentProfileEditPage extends GetView<ParentProfileController> {
         elevation: 0,
       ),
       body: Obx(() {
+        // Accessing profileData to ensure Obx re-renders when it changes
+        final _ = controller.profileData.value;
+        
         return SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Form(
-              key: formKey,
+              key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -51,7 +55,7 @@ class ParentProfileEditPage extends GetView<ParentProfileController> {
                   ),
                   const SizedBox(height: 8),
                   AppTextField(
-                    controller: nameController,
+                    controller: controller.nameController,
                     label: 'Enter your full name',
                     prefixIcon: Icon(Icons.person, color: primaryColor),
                     validator: (value) {
@@ -74,19 +78,18 @@ class ParentProfileEditPage extends GetView<ParentProfileController> {
                   ),
                   const SizedBox(height: 8),
                   AppTextField(
-                    controller: phoneController,
+                    controller: controller.phoneController,
                     label: 'Enter your phone number',
                     keyboardType: TextInputType.number,
                     prefixIcon: Icon(Icons.phone, color: primaryColor),
+                    maxLength: 10,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Phone number is required';
                       }
-                      if (value.length < 10) {
-                        return 'Phone number must be at least 10 digits';
-                      }
-                      if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                        return 'Phone number must contain only digits';
+                      if (value.length != 10) {
+                        return 'Phone number must be exactly 10 digits';
                       }
                       return null;
                     },
@@ -95,18 +98,18 @@ class ParentProfileEditPage extends GetView<ParentProfileController> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: controller.isLoading.value
+                      onPressed: controller.isLoading.value || !controller.hasChanges
                           ? null
                           : () {
-                        if (formKey.currentState!.validate()) {
+                        if (_formKey.currentState!.validate()) {
                           controller.updateProfile(
-                            name: nameController.text.trim(),
-                            phoneNumber: int.parse(phoneController.text.trim()),
+                            name: controller.nameController.text.trim(),
+                            phoneNumber: int.parse(controller.phoneController.text.trim()),
                           );
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
+                        backgroundColor: controller.hasChanges ? primaryColor : Colors.grey,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),

@@ -4,15 +4,26 @@ import 'package:get/get.dart';
 import '../../../../../utilities/widgets/app_text_field.dart';
 import '../controllers/login_page_controller.dart';
 
-class DriverLoginPage extends StatelessWidget {
+class DriverLoginPage extends StatefulWidget {
   const DriverLoginPage({super.key});
+
+  @override
+  State<DriverLoginPage> createState() => _DriverLoginPageState();
+}
+
+class _DriverLoginPageState extends State<DriverLoginPage> {
+  late final DriverLoginPageController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(DriverLoginPageController(), tag: 'driver_login', permanent: false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final Color primaryColor = Theme.of(context).colorScheme.primary;
-    final DriverLoginPageController controller =
-        Get.put(DriverLoginPageController(), tag: 'driver_login', permanent: false);
 
     return Scaffold(
       backgroundColor: Colors.white,

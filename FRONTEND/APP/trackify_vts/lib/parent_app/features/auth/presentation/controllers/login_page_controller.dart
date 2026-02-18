@@ -64,12 +64,7 @@ class ParentLoginPageController extends GetxController {
           await _saveSession(response);
           await _fetchAndUpdateFullProfile();
           showStatusBanner(response.message, Colors.green, Icons.check_circle);
-          Get.offAll(
-            () => ParentHomePage(),
-            binding: BindingsBuilder(() {
-              Get.put(ParentHomeController());
-            }),
-          ); 
+          Get.offAllNamed('/dashboard'); 
         } else {  
           showStatusBanner(
             response.message,

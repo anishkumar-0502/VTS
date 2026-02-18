@@ -159,27 +159,59 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                   const SizedBox(height: 20),
 
                   // Vehicle Information Card
-                  _buildCard(
-                    title: 'Vehicle Information',
-                    primaryColor: primaryColor,
-                    child: Column(
-                      children: [
-                        _buildInfoRow(
-                          'Vehicle Number',
-                          widget.trip.vehicleId?.vehicleNumber ?? 'N/A',
-                          primaryColor,
-                        ),
+                  if (widget.trip.vehicleId != null && 
+                      (widget.trip.vehicleId!.vehicleNumber.isNotEmpty || 
+                       widget.trip.vehicleId!.seatingCapacity > 0))
+                    _buildCard(
+                      title: 'Vehicle Information',
+                      primaryColor: primaryColor,
+                      child: Column(
+                        children: [
+                          if (widget.trip.vehicleId!.vehicleNumber.isNotEmpty)
+                            _buildInfoRow(
+                              'Vehicle Number',
+                              widget.trip.vehicleId!.vehicleNumber,
+                              primaryColor,
+                            ),
 
-                        const Divider(height: 20),
-                        _buildInfoRow(
-                          'Capacity',
-                          '${widget.trip.vehicleId?.seatingCapacity ?? 0} seats',
-                          primaryColor,
-                        ),
-                      ],
+                          if (widget.trip.vehicleId!.vehicleNumber.isNotEmpty && 
+                              widget.trip.vehicleId!.seatingCapacity > 0)
+                            const Divider(height: 20),
+                          
+                          if (widget.trip.vehicleId!.seatingCapacity > 0)
+                            _buildInfoRow(
+                              'Capacity',
+                              '${widget.trip.vehicleId!.seatingCapacity} seats',
+                              primaryColor,
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                  if (widget.trip.vehicleId != null && 
+                      (widget.trip.vehicleId!.vehicleNumber.isNotEmpty || 
+                       widget.trip.vehicleId!.seatingCapacity > 0))
+                    const SizedBox(height: 20),
+
+                  // Passenger Details Card
+                  if (widget.trip.passengers.isNotEmpty)
+                    _buildCard(
+                      title: 'Passenger Details (${widget.trip.passengers.length})',
+                      primaryColor: primaryColor,
+                      child: Column(
+                        children: widget.trip.passengers.asMap().entries.map((entry) {
+                          final p = entry.value;
+                          final isLast = entry.key == widget.trip.passengers.length - 1;
+                          return Column(
+                            children: [
+                              _buildPassengerRow(p, primaryColor),
+                              if (!isLast) const Divider(height: 24, thickness: 0.5),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  if (widget.trip.passengers.isNotEmpty)
+                    const SizedBox(height: 20),
 
                   // Route Stops Card
                   if (widget.trip.routePoints.isNotEmpty)
@@ -201,10 +233,19 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                             .toList(),
                       ),
                     ),
-                  const SizedBox(height: 20),
+                  if (widget.trip.routePoints.isNotEmpty)
+                    const SizedBox(height: 20),
 
 
                   // Repeat Schedule Card
+                  if (widget.trip.repeatDays != null && 
+                      (widget.trip.repeatDays!.monday || 
+                       widget.trip.repeatDays!.tuesday || 
+                       widget.trip.repeatDays!.wednesday || 
+                       widget.trip.repeatDays!.thursday || 
+                       widget.trip.repeatDays!.friday || 
+                       widget.trip.repeatDays!.saturday || 
+                       widget.trip.repeatDays!.sunday))
                   _buildCard(
                     title: 'Repeat Schedule',
                     primaryColor: primaryColor,
@@ -250,7 +291,52 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  if (widget.trip.repeatDays != null && 
+                      (widget.trip.repeatDays!.monday || 
+                       widget.trip.repeatDays!.tuesday || 
+                       widget.trip.repeatDays!.wednesday || 
+                       widget.trip.repeatDays!.thursday || 
+                       widget.trip.repeatDays!.friday || 
+                       widget.trip.repeatDays!.saturday || 
+                       widget.trip.repeatDays!.sunday))
+                    const SizedBox(height: 20),
+
+                  // Trip Performance Card (only for completed trips)
+                  if (widget.trip.status.toLowerCase() == 'completed' && 
+                      (widget.trip.distanceTraveled != null || widget.trip.duration != null))
+                    _buildCard(
+                      title: 'Trip Performance',
+                      primaryColor: primaryColor,
+                      child: Column(
+                        children: [
+                          if (widget.trip.distanceTraveled != null)
+                            _buildInfoRow(
+                              'Distance Traveled',
+                              '${widget.trip.distanceTraveled!.toStringAsFixed(2)} km',
+                              primaryColor,
+                            ),
+                          if (widget.trip.distanceTraveled != null && widget.trip.duration != null)
+                            const Divider(height: 20),
+                          if (widget.trip.duration != null)
+                            _buildInfoRow(
+                              'Duration',
+                              '${widget.trip.duration!.toStringAsFixed(1)} mins',
+                              primaryColor,
+                            ),
+                          if (widget.trip.endTime != null) ...[
+                            const Divider(height: 20),
+                            _buildInfoRow(
+                              'End Time',
+                              widget.trip.endTime!.split('T').last.substring(0, 5),
+                              primaryColor,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  if (widget.trip.status.toLowerCase() == 'completed' && 
+                      (widget.trip.distanceTraveled != null || widget.trip.duration != null))
+                    const SizedBox(height: 20),
 
                   // Action Buttons
                   if (isPending) ...[
@@ -388,6 +474,64 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPassengerRow(scheduled_models.Passenger passenger, Color primaryColor) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: primaryColor.withOpacity(0.1),
+          child: Text(
+            passenger.name.isNotEmpty ? passenger.name[0].toUpperCase() : 'P',
+            style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                passenger.name,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              Text(
+                passenger.phoneNumber,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _buildStatusBadge(
+              passenger.pickedUp ? 'Picked' : 'Not Picked',
+              passenger.pickedUp ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(height: 4),
+            if (passenger.dropped)
+              _buildStatusBadge('Dropped', Colors.blue),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }

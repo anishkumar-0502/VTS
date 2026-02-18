@@ -226,6 +226,15 @@ class SessionController extends GetxController {
       await prefs.remove(_sessionExpiryKey);
       
       _applySessionFromPrefs();
+      
+      // Explicitly trigger reactive updates for clearing
+      token.value = '';
+      parentData.value = null;
+      userId.value = '';
+      username.value = '';
+      emailId.value = '';
+      isLoggedIn.value = false;
+      
       isSessionValid.value = true;
       sessionError.value = '';
       

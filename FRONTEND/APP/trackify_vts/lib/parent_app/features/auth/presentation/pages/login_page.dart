@@ -4,15 +4,26 @@ import 'package:get/get.dart';
 import '../../../../../utilities/widgets/app_text_field.dart';
 import '../controllers/login_page_controller.dart';
 
-class ParentLoginPage extends StatelessWidget {
+class ParentLoginPage extends StatefulWidget {
   const ParentLoginPage({super.key});
+
+  @override
+  State<ParentLoginPage> createState() => _ParentLoginPageState();
+}
+
+class _ParentLoginPageState extends State<ParentLoginPage> {
+  late final ParentLoginPageController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(ParentLoginPageController(), tag: 'parent_login', permanent: false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final Color primaryColor = Theme.of(context).colorScheme.primary;
-    final ParentLoginPageController controller =
-        Get.put(ParentLoginPageController(), tag: 'parent_login', permanent: false);
 
     return Scaffold(
       backgroundColor: Colors.white,

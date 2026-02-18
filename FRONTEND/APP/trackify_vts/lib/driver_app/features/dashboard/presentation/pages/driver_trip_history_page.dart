@@ -217,15 +217,12 @@ class DriverTripHistoryPage extends GetView<DriverDashboardController> {
       dashboard_models.DriverTripHistory trip,
       Color primaryColor,
       ) {
-      // Navigate to existing trip details page if available or create one
-      // Assuming TripDetailsPage exists or using the one from dashboard
-      
       // Convert DriverTripHistory to ScheduledTrip for compatibility
       final scheduledTrip = scheduled_models.ScheduledTrip(
         scheduledTripId: trip.scheduledTripId ?? '',
         routeName: trip.routeName ?? trip.vehicleId?.routeName ?? '',
         scheduledStartTime: trip.startTime,
-        tripPeriod: '', // Not available in history
+        tripPeriod: trip.snapshot?['trip_period'] ?? trip.plannedDate ?? '', 
         status: trip.status,
         startLocation: trip.startLocation != null 
             ? scheduled_models.LocationData(
@@ -242,15 +239,23 @@ class DriverTripHistoryPage extends GetView<DriverDashboardController> {
               )
             : null,
         vehicleId: trip.vehicleId,
-        vehicleIdString: trip.vehicleId?.id ?? '',
+        vehicleIdString: trip.vehicleId?.id ?? trip.vehicleId?.vehicleId ?? '',
         driverId: trip.driverId,
         operatorId: trip.operatorId,
-        repeatDays: null,
+        repeatDays: (trip.snapshot != null && trip.snapshot!['repeat_days'] != null)
+            ? scheduled_models.RepeatDays.fromJson(trip.snapshot!['repeat_days'] as Map<String, dynamic>)
+            : null,
         isActive: false,
         associatedTripId: trip.tripId,
         createdAt: trip.createdAt,
         updatedAt: trip.updatedAt,
         routePoints: trip.routePoints,
+        passengers: trip.passengers
+            .map((p) => scheduled_models.Passenger.fromJson(p as Map<String, dynamic>))
+            .toList(),
+        distanceTraveled: trip.distanceTraveled,
+        duration: trip.duration,
+        endTime: trip.endTime,
       );
 
       Get.to(

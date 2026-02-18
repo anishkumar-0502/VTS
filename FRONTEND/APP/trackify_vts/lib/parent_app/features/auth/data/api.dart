@@ -28,8 +28,8 @@ class AuthAPICalls {
     }
   }
 
-  Map<String, dynamic> _handleResponse(http.Response response) {
-    return NetworkUtils.handleResponse(response, isDriver: false);
+  Map<String, dynamic> _handleResponse(http.Response response, {bool autoLogout = true}) {
+    return NetworkUtils.handleResponse(response, isDriver: false, autoLogout: autoLogout);
   }
 
   Future<Map<String, dynamic>> loginParent(
@@ -62,7 +62,7 @@ class AuthAPICalls {
       debugPrint('Parent Response Status Code: ${response.statusCode}');
       debugPrint('Parent Response Body: ${response.body}');
 
-      return _handleResponse(response);
+      return _handleResponse(response, autoLogout: false);
     } on TimeoutException {
       throw HttpException(408, 'Request timed out. Please try again.');
     } on http.ClientException {

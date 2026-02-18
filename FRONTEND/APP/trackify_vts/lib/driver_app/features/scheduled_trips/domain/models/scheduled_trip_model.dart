@@ -44,6 +44,10 @@ class ScheduledTrip {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final List<RoutePoint> routePoints;
+  final List<Passenger> passengers;
+  final double? distanceTraveled;
+  final double? duration;
+  final String? endTime;
 
   ScheduledTrip({
     required this.scheduledTripId,
@@ -63,6 +67,10 @@ class ScheduledTrip {
     this.createdAt,
     this.updatedAt,
     required this.routePoints,
+    this.passengers = const [],
+    this.distanceTraveled,
+    this.duration,
+    this.endTime,
   });
 
   factory ScheduledTrip.fromJson(Map<String, dynamic> json) {
@@ -111,6 +119,54 @@ class ScheduledTrip {
                   .map((point) => RoutePoint.fromJson(point as Map<String, dynamic>))
                   .toList()
               : [],
+      passengers:
+          json['passengers'] != null && json['passengers'] is List
+              ? (json['passengers'] as List)
+                  .map((p) => Passenger.fromJson(p as Map<String, dynamic>))
+                  .toList()
+              : [],
+      distanceTraveled: (json['distance_traveled'] as num?)?.toDouble(),
+      duration: (json['duration'] as num?)?.toDouble(),
+      endTime: json['end_time'] as String?,
+    );
+  }
+}
+
+class Passenger {
+  final String userId;
+  final String name;
+  final String phoneNumber;
+  final bool pickedUp;
+  final bool dropped;
+  final String? parentContact;
+  final LocationData? pickupStop;
+  final LocationData? dropStop;
+
+  Passenger({
+    required this.userId,
+    required this.name,
+    required this.phoneNumber,
+    required this.pickedUp,
+    required this.dropped,
+    this.parentContact,
+    this.pickupStop,
+    this.dropStop,
+  });
+
+  factory Passenger.fromJson(Map<String, dynamic> json) {
+    return Passenger(
+      userId: json['user_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      phoneNumber: json['phone_number'] as String? ?? '',
+      pickedUp: json['picked_up'] as bool? ?? false,
+      dropped: json['dropped'] as bool? ?? false,
+      parentContact: json['parent_contact'] as String?,
+      pickupStop: json['pickup_stop'] != null
+          ? LocationData.fromJson(json['pickup_stop'] as Map<String, dynamic>)
+          : null,
+      dropStop: json['drop_stop'] != null
+          ? LocationData.fromJson(json['drop_stop'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -272,13 +328,13 @@ class RepeatDays {
 
   factory RepeatDays.fromJson(Map<String, dynamic> json) {
     return RepeatDays(
-      monday: json['Monday'] as bool? ?? false,
-      tuesday: json['Tuesday'] as bool? ?? false,
-      wednesday: json['Wednesday'] as bool? ?? false,
-      thursday: json['Thursday'] as bool? ?? false,
-      friday: json['Friday'] as bool? ?? false,
-      saturday: json['Saturday'] as bool? ?? false,
-      sunday: json['Sunday'] as bool? ?? false,
+      monday: (json['Monday'] as bool? ?? json['monday'] as bool? ?? false),
+      tuesday: (json['Tuesday'] as bool? ?? json['tuesday'] as bool? ?? false),
+      wednesday: (json['Wednesday'] as bool? ?? json['wednesday'] as bool? ?? false),
+      thursday: (json['Thursday'] as bool? ?? json['thursday'] as bool? ?? false),
+      friday: (json['Friday'] as bool? ?? json['friday'] as bool? ?? false),
+      saturday: (json['Saturday'] as bool? ?? json['saturday'] as bool? ?? false),
+      sunday: (json['Sunday'] as bool? ?? json['sunday'] as bool? ?? false),
     );
   }
 

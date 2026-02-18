@@ -11,7 +11,7 @@ import '../../utilities/exception/exception.dart';
 class NetworkUtils {
   static bool _isLoggingOut = false;
 
-  static Map<String, dynamic> handleResponse(http.Response response, {required bool isDriver}) {
+  static Map<String, dynamic> handleResponse(http.Response response, {required bool isDriver, bool autoLogout = true}) {
     Map<String, dynamic> responseBody;
     try {
       responseBody = jsonDecode(response.body);
@@ -20,7 +20,7 @@ class NetworkUtils {
     }
 
     if (response.statusCode == 401 || responseBody['message'] == 'User not found') {
-      if (!_isLoggingOut) {
+      if (autoLogout && !_isLoggingOut) {
         _logout(isDriver: isDriver);
       }
       throw HttpException(401, responseBody['message'] ?? 'Session expired');
@@ -30,6 +30,7 @@ class NetworkUtils {
   }
 
   static void _logout({required bool isDriver}) {
+    print("[NetworkUtils] Triggering logout. isDriver: $isDriver");
     _isLoggingOut = true;
     if (isDriver) {
       try {

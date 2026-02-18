@@ -8,6 +8,8 @@ import 'features/splashscreen/presentation/pages/splash_screen_page.dart';
 import 'features/dashboard/presentation/bindings/parent_home_binding.dart';
 import 'features/profile/presentation/bindings/parent_profile_binding.dart';
 import 'features/dashboard/presentation/pages/parent_home_page.dart';
+import 'features/live-tracking/presentation/pages/live_tracking_children_page.dart';
+import 'features/live-tracking/presentation/controllers/live_tracking_children_controller.dart';
 import 'features/profile/presentation/pages/parent_profile_page.dart';
 
 Future<void> main() async {
@@ -61,6 +63,13 @@ class ParentApp extends StatelessWidget {
           name: '/dashboard',
           page: () => ParentHomePage(),
           binding: ParentHomeBinding(),
+        ),
+        GetPage(
+          name: '/live-tracking',
+          page: () => const LiveTrackingChildrenPage(),
+          binding: BindingsBuilder(() {
+            Get.lazyPut(() => LiveTrackingChildrenController());
+          }),
         ),
         GetPage(
           name: '/profile',

@@ -1,74 +1,16 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:http/http.dart' as http;
 
 import '../../../../../core/core.dart';
-import '../../../../Sessionhandler/session_controller.dart';
+import '../controllers/live_tracking_children_controller.dart';
 import '../bindings/child_location_tracking_binding.dart';
 import 'child_location_tracking_page.dart';
 import '../../../../shared/index.dart';
 import '../../../../shared/widgets/shimmer_skeletons.dart';
 
-class LiveTrackingChildrenPage extends StatefulWidget {
+class LiveTrackingChildrenPage extends GetView<LiveTrackingChildrenController> {
   const LiveTrackingChildrenPage({super.key});
-
-  @override
-  State<LiveTrackingChildrenPage> createState() =>
-      _LiveTrackingChildrenPageState();
-}
-
-class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
-  final SessionController sessionController = Get.find<SessionController>();
-  
-  Map<String, dynamic>? profileData;
-  bool isLoading = true;
-  String errorMessage = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchProfile();
-  }
-
-  Future<void> _fetchProfile() async {
-    try {
-      setState(() {
-        isLoading = true;
-        errorMessage = '';
-      });
-
-      final token = sessionController.token.value;
-      if (token.isEmpty) {
-        throw Exception('Token not found');
-      }
-
-      final response = await http.get(
-        Uri.parse('${trackify_vts.baseUrl}/parent/profile'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        setState(() {
-          profileData = jsonData['data'];
-          isLoading = false;
-        });
-      } else {
-        throw Exception('Failed to fetch profile');
-      }
-    } catch (e) {
-      setState(() {
-        errorMessage = 'Error: ${e.toString()}';
-        isLoading = false;
-      });
-    }
-  }
 
   Future<String> _getAddressFromLatLng(double lat, double lng) async {
     try {
@@ -91,6 +33,11 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
 
+    // Ensure controller is initialized
+    if (!Get.isRegistered<LiveTrackingChildrenController>()) {
+      Get.put(LiveTrackingChildrenController());
+    }
+
     return ParentAppLayout(
       appBar: AppBar(
         backgroundColor: primaryColor,
@@ -104,38 +51,45 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
           ),
         ),
       ),
-      body: isLoading
-          ? const LiveTrackingListSkeleton()
-          : errorMessage.isNotEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline,
-                            color: Colors.red.shade700, size: 48),
-                        const SizedBox(height: 16),
-                        Text(
-                          errorMessage,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: Colors.red.shade700, fontSize: 14),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: _fetchProfile,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const LiveTrackingListSkeleton();
+        }
+
+        if (controller.errorMessage.value.isNotEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline,
+                      color: Colors.red.shade700, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    controller.errorMessage.value,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.red.shade700, fontSize: 14),
                   ),
-                )
-              : _buildChildrenList(theme, primaryColor),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: controller.fetchProfile,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return _buildChildrenList(theme, primaryColor);
+      }),
     );
   }
 
   Widget _buildChildrenList(ThemeData theme, Color primaryColor) {
+    final profileData = controller.profileData.value;
     final associatedUsers =
         (profileData?['associated_users'] as List?) ?? [];
     final endUserId = profileData?['end_user_id'] as String? ?? '';
@@ -173,7 +127,7 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
     }
 
     return RefreshIndicator(
-      onRefresh: _fetchProfile,
+      onRefresh: controller.fetchProfile,
       color: primaryColor,
       backgroundColor: Colors.white,
       child: ListView.separated(
@@ -205,7 +159,6 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
           color: primaryColor.withValues(alpha: 0.15),
           width: 1.2,
         ),
-
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -257,10 +210,10 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
                       ),
                       const SizedBox(height: 6),
                       FutureBuilder<String>(
-                        future: _fetchTripStatus(childId),
+                        future: controller.fetchTripStatus(childId),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState == ConnectionState.waiting) {
-                            return  ShimmerLoadingSkeleton(width: 80, height: 16);
+                            return ShimmerLoadingSkeleton(width: 80, height: 16);
                           }
                           final status = snapshot.data ?? 'Unknown';
                           final isOnTrip = status.contains('on trip') ||
@@ -343,18 +296,18 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
     Color primaryColor,
   ) {
     return FutureBuilder<Map<String, dynamic>?>(
-      future: _fetchNextStop(childId),
+      future: controller.fetchNextStop(childId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Row(
             children: [
               ShimmerLoadingSkeleton(width: 40, height: 40, borderRadius: 12),
               const SizedBox(width: 12),
-               Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ShimmerLoadingSkeleton(width: 80, height: 12),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   ShimmerLoadingSkeleton(width: 120, height: 16),
                 ],
               ),
@@ -392,13 +345,13 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF4E5), // Light orange background
+                color: const Color(0xFFFFF4E5),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFE0B2)), // Light orange border
+                border: Border.all(color: const Color(0xFFFFE0B2)),
               ),
               child: const Icon(
                 Icons.flag_rounded,
-                color: Color(0xFFFF9800), // Orange icon
+                color: Color(0xFFFF9800),
                 size: 24,
               ),
             ),
@@ -451,66 +404,6 @@ class _LiveTrackingChildrenPageState extends State<LiveTrackingChildrenPage> {
         );
       },
     );
-  }
-
-  Future<String> _fetchTripStatus(String childId) async {
-    try {
-      final token = sessionController.token.value;
-      final response = await http.get(
-        Uri.parse('${trackify_vts.baseUrl}/parent/current-trip?childId=$childId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        final status = jsonData['data']?['status'] as String? ?? 'Unknown';
-        return status;
-      }
-      return 'Unknown';
-    } catch (e) {
-      return 'Unknown';
-    }
-  }
-
-  Future<Map<String, dynamic>?> _fetchNextStop(String childId) async {
-    try {
-      final token = sessionController.token.value;
-      
-      final tripResponse = await http.get(
-        Uri.parse('${trackify_vts.baseUrl}/parent/current-trip?childId=$childId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
-
-      if (tripResponse.statusCode != 200) return null;
-
-      final tripJson = jsonDecode(tripResponse.body);
-      final tripId = tripJson['data']?['associated_trip_id'] as String?;
-
-      if (tripId == null || tripId.isEmpty) return null;
-
-      final nextStopResponse = await http.get(
-        Uri.parse(
-            '${trackify_vts.baseUrl}/parent/next-stop?tripId=$tripId&childId=$childId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
-
-      if (nextStopResponse.statusCode == 200) {
-        final jsonData = jsonDecode(nextStopResponse.body);
-        return jsonData['data'] as Map<String, dynamic>?;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
   }
 
   void _navigateToTracking(String childId) {

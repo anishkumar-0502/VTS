@@ -47,7 +47,14 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
     _syncWithDashboardController();
     
     loadData();
-    _socketIOService.initialize();
+    
+    // Initialize socket with token if available
+    final token = _sessionController.token.value;
+    if (token.isNotEmpty) {
+      _socketIOService.initialize(authToken: token);
+    } else {
+      _socketIOService.initialize();
+    }
     
     // Listen for socket updates
     _socketIOService.onFrameUpdate = (data) {

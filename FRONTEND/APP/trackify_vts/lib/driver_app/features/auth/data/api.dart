@@ -27,8 +27,8 @@ class AuthAPICalls {
     }
   }
 
-  Map<String, dynamic> _handleResponse(http.Response response) {
-    return NetworkUtils.handleResponse(response, isDriver: true);
+  Map<String, dynamic> _handleResponse(http.Response response, {bool autoLogout = true}) {
+    return NetworkUtils.handleResponse(response, isDriver: true, autoLogout: autoLogout);
   }
 
   Future<Map<String, dynamic>> loginDriver(
@@ -61,7 +61,7 @@ class AuthAPICalls {
       debugPrint('Response Status Code: ${response.statusCode}');
       debugPrint('Response Body: ${response.body}');
 
-      return _handleResponse(response);
+      return _handleResponse(response, autoLogout: false);
     } on TimeoutException {
       throw HttpException(408, 'Request timed out. Please try again.');
     } on http.ClientException {
@@ -69,6 +69,8 @@ class AuthAPICalls {
         503,
         'Unable to reach the server. \nPlease check your connection or try again later.',
       );
+    } on HttpException {
+      rethrow;
     } catch (e) {
       debugPrint("Error: $e");
       throw HttpException(500, _getDefaultErrorMessage(500));

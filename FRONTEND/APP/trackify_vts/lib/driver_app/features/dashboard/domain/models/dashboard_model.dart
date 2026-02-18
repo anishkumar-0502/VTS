@@ -275,6 +275,13 @@ class DriverTripHistory {
   final List<scheduled_models.RoutePoint> routePoints;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? completedDate;
+  final String? completedDay;
+  final double? distanceTraveled;
+  final double? duration;
+  final String? endTime;
+  final String? plannedDate;
+  final Map<String, dynamic>? snapshot;
 
   DriverTripHistory({
     required this.startLocation,
@@ -296,63 +303,67 @@ class DriverTripHistory {
     required this.routePoints,
     required this.createdAt,
     required this.updatedAt,
+    this.completedDate,
+    this.completedDay,
+    this.distanceTraveled,
+    this.duration,
+    this.endTime,
+    this.plannedDate,
+    this.snapshot,
   });
 
   factory DriverTripHistory.fromJson(Map<String, dynamic> json) {
+    // Try to get data from snapshot if available
+    final Map<String, dynamic>? snapshot = json['snapshot'] as Map<String, dynamic>?;
+    
     return DriverTripHistory(
-      startLocation:
-      json['start_location'] != null && json['start_location'] is Map
+      startLocation: (json['start_location'] != null && json['start_location'] is Map)
           ? Location.fromJson(json['start_location'] as Map<String, dynamic>)
-          : null,
-      endLocation:
-      json['end_location'] != null && json['end_location'] is Map
+          : (snapshot != null && snapshot['start_location'] != null)
+              ? Location.fromJson(snapshot['start_location'] as Map<String, dynamic>)
+              : null,
+      endLocation: (json['end_location'] != null && json['end_location'] is Map)
           ? Location.fromJson(json['end_location'] as Map<String, dynamic>)
-          : null,
-      vehicleId:
-      json['vehicle_id'] != null && json['vehicle_id'] is Map
-          ? scheduled_models.VehicleData.fromJson(
-        json['vehicle_id'] as Map<String, dynamic>,
-      )
-          : null,
-      driverId: json['driver_id'] as String? ?? '',
-      operatorId: json['operator_id'] as String? ?? '',
-      routeName: json['route_name'] as String?,
-      scheduledTripId: json['scheduled_trip_id'] as String?,
-      startTime: json['start_time'] as String? ?? '',
-      status: json['status'] as String? ?? '',
-      speedAlarmEnabled: json['speed_alarm_enabled'] as bool? ?? false,
-      speedLimit: (json['speed_limit'] as num?)?.toInt() ?? 0,
+          : (snapshot != null && snapshot['end_location'] != null)
+              ? Location.fromJson(snapshot['end_location'] as Map<String, dynamic>)
+              : null,
+      vehicleId: json['vehicle_id'] != null && json['vehicle_id'] is Map
+          ? scheduled_models.VehicleData.fromJson(json['vehicle_id'] as Map<String, dynamic>)
+          : (snapshot != null && snapshot['vehicle_id'] != null && snapshot['vehicle_id'] is Map)
+              ? scheduled_models.VehicleData.fromJson(snapshot['vehicle_id'] as Map<String, dynamic>)
+              : null,
+      driverId: json['driver_id'] as String? ?? snapshot?['driver_id'] as String? ?? '',
+      operatorId: json['operator_id'] as String? ?? snapshot?['operator_id'] as String? ?? '',
+      routeName: json['route_name'] as String? ?? snapshot?['route_name'] as String?,
+      scheduledTripId: json['scheduled_trip_id'] as String? ?? snapshot?['scheduled_trip_id'] as String?,
+      startTime: json['start_time'] as String? ?? snapshot?['start_time'] as String? ?? '',
+      status: json['status'] as String? ?? 'completed',
+      speedAlarmEnabled: json['speed_alarm_enabled'] as bool? ?? snapshot?['speed_alarm_enabled'] as bool? ?? false,
+      speedLimit: (json['speed_limit'] as num?)?.toInt() ?? (snapshot?['speed_limit'] as num?)?.toInt() ?? 0,
       tripId: json['trip_id'] as String? ?? '',
-      stops: List<dynamic>.from((json['stops'] as List?) ?? []),
-      speedViolations:
-      List<dynamic>.from((json['speed_violations'] as List?) ?? []),
-      routeDeviations:
-      List<dynamic>.from((json['route_deviations'] as List?) ?? []),
-      passengers: List<dynamic>.from((json['passengers'] as List?) ?? []),
-      routePoints:
-      (json['route_points'] as List?)
-          ?.map(
-            (e) => scheduled_models.RoutePoint.fromJson(
-          e as Map<String, dynamic>,
-        ),
-      )
-          .toList() ??
+      stops: List<dynamic>.from((json['stops'] as List?) ?? (snapshot?['stops'] as List?) ?? []),
+      speedViolations: List<dynamic>.from((json['speed_violations'] as List?) ?? (snapshot?['speed_violations'] as List?) ?? []),
+      routeDeviations: List<dynamic>.from((json['route_deviations'] as List?) ?? (snapshot?['route_deviations'] as List?) ?? []),
+      passengers: List<dynamic>.from((json['passengers'] as List?) ?? (snapshot?['passengers'] as List?) ?? []),
+      routePoints: (json['route_points'] as List?)
+              ?.map((e) => scheduled_models.RoutePoint.fromJson(e as Map<String, dynamic>))
+              .toList() ??
           (json['stops'] as List?)
-              ?.map(
-                (e) => scheduled_models.RoutePoint.fromJson(
-              e as Map<String, dynamic>,
-            ),
-          )
+              ?.map((e) => scheduled_models.RoutePoint.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          (snapshot?['route_points'] as List?)
+              ?.map((e) => scheduled_models.RoutePoint.fromJson(e as Map<String, dynamic>))
               .toList() ??
           <scheduled_models.RoutePoint>[],
-      createdAt:
-      json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'] as String)
-          : null,
-      updatedAt:
-      json['updatedAt'] != null
-          ? DateTime.tryParse(json['updatedAt'] as String)
-          : null,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
+      completedDate: json['completed_date'] as String?,
+      completedDay: json['completed_day'] as String?,
+      distanceTraveled: (json['distance_traveled'] as num?)?.toDouble(),
+      duration: (json['duration'] as num?)?.toDouble(),
+      endTime: json['end_time'] as String?,
+      plannedDate: json['planned_date'] as String?,
+      snapshot: snapshot,
     );
   }
 }

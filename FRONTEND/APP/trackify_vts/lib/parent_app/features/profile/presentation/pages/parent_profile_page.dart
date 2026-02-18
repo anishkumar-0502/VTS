@@ -429,7 +429,7 @@ class ParentProfilePage extends GetView<ParentProfileController> {
 
       case 'track_child':
         Get.to(
-          () => const LiveTrackingChildrenPage(),
+          () => LiveTrackingChildrenPage(),
           transition: Transition.rightToLeft,
           duration: const Duration(milliseconds: 350),
         );
