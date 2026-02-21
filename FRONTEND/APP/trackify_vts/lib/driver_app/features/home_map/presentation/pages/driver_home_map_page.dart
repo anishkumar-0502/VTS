@@ -11,9 +11,14 @@ import 'package:trackify_vts/driver_app/features/dashboard/presentation/controll
 import 'package:trackify_vts/driver_app/features/profile/presentation/controllers/driver_profile_controller.dart';
 import '../widgets/slide_action_button.dart';
 
-class DriverHomeMapPage extends StatelessWidget {
+class DriverHomeMapPage extends StatefulWidget {
   const DriverHomeMapPage({super.key});
 
+  @override
+  State<DriverHomeMapPage> createState() => _DriverHomeMapPageState();
+}
+
+class _DriverHomeMapPageState extends State<DriverHomeMapPage> {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(DriverHomeMapController());
@@ -30,7 +35,14 @@ class DriverHomeMapPage extends StatelessWidget {
           controller.activeTrip.value == null &&
           controller.scheduledTrips.isEmpty;
 
-      return Stack(
+      return PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) {
+            debugPrint('[DriverHomeMap] 📲 Page popped - will auto-refresh on resume');
+          }
+        },
+        child: Stack(
         children: [
           /// ================= MAP =================
           Builder(builder: (context) {
@@ -202,12 +214,14 @@ class DriverHomeMapPage extends StatelessWidget {
                 }
 
                 if (activeTrip != null) {
-                  final trip = scheduledTrips.first;
-                  routeName = trip.routeName;
-                  startTime = formatTimeWithAmPm(trip.scheduledStartTime);
+                  routeName = activeTrip.routeName;
+                  startTime = formatTimeWithAmPm(activeTrip.startTime);
                   tripStatus = 'Active Trip';
                 } else if (scheduledTrips.isNotEmpty) {
-                  final trip = scheduledTrips.first;
+                  final trip = scheduledTrips.firstOrNull;
+                  if (trip == null) {
+                    return const SizedBox.shrink();
+                  }
                   routeName = trip.routeName;
                   startTime = formatTimeWithAmPm(trip.scheduledStartTime);
                   tripStatus = 'Upcoming Trip';
@@ -794,7 +808,8 @@ class DriverHomeMapPage extends StatelessWidget {
           },
         ),
       ],
-    );
-  });
-}
+        ),
+      );
+    });
+  }
 }

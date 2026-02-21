@@ -19,47 +19,81 @@ String _getInitials(String name) {
   return '';
 }
 
-class DriverProfilePage extends GetView<DriverProfileController> {
+class DriverProfilePage extends StatefulWidget {
   const DriverProfilePage({super.key});
 
   @override
-  String? get tag => 'driver_profile';
+  State<DriverProfilePage> createState() => _DriverProfilePageState();
+}
+
+class _DriverProfilePageState extends State<DriverProfilePage> {
+  late final DriverProfileController controller;
+  bool _hasInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<DriverProfileController>(tag: 'driver_profile');
+    _hasInitialized = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_hasInitialized && mounted) {
+        debugPrint('[DriverProfile] 🔄 Page loaded - fetching fresh profile data from API...');
+        _hasInitialized = true;
+        controller.fetchProfile(showLoading: false);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
-    return Obx(() {
-      print(
-        'Building DriverProfilePage, isLoading: ${controller.isLoading.value}, data: ${controller.profileData.value?.name}',
-      );
-      if (controller.isLoading.value) {
-        return const Scaffold(
-          backgroundColor: Color(0xFFF8F8F8),
-          body: Center(child: CircularProgressIndicator()),
+    
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          debugPrint('[DriverProfile] 📲 Page popped');
+        }
+      },
+      child: Obx(() {
+        print(
+          'Building DriverProfilePage, isLoading: ${controller.isLoading.value}, data: ${controller.profileData.value?.name}',
         );
-      }
-      final data = controller.profileData.value;
-      if (data == null) {
-        return const Scaffold(
-          backgroundColor: Color(0xFFF8F8F8),
-          body: Center(child: Text('No profile data available')),
-        );
-      }
-      return Scaffold(
-        backgroundColor: const Color(0xFFF8F8F8),
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildTopHeader(context, data, primaryColor),
-              _buildCommonCard(context, data, primaryColor),
-              _buildContentLabel(),
-              _buildSettingsList(context, data),
-            ],
+        if (controller.isLoading.value) {
+          return const Scaffold(
+            backgroundColor: Color(0xFFF8F8F8),
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final data = controller.profileData.value;
+        if (data == null) {
+          return const Scaffold(
+            backgroundColor: Color(0xFFF8F8F8),
+            body: Center(child: Text('No profile data available')),
+          );
+        }
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8F8F8),
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildTopHeader(context, data, primaryColor),
+                _buildCommonCard(context, data, primaryColor),
+                _buildContentLabel(),
+                _buildSettingsList(context, data),
+              ],
+            ),
           ),
-        ),
-      );
-    });
+          floatingActionButton: FloatingActionButton(
+            heroTag: 'profile_refresh',
+            onPressed: () => controller.fetchProfile(showLoading: true),
+            tooltip: 'Refresh Profile',
+            child: const Icon(Icons.refresh),
+          ),
+        );
+      }),
+    );
   }
 
   Widget _buildTopHeader(
@@ -110,6 +144,7 @@ class DriverProfilePage extends GetView<DriverProfileController> {
 
                   String imageBase64 = '';
                   bool hasChanged = false;
+                  String? phoneError;
 
                   bool _hasAnyChange() {
                     return nameController.text.trim() != data.name ||
@@ -164,10 +199,16 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                   const SizedBox(height: 12),
                                   TextField(
                                     controller: phoneController,
-                                    onChanged:
-                                        (value) => setState(
-                                          () => hasChanged = _hasAnyChange(),
-                                        ),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        hasChanged = _hasAnyChange();
+                                        if (value.isNotEmpty && value.length < 10) {
+                                          phoneError = 'Phone number must be 10 digits';
+                                        } else {
+                                          phoneError = null;
+                                        }
+                                      });
+                                    },
                                     keyboardType: TextInputType.phone,
                                     autofillHints: const [
                                       AutofillHints.telephoneNumber,
@@ -175,16 +216,19 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                     enableSuggestions: false,
                                     enableInteractiveSelection: false,
                                     maxLength: 10,
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       labelText: 'Phone Number',
-                                      border: OutlineInputBorder(),
+                                      border: const OutlineInputBorder(),
+                                      errorText: phoneError,
                                     ),
                                   ),
                                   const SizedBox(height: 20),
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor:
-                                          hasChanged
+                                          (hasChanged &&
+                                                  phoneController.text.length ==
+                                                      10)
                                               ? Colors.green
                                               : Colors.grey,
                                       minimumSize: const Size(
@@ -195,6 +239,14 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                                     onPressed:
                                         hasChanged
                                             ? () {
+                                              if (phoneController.text.length <
+                                                  10) {
+                                                setState(() {
+                                                  phoneError =
+                                                      'Phone number must be exactly 10 digits';
+                                                });
+                                                return;
+                                              }
                                               final name =
                                                   nameController.text.trim();
                                               final phone =
@@ -355,100 +407,131 @@ class DriverProfilePage extends GetView<DriverProfileController> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Change Password',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        bool isOldPasswordVisible = false;
+        bool isNewPasswordVisible = false;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 16,
+                right: 16,
+                top: 16,
               ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: oldPasswordController,
-                obscureText: true,
-                autofillHints: const [AutofillHints.password],
-                enableSuggestions: false,
-                decoration: const InputDecoration(
-                  labelText: 'Old Password',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: newPasswordController,
-                obscureText: true,
-                autofillHints: const [AutofillHints.newPassword],
-                enableSuggestions: false,
-                decoration: const InputDecoration(
-                  labelText: 'New Password',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.grey),
+                  const Text(
+                    'Change Password',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: oldPasswordController,
+                    obscureText: !isOldPasswordVisible,
+                    autofillHints: const [AutofillHints.password],
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                      labelText: 'Old Password',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          isOldPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            isOldPasswordVisible = !isOldPasswordVisible;
+                          });
+                        },
                       ),
-                      child: const Text('Cancel'),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                      ),
-                      onPressed: () async {
-                        final oldPassword = oldPasswordController.text.trim();
-                        final newPassword = newPasswordController.text.trim();
-
-                        final passwordRegex = RegExp(
-                          r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,15}$',
-                        );
-
-                        if (!passwordRegex.hasMatch(newPassword)) {
-                          showStatusBanner(
-                            'Password must include 1 capital, 1 small, 1 number, 1 special character (8–15 chars)',
-                            Colors.redAccent,
-                            Icons.error_outline,
-                          );
-                          return;
-                        }
-
-                        await controller.changepasswordcontroller(
-                          oldpassword: oldPassword,
-                          newpassword: newPassword,
-                        );
-
-                        Navigator.of(context).pop();
-                      },
-                      child: Text(
-                        'Change Password',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize:
-                              MediaQuery.of(context).size.width *
-                              0.03, // responsive font size
-                          fontWeight: FontWeight.w600,
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: newPasswordController,
+                    obscureText: !isNewPasswordVisible,
+                    autofillHints: const [AutofillHints.newPassword],
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          isNewPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
+                        onPressed: () {
+                          setState(() {
+                            isNewPasswordVisible = !isNewPasswordVisible;
+                          });
+                        },
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.grey),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                          ),
+                          onPressed: () async {
+                            final oldPassword = oldPasswordController.text.trim();
+                            final newPassword = newPasswordController.text.trim();
+
+                            final passwordRegex = RegExp(
+                              r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,15}$',
+                            );
+
+                            if (!passwordRegex.hasMatch(newPassword)) {
+                              showStatusBanner(
+                                'Password must include 1 capital, 1 small, 1 number, 1 special character (8–15 chars)',
+                                Colors.redAccent,
+                                Icons.error_outline,
+                              );
+                              return;
+                            }
+
+                            await controller.changepasswordcontroller(
+                              oldpassword: oldPassword,
+                              newpassword: newPassword,
+                            );
+
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(
+                            'Change Password',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize:
+                                  MediaQuery.of(context).size.width *
+                                  0.03, // responsive font size
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -499,11 +582,9 @@ class DriverProfilePage extends GetView<DriverProfileController> {
                   switch (index) {
                     case 0:
                       Get.to(
-                        () => PersonalDetailsPage(data: data),
-                        transition: Transition.rightToLeft, // Slide animation
-                        duration: const Duration(
-                          milliseconds: 350,
-                        ), // Smooth speed
+                        () => const PersonalDetailsPage(),
+                        transition: Transition.rightToLeft,
+                        duration: const Duration(milliseconds: 350),
                         curve: Curves.easeInOut,
                       );
                       break;

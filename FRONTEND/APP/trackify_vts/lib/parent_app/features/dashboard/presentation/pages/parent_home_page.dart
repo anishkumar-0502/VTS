@@ -1869,73 +1869,69 @@ class ParentHomePage extends GetView<ParentHomeController> {
       final childId = controller.parentProfile.value?.endUserId ?? 
                      Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
 
-      if (tripId.isEmpty || childId.isEmpty) {
-        errorMessage.value = 'Missing trip or child ID';
+      if (childId.isEmpty) {
+        errorMessage.value = 'Missing child ID';
+        return;
+      }
+
+      // Collect all potential IDs to try
+      final List<String> idsToTry = [];
+      if (tripId.isNotEmpty) idsToTry.add(tripId);
+      if (tripData.scheduledTripId != null && 
+          tripData.scheduledTripId!.isNotEmpty && 
+          !idsToTry.contains(tripData.scheduledTripId)) {
+        idsToTry.add(tripData.scheduledTripId!);
+      }
+      if (tripData.vehicleId.isNotEmpty && !idsToTry.contains(tripData.vehicleId)) {
+        idsToTry.add(tripData.vehicleId);
+      }
+
+      if (idsToTry.isEmpty) {
+        errorMessage.value = 'Missing trip or vehicle ID';
         return;
       }
 
       final baseUrl = trackify_vts.baseUrl;
-      final url = Uri.parse('$baseUrl/parent/driver-contact?tripId=$tripId&childId=$childId');
+      bool success = false;
 
-      debugPrint('🔍 Fetching Driver Contact: $url');
+      for (final id in idsToTry) {
+        final url = Uri.parse('$baseUrl/parent/driver-contact?tripId=$id&childId=$childId');
+        debugPrint('🔍 [DriverContact] Attempting ID: $id');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
+        try {
+          final response = await http.get(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          ).timeout(const Duration(seconds: 10));
 
-      debugPrint('📡 Driver Contact Response Status: ${response.statusCode}');
-      debugPrint('📡 Driver Contact Response Body: ${response.body}');
+          debugPrint('📡 [DriverContact] ID: $id -> Status: ${response.statusCode}');
 
-      if (response.statusCode == 200) {
-        final jsonBody = json.decode(response.body);
-        final data = jsonBody['data'] as Map<String, dynamic>?;
+          if (response.statusCode == 200) {
+            final jsonBody = json.decode(response.body);
+            final data = jsonBody['data'] as Map<String, dynamic>?;
 
-        if (data != null) {
-          driverName.value = data['driver_name']?.toString() ?? 'Unknown';
-          driverPhone.value = data['driver_phone']?.toString() ?? '';
-          vehicleNumber.value = data['vehicle_number']?.toString() ?? 'N/A';
-        } else {
-          errorMessage.value = 'No driver data found';
-        }
-      } else if (tripData.scheduledTripId != null && tripData.scheduledTripId != tripId) {
-        // Fallback to scheduledTripId if initial call failed
-        final fallbackTripId = tripData.scheduledTripId!;
-        debugPrint('🔄 Retrying Driver Contact with fallback ID: $fallbackTripId');
-        
-        final fallbackUrl = Uri.parse('$baseUrl/parent/driver-contact?tripId=$fallbackTripId&childId=$childId');
-        final fallbackResponse = await http.get(
-          fallbackUrl,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ).timeout(const Duration(seconds: 15));
-
-        debugPrint('📡 Fallback Response Status: ${fallbackResponse.statusCode}');
-        
-        if (fallbackResponse.statusCode == 200) {
-          final jsonBody = json.decode(fallbackResponse.body);
-          final data = jsonBody['data'] as Map<String, dynamic>?;
-
-          if (data != null) {
-            driverName.value = data['driver_name']?.toString() ?? 'Unknown';
-            driverPhone.value = data['driver_phone']?.toString() ?? '';
-            vehicleNumber.value = data['vehicle_number']?.toString() ?? 'N/A';
-          } else {
-            errorMessage.value = 'No driver data found';
+            if (data != null) {
+              driverName.value = data['driver_name']?.toString() ?? 'Unknown';
+              driverPhone.value = data['driver_phone']?.toString() ?? '';
+              vehicleNumber.value = data['vehicle_number']?.toString() ?? 'N/A';
+              success = true;
+              debugPrint('✅ [DriverContact] Success for ID: $id');
+              break; 
+            }
           }
-        } else {
-          errorMessage.value = 'Failed to fetch driver contact';
+        } catch (e) {
+          debugPrint('⚠️ [DriverContact] Error for ID $id: $e');
         }
-      } else {
-        errorMessage.value = 'Failed to fetch driver contact';
+      }
+
+      if (!success) {
+        errorMessage.value = 'Failed to fetch driver contact details';
       }
     } catch (e) {
-      debugPrint('Error fetching driver contact: $e');
+      debugPrint('❌ [DriverContact] Critical error: $e');
       errorMessage.value = 'Error: ${e.toString()}';
     } finally {
       isFetching.value = false;
@@ -1956,52 +1952,71 @@ class ParentHomePage extends GetView<ParentHomeController> {
       final childId = controller.parentProfile.value?.endUserId ?? 
                      Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
 
-      if (tripId.isEmpty || childId.isEmpty) {
-        debugPrint('Error: Missing trip or child ID');
+      if (childId.isEmpty) {
+        debugPrint('Error: Missing child ID');
+        return;
+      }
+
+      // Collect all potential IDs to try
+      final List<String> idsToTry = [];
+      if (tripId.isNotEmpty) idsToTry.add(tripId);
+      if (tripData.scheduledTripId != null && 
+          tripData.scheduledTripId!.isNotEmpty && 
+          !idsToTry.contains(tripData.scheduledTripId)) {
+        idsToTry.add(tripData.scheduledTripId!);
+      }
+      if (tripData.vehicleId.isNotEmpty && !idsToTry.contains(tripData.vehicleId)) {
+        idsToTry.add(tripData.vehicleId);
+      }
+
+      if (idsToTry.isEmpty) {
+        debugPrint('Error: Missing trip or vehicle ID');
         return;
       }
 
       final baseUrl = trackify_vts.baseUrl;
       final url = Uri.parse('$baseUrl/parent/call-driver');
-      final requestBody = {
-        'tripId': tripId,
-        'childId': childId,
-      };
+      bool success = false;
 
-      debugPrint('═══════════════════════════════════════════════════════');
-      debugPrint('📞 CALLING DRIVER');
-      debugPrint('═══════════════════════════════════════════════════════');
-      debugPrint('URL: $url');
-      debugPrint('Request Body: ${json.encode(requestBody)}');
+      for (final id in idsToTry) {
+        final requestBody = {
+          'tripId': id,
+          'childId': childId,
+        };
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(requestBody),
-      ).timeout(const Duration(seconds: 15));
+        debugPrint('🔍 [CallDriver] Attempting with ID: $id');
 
-      debugPrint('Status Code: ${response.statusCode}');
-      debugPrint('Response Body: ${response.body}');
+        try {
+          final response = await http.post(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode(requestBody),
+          ).timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        final jsonBody = json.decode(response.body);
-        final data = jsonBody['data'] as Map<String, dynamic>?;
-        
-        debugPrint('\n✅ CALL INITIATED SUCCESSFULLY');
-        debugPrint('Call ID: ${data?['call_id']}');
-        debugPrint('Driver Phone: ${data?['driver_phone']}');
-        debugPrint('Driver Name: ${data?['driver_name']}');
-        debugPrint('═══════════════════════════════════════════════════════\n');
-      } else {
-        debugPrint('❌ Failed to initiate call with backend');
-        debugPrint('═══════════════════════════════════════════════════════\n');
+          debugPrint('📡 [CallDriver] ID: $id -> Status: ${response.statusCode}');
+
+          if (response.statusCode == 200) {
+            final jsonBody = json.decode(response.body);
+            final data = jsonBody['data'] as Map<String, dynamic>?;
+            
+            debugPrint('✅ [CallDriver] Success for ID: $id');
+            debugPrint('Call ID: ${data?['call_id']}');
+            success = true;
+            break;
+          }
+        } catch (e) {
+          debugPrint('⚠️ [CallDriver] Error for ID $id: $e');
+        }
+      }
+
+      if (!success) {
+        debugPrint('❌ [CallDriver] All attempts failed');
       }
     } catch (e) {
-      debugPrint('❌ Error initiating call with backend: $e');
-      debugPrint('═══════════════════════════════════════════════════════\n');
+      debugPrint('❌ [CallDriver] Critical error: $e');
     }
   }
 
@@ -2343,19 +2358,60 @@ class ParentHomePage extends GetView<ParentHomeController> {
                 );
               }),
               
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _buildRouteStopsCard(context, primaryColor),
-              ),
+              Obx(() {
+                final isCollapsed = controller.isRouteStopsCollapsed.value;
+                final hasTripData = controller.tripMapData.value != null;
+                
+                if (!hasTripData) return const SizedBox.shrink();
+
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOutCubic,
+                  bottom: isCollapsed ? -MediaQuery.of(context).size.height * 0.4 : 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildRouteStopsCard(context, primaryColor),
+                );
+              }),
 
               Obx(() {
-                if (controller.tripMapData.value == null) {
+                if (controller.tripMapData.value == null || !controller.isRouteStopsCollapsed.value) {
                   return const SizedBox.shrink();
                 }
                 return Positioned(
-                  bottom: 300,
+                  bottom: 20,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () => controller.toggleRouteStops(),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.route_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+
+              Obx(() {
+                final isCollapsed = controller.isRouteStopsCollapsed.value;
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOutCubic,
+                  bottom: isCollapsed ? 90 : 320,
                   left: 16,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -2417,11 +2473,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
               }),
 
               Obx(() {
-                if (controller.tripMapData.value == null) {
-                  return const SizedBox.shrink();
-                }
-                return Positioned(
-                  bottom: 300,
+                final isCollapsed = controller.isRouteStopsCollapsed.value;
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOutCubic,
+                  bottom: isCollapsed ? 90 : 320,
                   right: 16,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -2538,33 +2594,49 @@ class ParentHomePage extends GetView<ParentHomeController> {
         return const SizedBox.shrink();
       }
       
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
+      return GestureDetector(
+        onVerticalDragEnd: (details) {
+          if (details.primaryVelocity! > 500) {
+            controller.isRouteStopsCollapsed.value = true;
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                spreadRadius: 2,
+                offset: const Offset(0, -4),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 8,
+                spreadRadius: 0,
+                offset: const Offset(0, -1),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 20,
-              spreadRadius: 2,
-              offset: const Offset(0, -4),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              spreadRadius: 0,
-              offset: const Offset(0, -1),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag Handle
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -2682,17 +2754,31 @@ class ParentHomePage extends GetView<ParentHomeController> {
                       ],
                     ),
                   ),
+                  Obx(() => IconButton(
+                    onPressed: controller.isFetchingTripMap.value ? null : () => controller.refreshCurrentTrip(),
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: controller.isFetchingTripMap.value 
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : Icon(Icons.refresh, color: primaryColor),
+                    tooltip: 'Refresh Trip Data',
+                  )),
                 ],
               ),
             ),
             Divider(height: 1, color: Colors.grey[200], indent: 20, endIndent: 20),
             if (tripData.timeline.isNotEmpty)
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                itemCount: tripData.timeline.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 6),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.25,
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  itemCount: tripData.timeline.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 4),
                 itemBuilder: (context, index) {
                   final stop = tripData.timeline[index];
                   final isLast = index == tripData.timeline.length - 1;
@@ -2738,7 +2824,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                       // Stop content
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
                             border: Border(
                               bottom: BorderSide(
@@ -2798,10 +2884,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
                   );
                 },
               ),
-
+            ),
           ],
         ),
-      );
-    });
-  }
+      ),
+    );
+  });
+}
 }

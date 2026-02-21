@@ -142,14 +142,14 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                       children: [
                         _buildLocationRow(
                           'Start Location',
-                          widget.trip.startLocation?.address ?? 'N/A',
+                          _formatLocationDisplay(widget.trip.startLocation),
                           Icons.location_on,
                           primaryColor,
                         ),
                         const Divider(height: 20),
                         _buildLocationRow(
                           'End Location',
-                          widget.trip.endLocation?.address ?? 'N/A',
+                          _formatLocationDisplay(widget.trip.endLocation),
                           Icons.flag,
                           primaryColor,
                         ),
@@ -824,5 +824,21 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
         ),
       ),
     );
+  }
+
+  String _formatLocationDisplay(scheduled_models.LocationData? location) {
+    if (location == null) {
+      return 'N/A';
+    }
+    
+    if (location.address.isNotEmpty && location.address != 'N/A') {
+      return location.address;
+    }
+    
+    if (location.latitude != 0 || location.longitude != 0) {
+      return '${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}';
+    }
+    
+    return 'N/A';
   }
 }

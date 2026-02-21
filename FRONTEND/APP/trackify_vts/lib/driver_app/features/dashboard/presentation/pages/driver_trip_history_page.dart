@@ -6,6 +6,22 @@ import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/s
 import 'trip_location_display.dart';
 import 'trip_details_page.dart';
 
+String _formatDateTime(String dateTimeString) {
+  if (dateTimeString.isEmpty) return '';
+  try {
+    final dateTime = DateTime.parse(dateTimeString);
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final year = dateTime.year;
+    final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
+    return '$day/$month/$year, ${hour.toString().padLeft(2, '0')}:$minute $period';
+  } catch (e) {
+    return dateTimeString;
+  }
+}
+
 class DriverTripHistoryPage extends GetView<DriverDashboardController> {
   const DriverTripHistoryPage({super.key});
 
@@ -123,7 +139,9 @@ class DriverTripHistoryPage extends GetView<DriverDashboardController> {
     trip.routeName?.isNotEmpty == true
         ? trip.routeName!
         : trip.vehicleId?.routeName ?? 'Trip';
-    final startLabel = trip.startTime.isNotEmpty ? trip.startTime : (trip.createdAt?.toIso8601String() ?? '');
+    final startLabel = trip.startTime.isNotEmpty 
+        ? _formatDateTime(trip.startTime) 
+        : (trip.createdAt != null ? _formatDateTime(trip.createdAt!.toIso8601String()) : '');
     final statusColor = _statusColor(trip.status, primaryColor);
 
     return InkWell(
@@ -221,7 +239,7 @@ class DriverTripHistoryPage extends GetView<DriverDashboardController> {
       final scheduledTrip = scheduled_models.ScheduledTrip(
         scheduledTripId: trip.scheduledTripId ?? '',
         routeName: trip.routeName ?? trip.vehicleId?.routeName ?? '',
-        scheduledStartTime: trip.startTime,
+        scheduledStartTime: _formatDateTime(trip.startTime),
         tripPeriod: trip.snapshot?['trip_period'] ?? trip.plannedDate ?? '', 
         status: trip.status,
         startLocation: trip.startLocation != null 

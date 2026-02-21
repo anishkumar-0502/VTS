@@ -1572,7 +1572,26 @@ class _TripHistoryDetailsPage extends StatelessWidget {
         : '';
     final startLocation = DriverDashboardPage._formatLocation(trip.startLocation);
     final endLocation = DriverDashboardPage._formatLocation(trip.endLocation);
-    final vehicleNumber = trip.vehicleId?.vehicleNumber ?? 'Not assigned';
+    
+    // Try to get vehicle number from multiple sources
+    String vehicleNumber = '';
+    
+    // First priority: vehicle_details from API response
+    if (trip.vehicleDetails != null && trip.vehicleDetails!['vehicle_number'] != null) {
+      vehicleNumber = trip.vehicleDetails!['vehicle_number'] as String? ?? '';
+    }
+    
+    // Second priority: vehicleId object
+    if (vehicleNumber.isEmpty && trip.vehicleId?.vehicleNumber != null) {
+      vehicleNumber = trip.vehicleId?.vehicleNumber ?? '';
+    }
+    
+    // Third priority: activeTrip vehicleId
+    if (vehicleNumber.isEmpty && controller.activeTrip.value != null) {
+      vehicleNumber = controller.activeTrip.value!.vehicleId.vehicleNumber;
+    }
+    
+    vehicleNumber = vehicleNumber.isNotEmpty ? vehicleNumber : 'Not assigned';
     trip.speedLimit > 0 ? '${trip.speedLimit} km/h' : 'Not set';
     final waypoints = trip.routePoints.isNotEmpty
         ? trip.routePoints

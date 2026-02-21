@@ -60,6 +60,11 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
   Timer? _bannerTimer;
   final MapController mapController = MapController();
   final RxDouble currentZoom = 13.0.obs;
+  final RxBool isRouteStopsCollapsed = false.obs;
+
+  void toggleRouteStops() {
+    isRouteStopsCollapsed.value = !isRouteStopsCollapsed.value;
+  }
 
   void showRouteBannerTemporarily() {
     _bannerTimer?.cancel();
@@ -302,30 +307,6 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
         if (userTarget != null) {
           targetLocation.value = userTarget;
           debugPrint('[Home] 🎯 Target location set: $userTarget for tripType: ${baseData.tripType}');
-          
-          // Truncate timeline until the user's location is reached
-          int stopIndex = -1;
-          for (int i = 0; i < baseData.timeline.length; i++) {
-            final stop = baseData.timeline[i];
-            // Check if coordinates match within a small epsilon
-            if ((stop.location.latitude - userTarget.latitude).abs() < 0.0001 &&
-                (stop.location.longitude - userTarget.longitude).abs() < 0.0001) {
-              stopIndex = i;
-              break;
-            }
-          }
-
-          if (stopIndex != -1) {
-            debugPrint('[Home] ✂️ Truncating timeline at stop index $stopIndex');
-            // Include stops up to and INCLUDING the target stop in the timeline
-            final truncatedTimeline = baseData.timeline.sublist(0, stopIndex + 1);
-            baseData = baseData.copyWith(
-              timeline: truncatedTimeline,
-              endLocation: userTarget,
-            );
-          } else {
-            debugPrint('[Home] ⚠️ User location not found in trip timeline');
-          }
         }
       }
 
@@ -398,6 +379,7 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
 
   void refreshCurrentTrip() {
     fetchCurrentTrip(showLoading: true);
+    fetchTripMapData(showLoading: true);
   }
 
   Future<void> refreshAllData() async {
@@ -577,14 +559,14 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
     final currentZoom = mapController.camera.zoom;
     // Zoom towards vehicle location if available, otherwise current center
     final target = vehicleLocation.value ?? mapController.camera.center;
-    animatedMapMove(target, currentZoom + 1);
+    animatedMapMove(target, currentZoom + 1, offset: isRouteStopsCollapsed.value ? const Offset(0, 0.005) : const Offset(0, 0.012));
   }
 
   void zoomOut() {
     final currentZoom = mapController.camera.zoom;
     // Zoom out from vehicle location if available, otherwise current center
     final target = vehicleLocation.value ?? mapController.camera.center;
-    animatedMapMove(target, currentZoom - 1);
+    animatedMapMove(target, currentZoom - 1, offset: isRouteStopsCollapsed.value ? const Offset(0, 0.005) : const Offset(0, 0.012));
   }
 
   void focusOnVehicle() {
@@ -608,7 +590,9 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
     mapController.fitCamera(
       CameraFit.bounds(
         bounds: bounds,
-        padding: const EdgeInsets.all(50.0),
+        padding: isRouteStopsCollapsed.value 
+            ? const EdgeInsets.only(top: 100, bottom: 100, left: 50, right: 50)
+            : const EdgeInsets.only(top: 50, bottom: 400, left: 50, right: 50),
       ),
     );
   }
@@ -618,7 +602,7 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
         (assignedVehicleId != null ? vehicleLocations[assignedVehicleId] : null);
 
     if (location != null) {
-      animatedMapMove(location, 16.0);
+      animatedMapMove(location, 16.0, offset: isRouteStopsCollapsed.value ? const Offset(0, 0.005) : const Offset(0, 0.012));
     } else {
       debugPrint('[ParentHome] Vehicle location not available for fitting');
       // If no vehicle location, fit to route as fallback
@@ -626,11 +610,15 @@ class ParentHomeController extends GetxController with WidgetsBindingObserver, G
     }
   }
 
-  void animatedMapMove(LatLng destLocation, double destZoom) {
+  void animatedMapMove(LatLng destLocation, double destZoom, {Offset offset = Offset.zero}) {
+    // Apply offset to destination latitude
+    final finalLat = destLocation.latitude + offset.dy;
+    final finalLng = destLocation.longitude + offset.dx;
+
     final latTween = Tween<double>(
-        begin: mapController.camera.center.latitude, end: destLocation.latitude);
+        begin: mapController.camera.center.latitude, end: finalLat);
     final lngTween = Tween<double>(
-        begin: mapController.camera.center.longitude, end: destLocation.longitude);
+        begin: mapController.camera.center.longitude, end: finalLng);
     final zoomTween = Tween<double>(
         begin: mapController.camera.zoom, end: destZoom);
 

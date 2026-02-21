@@ -282,6 +282,7 @@ class DriverTripHistory {
   final String? endTime;
   final String? plannedDate;
   final Map<String, dynamic>? snapshot;
+  final Map<String, dynamic>? vehicleDetails;
 
   DriverTripHistory({
     required this.startLocation,
@@ -310,6 +311,7 @@ class DriverTripHistory {
     this.endTime,
     this.plannedDate,
     this.snapshot,
+    this.vehicleDetails,
   });
 
   factory DriverTripHistory.fromJson(Map<String, dynamic> json) {
@@ -364,6 +366,7 @@ class DriverTripHistory {
       endTime: json['end_time'] as String?,
       plannedDate: json['planned_date'] as String?,
       snapshot: snapshot,
+      vehicleDetails: json['vehicle_details'] as Map<String, dynamic>?,
     );
   }
 }

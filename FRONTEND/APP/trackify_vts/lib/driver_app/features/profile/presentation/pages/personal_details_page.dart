@@ -1,42 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../domain/models/profile_model.dart';
+import '../controllers/driver_profile_controller.dart';
 
-class PersonalDetailsPage extends StatelessWidget {
-  final ProfileData data;
+class PersonalDetailsPage extends StatefulWidget {
+  const PersonalDetailsPage({super.key});
 
-  const PersonalDetailsPage({super.key, required this.data});
+  @override
+  State<PersonalDetailsPage> createState() => _PersonalDetailsPageState();
+}
+
+class _PersonalDetailsPageState extends State<PersonalDetailsPage> {
+  late final DriverProfileController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<DriverProfileController>(tag: 'driver_profile');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('[PersonalDetails] Page loaded - fetching fresh profile data...');
+      controller.fetchProfile(showLoading: false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F4F9),
-      body: Column(
-        children: [
-          _buildHeader(context),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                children: [
-                  _detailTile(Icons.person, "Name", data.name),
-
-                  _detailTile(Icons.phone, "Phone", data.phoneNumber.toString(),
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          debugPrint('[PersonalDetails] 📲 Returning to profile - triggering refresh...');
+          controller.fetchProfile(showLoading: false);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF1F4F9),
+        body: Obx(() {
+          final data = controller.profileData.value;
+          if (data == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          return Column(
+            children: [
+              _buildHeader(context, data),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    children: [
+                      _detailTile(Icons.person, "Name", data.name),
+                      _detailTile(Icons.phone, "Phone", data.phoneNumber.toString()),
+                      if (data.licenseNumber.isNotEmpty)
+                        _detailTile(
+                            Icons.badge, "License Number", data.licenseNumber),
+                      if (data.licenseExpiry != null &&
+                          data.licenseExpiry!.isNotEmpty)
+                        _detailTile(Icons.event, "License Expiry",
+                            _formatDate(data.licenseExpiry)),
+                      _detailTile(Icons.verified, "Status", data.status ? "Active" : "Inactive"),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-                  if (data.licenseNumber.isNotEmpty)
-                    _detailTile(
-                        Icons.badge, "License Number", data.licenseNumber),
-                  if (data.licenseExpiry != null &&
-                      data.licenseExpiry!.isNotEmpty)
-                    _detailTile(Icons.event, "License Expiry",
-                        _formatDate(data.licenseExpiry)),
-                  _detailTile(Icons.verified, "Status", data.status ? "Active" : "Inactive"),
-                  
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        }),
       ),
     );
   }
@@ -44,7 +74,7 @@ class PersonalDetailsPage extends StatelessWidget {
   // ---------------------
   // Header Design
   // ---------------------
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, ProfileData data) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(top: 50, bottom: 30),

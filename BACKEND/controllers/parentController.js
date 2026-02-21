@@ -521,8 +521,37 @@ class ParentController {
       }
 
       const vehicle = await Vehicle.findOne({ vehicle_id: user.assigned_vehicle_id });
-      if (!vehicle || vehicle.current_trip_id !== tripId) {
-        throw new CustomError('Vehicle not found or trip ID does not match', 404);
+      if (!vehicle) {
+        throw new CustomError('Vehicle not found', 404);
+      }
+
+      // Improved Trip validation to handle both Trip and ScheduledTrip IDs
+      let isTripMatched = vehicle.current_trip_id === tripId;
+      
+      if (!isTripMatched) {
+        const scheduledTrip = await ScheduledTrip.findOne({
+          $or: [
+            { scheduled_trip_id: tripId },
+            { associated_trip_id: tripId }
+          ],
+          vehicle_id: vehicle.vehicle_id
+        });
+        
+        if (scheduledTrip) {
+          isTripMatched = true;
+        } else {
+          const liveTrip = await Trip.findOne({
+            trip_id: tripId,
+            vehicle_id: vehicle.vehicle_id
+          });
+          if (liveTrip) {
+            isTripMatched = true;
+          }
+        }
+      }
+
+      if (!isTripMatched) {
+        throw new CustomError('Trip ID does not match assigned vehicle', 404);
       }
 
       if (!vehicle.assigned_driver_id) {
@@ -570,8 +599,37 @@ class ParentController {
       }
 
       const vehicle = await Vehicle.findOne({ vehicle_id: user.assigned_vehicle_id });
-      if (!vehicle || vehicle.current_trip_id !== tripId) {
-        throw new CustomError('Vehicle not found or trip ID does not match', 404);
+      if (!vehicle) {
+        throw new CustomError('Vehicle not found', 404);
+      }
+
+      // Improved Trip validation to handle both Trip and ScheduledTrip IDs
+      let isTripMatched = vehicle.current_trip_id === tripId;
+      
+      if (!isTripMatched) {
+        const scheduledTrip = await ScheduledTrip.findOne({
+          $or: [
+            { scheduled_trip_id: tripId },
+            { associated_trip_id: tripId }
+          ],
+          vehicle_id: vehicle.vehicle_id
+        });
+        
+        if (scheduledTrip) {
+          isTripMatched = true;
+        } else {
+          const liveTrip = await Trip.findOne({
+            trip_id: tripId,
+            vehicle_id: vehicle.vehicle_id
+          });
+          if (liveTrip) {
+            isTripMatched = true;
+          }
+        }
+      }
+
+      if (!isTripMatched) {
+        throw new CustomError('Trip ID does not match assigned vehicle', 404);
       }
 
       if (!vehicle.assigned_driver_id) {

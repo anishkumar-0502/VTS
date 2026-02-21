@@ -9,7 +9,7 @@ import '../../domain/repositories/profile_repository.dart';
 import '../../../../../utilities/exception/exception.dart' as exceptions;
 import '../../../../../utilities/widgets/status_banner.dart';
 
-class DriverProfileController extends GetxController {
+class DriverProfileController extends GetxController with WidgetsBindingObserver {
   final SessionController sessionController = Get.find<SessionController>(tag: 'driver');
   final ProfileRepository _profileRepository = ProfileRepository();
 
@@ -192,10 +192,27 @@ class DriverProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await sessionController.ensureInitialized();
       fetchProfile();
     });
+  }
+  
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('[DriverProfile] App Lifecycle State: $state');
+    
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[DriverProfile] App resumed - Refreshing profile data...');
+      fetchProfile(showLoading: false);
+    }
   }
 
   Future<void> fetchProfile({bool showLoading = true}) async {

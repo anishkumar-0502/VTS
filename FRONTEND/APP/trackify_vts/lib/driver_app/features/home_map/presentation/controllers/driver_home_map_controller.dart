@@ -10,7 +10,8 @@ import 'package:trackify_vts/services/open_route_service.dart';
 import 'package:trackify_vts/services/socket_io_service.dart';
 import 'package:trackify_vts/driver_app/features/dashboard/presentation/controllers/driver_dashboard_controller.dart';
 
-class DriverHomeMapController extends GetxController with GetTickerProviderStateMixin {
+class DriverHomeMapController extends GetxController 
+    with GetTickerProviderStateMixin, WidgetsBindingObserver {
   final DashboardRepositories _dashboardRepository = DashboardRepositories();
   final ScheduledTripsRepository _scheduledRepository = ScheduledTripsRepository();
   final SessionController _sessionController = Get.find<SessionController>(tag: 'driver');
@@ -18,6 +19,9 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
   
   // OpenRouteService (now uses OSRM internally)
   final OpenRouteService _openRouteService = OpenRouteService('5b3ce3597851110001cf6248c8230752528747209765870503076135');
+  
+  // Track app lifecycle state
+  AppLifecycleState? _appLifecycleState;
 
   final Rxn<ActiveTrip> activeTrip = Rxn<ActiveTrip>();
   final RxList<ScheduledTrip> scheduledTrips = RxList<ScheduledTrip>();
@@ -42,6 +46,9 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
   void onInit() {
     super.onInit();
     mapController = MapController();
+    
+    // Register lifecycle observer for auto-refresh
+    WidgetsBinding.instance.addObserver(this);
     
     // Attempt to sync with Dashboard Controller first
     _syncWithDashboardController();
@@ -93,6 +100,17 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
     };
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appLifecycleState = state;
+    debugPrint('[DriverHomeMap] App Lifecycle State: $state');
+    
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[DriverHomeMap] App resumed - Refreshing data...');
+      loadData();
+    }
+  }
+
   void _syncWithDashboardController() {
     try {
       if (Get.isRegistered<DriverDashboardController>(tag: 'driver_dashboard')) {
@@ -117,6 +135,8 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
 
   @override
   void onClose() {
+    // Unregister lifecycle observer
+    WidgetsBinding.instance.removeObserver(this);
     _socketIOService.disconnect();
     super.onClose();
   }
@@ -203,6 +223,11 @@ class DriverHomeMapController extends GetxController with GetTickerProviderState
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> refreshData() async {
+    debugPrint('[DriverHomeMap] 🔄 Manual refresh triggered');
+    await loadData();
   }
 
   void _updateMapData() {
