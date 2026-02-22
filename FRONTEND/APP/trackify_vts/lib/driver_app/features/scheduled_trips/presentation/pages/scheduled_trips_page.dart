@@ -1824,6 +1824,7 @@ class _ScheduledTripsPageState extends State<ScheduledTripsPage> {
                                       stops: activeTrip.stops,
                                       primaryColor: primaryColor,
                                       tripId: activeTrip.tripId,
+                                      endLocation: activeTrip.endLocation,
                                     ),
                                   );
                                 },

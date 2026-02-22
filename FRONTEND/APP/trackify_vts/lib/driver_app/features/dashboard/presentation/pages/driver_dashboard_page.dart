@@ -696,6 +696,9 @@ class DriverDashboardPage extends GetView<DriverDashboardController> {
                     primaryColor: primaryColor,
                     showLiveTrackingButton: true,
                     tripId: trip.tripId,
+                    endLocation: trip.endLocation != null
+                        ? _GeoCoordinate(trip.endLocation!.latitude, trip.endLocation!.longitude)
+                        : null,
                   )
                       : Container(
                     color: Colors.white.withValues(alpha: 0.08),
@@ -1747,6 +1750,9 @@ class _TripHistoryDetailsPage extends StatelessWidget {
                     points: previewPoints,
                     stops: previewStops,
                     primaryColor: primaryColor,
+                    endLocation: trip.endLocation != null
+                        ? _GeoCoordinate(trip.endLocation!.latitude, trip.endLocation!.longitude)
+                        : null,
                   ),
                 ),
               ),
@@ -1956,6 +1962,7 @@ class _ActiveTripMap extends StatefulWidget {
     this.stops = const [],
     this.showLiveTrackingButton = false,
     this.tripId,
+    this.endLocation,
   });
 
   final List<_GeoCoordinate> points;
@@ -1963,6 +1970,7 @@ class _ActiveTripMap extends StatefulWidget {
   final Color primaryColor;
   final bool showLiveTrackingButton;
   final String? tripId;
+  final _GeoCoordinate? endLocation;
 
   @override
   State<_ActiveTripMap> createState() => _ActiveTripMapState();
@@ -2082,6 +2090,7 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
             points: widget.points,
             stops: widget.stops,
             primaryColor: widget.primaryColor,
+            endLocation: widget.endLocation,
           ),
         ),
       ),
@@ -2098,6 +2107,7 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
       stops: widget.stops,
       primaryColor: widget.primaryColor,
       tripId: widget.tripId,
+      endLocation: widget.endLocation,
     ));
   }
 
@@ -2249,12 +2259,14 @@ class _FullScreenMap extends StatefulWidget {
   final List<_GeoCoordinate> points;
   final List<_GeoCoordinate> stops;
   final Color primaryColor;
+  final _GeoCoordinate? endLocation;
 
   const _FullScreenMap({
     required this.routePoints,
     required this.points,
     required this.stops,
     required this.primaryColor,
+    this.endLocation,
   });
 
   @override
@@ -2279,6 +2291,23 @@ class _FullScreenMapState extends State<_FullScreenMap> {
     });
   }
 
+  List<LatLng> _buildPolylineWithEndpoint(List<LatLng> routePoints, LatLng startPoint, LatLng endPoint) {
+    final polyline = List<LatLng>.from(routePoints);
+    
+    if (polyline.isNotEmpty) {
+      if ((polyline.first.latitude != startPoint.latitude || polyline.first.longitude != startPoint.longitude) &&
+          (polyline.last.latitude != startPoint.latitude || polyline.last.longitude != startPoint.longitude)) {
+        polyline.insert(0, startPoint);
+      }
+      
+      if (polyline.last.latitude != endPoint.latitude || polyline.last.longitude != endPoint.longitude) {
+        polyline.add(endPoint);
+      }
+    }
+    
+    return polyline;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.points.isEmpty)
@@ -2287,7 +2316,14 @@ class _FullScreenMapState extends State<_FullScreenMap> {
     final latLngPoints =
     widget.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
     final startPoint = latLngPoints.first;
-    final endPoint = latLngPoints.last;
+    
+    late final LatLng endPoint;
+    if (widget.endLocation != null) {
+      endPoint = LatLng(widget.endLocation!.latitude, widget.endLocation!.longitude);
+    } else {
+      endPoint = latLngPoints.last;
+    }
+    
     final markers = <Marker>[
       Marker(
         point: startPoint,
@@ -2347,7 +2383,7 @@ class _FullScreenMapState extends State<_FullScreenMap> {
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: widget.routePoints,
+                    points: _buildPolylineWithEndpoint(widget.routePoints, startPoint, endPoint),
                     color: widget.primaryColor,
                     strokeWidth: 5,
                   ),

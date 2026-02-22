@@ -5,6 +5,7 @@ import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/models/s
 import 'package:trackify_vts/driver_app/features/scheduled_trips/domain/repositories/scheduled_trips_repository.dart';
 import 'package:trackify_vts/utilities/exception/exception.dart';
 import 'package:trackify_vts/utilities/widgets/status_banner.dart';
+import 'package:trackify_vts/driver_app/features/live_tracking/presentation/controllers/driver_live_tracking_controller.dart';
 
 class ScheduledTripsController extends GetxController {
   final ScheduledTripsRepository _repository = ScheduledTripsRepository();
@@ -23,9 +24,17 @@ class ScheduledTripsController extends GetxController {
 
   @override
   void onInit() {
+    print('ℹ️ ScheduledTripsController.onInit() CALLED');
     super.onInit();
-    fetchScheduledTrips();
-    fetchActiveTrip();
+    
+    print('ℹ️ Setting up ever listener for activeTrip');
+    ever(activeTrip, (newActiveTrip) {
+      print('🔥🔥🔥 activeTrip changed in controller');
+      if (newActiveTrip != null) {
+        print('🔥🔥🔥 activeTrip changed, calling _updateLiveTrackingController()');
+        _updateLiveTrackingController();
+      }
+    });
   }
 
   Future<void> fetchScheduledTrips() async {
@@ -92,19 +101,28 @@ class ScheduledTripsController extends GetxController {
   }
 
   Future<void> fetchActiveTrip() async {
+    print('ℹ️ fetchActiveTrip() called');
     try {
       final token = _sessionController.token.value;
       if (token.isEmpty) {
+        print('ℹ️ fetchActiveTrip: token is empty');
         return;
       }
 
+      print('ℹ️ fetchActiveTrip: calling repository.getActiveTrip()');
       final response = await _repository.getActiveTrip(token);
+      print('ℹ️ fetchActiveTrip: response=${response.error}');
       if (!response.error && response.data != null) {
+        print('🔥 fetchActiveTrip: Setting activeTrip.value');
         activeTrip.value = response.data;
+        print('🔥 fetchActiveTrip: Calling _updateLiveTrackingController()');
+        _updateLiveTrackingController();
       } else {
+        print('ℹ️ fetchActiveTrip: No active trip data');
         activeTrip.value = null;
       }
     } catch (e) {
+      print('❌ fetchActiveTrip error: $e');
       activeTrip.value = null;
       debugPrint('Error fetching active trip: $e');
     }
@@ -113,6 +131,30 @@ class ScheduledTripsController extends GetxController {
   Future<void> refreshTrips() async {
     await fetchScheduledTrips();
     await fetchActiveTrip();
+    _updateLiveTrackingController();
+  }
+  
+  void _updateLiveTrackingController() {
+    print('🔥 _updateLiveTrackingController called, activeTrip=${activeTrip.value != null}');
+    try {
+      if (activeTrip.value != null) {
+        print('🔥 activeTrip is not null, looking for controller...');
+        try {
+          final liveTrackingController = Get.find<DriverLiveTrackingController>(
+            tag: 'driver_live_tracking',
+          );
+          print('🔥 Found DriverLiveTrackingController, calling setActiveTripData()');
+          liveTrackingController.setActiveTripData(activeTrip.value);
+        } catch (findError) {
+          print('🔥 Controller not found yet: $findError');
+        }
+      } else {
+        print('🔥 activeTrip is null');
+      }
+    } catch (e) {
+      print('🔥 Error in _updateLiveTrackingController: $e');
+      debugPrint('Live tracking controller error: $e');
+    }
   }
 
   Future<void> startTrip(String scheduledTripId, {VoidCallback? onSuccess}) async {
@@ -214,6 +256,14 @@ class ScheduledTripsController extends GetxController {
   }
 
   void selectTrip(ScheduledTrip trip) {
+    try {
+      final liveTrackingController = Get.find<DriverLiveTrackingController>(
+        tag: 'driver_live_tracking',
+      );
+      liveTrackingController.setTripFromScheduledTrip(trip);
+    } catch (e) {
+      debugPrint('Live tracking controller not initialized: $e');
+    }
     Get.toNamed('/driver/trip-details', arguments: trip);
   }
 

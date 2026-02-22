@@ -258,23 +258,19 @@ class DriverHomeMapController extends GetxController
     final sortedStops = List<RoutePoint>.from(trip.routePoints);
     sortedStops.sort((a, b) => a.order.compareTo(b.order));
     stops.assignAll(sortedStops);
-    
-    // Start/End
-    if (sortedStops.isNotEmpty) {
-      // Assuming routePoints are ordered
-      // Or use startLocation from trip if available and reliable
-      // trip.startLocation is available
-      if (trip.startLocation.latitude != 0) {
-         startLocation.value = LatLng(trip.startLocation.latitude, trip.startLocation.longitude);
-      } else {
-         final first = sortedStops.first;
-         startLocation.value = LatLng(first.latitude, first.longitude);
-      }
-      
-      // End location
-      // ActiveTrip does not have an explicit endLocation field, so we rely on the last route point.
-      final lastPoint = sortedStops.last;
-      endLocation.value = LatLng(lastPoint.latitude, lastPoint.longitude);
+
+    if (trip.startLocation.latitude != 0) {
+      startLocation.value = LatLng(trip.startLocation.latitude, trip.startLocation.longitude);
+    } else if (sortedStops.isNotEmpty) {
+      final first = sortedStops.first;
+      startLocation.value = LatLng(first.latitude, first.longitude);
+    }
+
+    if (trip.endLocation != null) {
+      endLocation.value = LatLng(trip.endLocation!.latitude, trip.endLocation!.longitude);
+    } else if (sortedStops.isNotEmpty) {
+      final last = sortedStops.last;
+      endLocation.value = LatLng(last.latitude, last.longitude);
     }
 
     _fetchRoutePolyline();

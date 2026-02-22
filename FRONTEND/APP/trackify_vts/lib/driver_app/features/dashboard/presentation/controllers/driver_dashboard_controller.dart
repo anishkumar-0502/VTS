@@ -7,6 +7,7 @@ import 'package:trackify_vts/driver_app/Sessionhandler/session_controller.dart';
 import '../../../scheduled_trips/domain/repositories/scheduled_trips_repository.dart';
 import '../../../scheduled_trips/domain/models/scheduled_trip_model.dart'
 as scheduled_models;
+import '../../../scheduled_trips/presentation/controllers/scheduled_trips_controller.dart';
 import 'package:trackify_vts/utilities/widgets/status_banner.dart';
 
 class DriverDashboardController extends GetxController {
@@ -113,7 +114,17 @@ class DriverDashboardController extends GetxController {
       final response = await _scheduledRepository.getActiveTrip(token);
       if (!response.error && response.data != null) {
         activeTrip.value = response.data;
-        tripStoppedSuccessfully.value = false; // Reset stopped state for new active trip
+        tripStoppedSuccessfully.value = false;
+        
+        try {
+          final scheduledTripsController = Get.find<ScheduledTripsController>(
+            tag: 'scheduled_trips',
+          );
+          print('🔥 Dashboard: Syncing activeTrip to ScheduledTripsController');
+          scheduledTripsController.activeTrip.value = response.data;
+        } catch (e) {
+          print('⚠️ Dashboard: Could not sync to ScheduledTripsController: $e');
+        }
       } else {
         activeTrip.value = null;
         // Don't reset stopped state here - it might have just been stopped

@@ -388,6 +388,7 @@ class ActiveTripResponse {
 
 class ActiveTrip {
   final LocationData startLocation;
+  final LocationData? endLocation;
   final VehicleData vehicleId;
   final String driverId;
   final String operatorId;
@@ -408,6 +409,7 @@ class ActiveTrip {
 
   ActiveTrip({
     required this.startLocation,
+    this.endLocation,
     required this.vehicleId,
     required this.driverId,
     required this.operatorId,
@@ -428,9 +430,21 @@ class ActiveTrip {
   });
 
   factory ActiveTrip.fromJson(Map<String, dynamic> json) {
+    final vehicleData = VehicleData.fromJson(json['vehicle_id'] as Map<String, dynamic>? ?? {});
+    
+    List<RoutePoint> routePoints = [];
+    if (json['route_points'] != null && json['route_points'] is List) {
+      routePoints = (json['route_points'] as List)
+          .map((e) => RoutePoint.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    
     return ActiveTrip(
       startLocation: LocationData.fromJson(json['start_location'] as Map<String, dynamic>? ?? {}),
-      vehicleId: VehicleData.fromJson(json['vehicle_id'] as Map<String, dynamic>? ?? {}),
+      endLocation: json['end_location'] != null && json['end_location'] is Map
+          ? LocationData.fromJson(json['end_location'] as Map<String, dynamic>)
+          : null,
+      vehicleId: vehicleData,
       driverId: json['driver_id'] as String? ?? '',
       operatorId: json['operator_id'] as String? ?? '',
       scheduledTripId: json['scheduled_trip_id'] as String?,
@@ -444,11 +458,7 @@ class ActiveTrip {
       speedViolations: json['speed_violations'] as List? ?? [],
       routeDeviations: json['route_deviations'] as List? ?? [],
       passengers: json['passengers'] as List? ?? [],
-      routePoints:
-          (json['route_points'] as List?)
-              ?.map((e) => RoutePoint.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      routePoints: routePoints,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now() : DateTime.now(),
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) ?? DateTime.now() : DateTime.now(),
     );

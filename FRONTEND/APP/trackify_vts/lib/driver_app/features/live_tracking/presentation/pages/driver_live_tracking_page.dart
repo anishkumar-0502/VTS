@@ -3,11 +3,51 @@ import 'package:get/get.dart';
 
 import '../controllers/driver_live_tracking_controller.dart';
 
-class DriverLiveTrackingPage extends GetView<DriverLiveTrackingController> {
+class DriverLiveTrackingPage extends StatefulWidget {
   const DriverLiveTrackingPage({super.key});
 
   @override
-  String? get tag => 'driver_live_tracking';
+  State<DriverLiveTrackingPage> createState() => _DriverLiveTrackingPageState();
+}
+
+class _DriverLiveTrackingPageState extends State<DriverLiveTrackingPage> {
+  late DriverLiveTrackingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    print('📱 DriverLiveTrackingPage.initState() called');
+    if (!Get.isRegistered<DriverLiveTrackingController>(tag: 'driver_live_tracking')) {
+      Get.put(DriverLiveTrackingController(), tag: 'driver_live_tracking');
+    }
+    controller = Get.find<DriverLiveTrackingController>(tag: 'driver_live_tracking');
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupActiveTripWatcher();
+    });
+  }
+
+  void _setupActiveTripWatcher() {
+    print('📱 _setupActiveTripWatcher() called');
+    try {
+      final scheduledTripsController = Get.find(tag: 'scheduled_trips');
+      print('📱 Found scheduledTripsController');
+      
+      ever(scheduledTripsController.activeTrip, (activeTrip) {
+        if (activeTrip != null) {
+          print('🔥 FORCE APPLY ACTIVE TRIP (From Watcher)');
+          controller.setActiveTripData(activeTrip);
+        }
+      });
+      
+      if (scheduledTripsController.activeTrip.value != null) {
+        print('🔥 FORCE APPLY ACTIVE TRIP (Initial Check)');
+        controller.setActiveTripData(scheduledTripsController.activeTrip.value);
+      }
+    } catch (e) {
+      print('❌ Could not setup active trip watcher: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -192,12 +232,17 @@ class _LiveTrackingMap extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                CustomPaint(
-                  painter: _MapBackdropPainter(
-                    primaryColor: primaryColor,
-                    stops: points,
-                  ),
-                ),
+                Obx(() {
+                  return CustomPaint(
+                    painter: _MapBackdropPainter(
+                      primaryColor: primaryColor,
+                      stops: points,
+                      startLocation: controller.startLocation.value,
+                      endLocation: controller.endLocation.value,
+                      routePoints: controller.routePoints,
+                    ),
+                  );
+                }),
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -269,11 +314,16 @@ class _LiveTrackingMap extends StatelessWidget {
                     ),
                   ),
                 ),
-                Positioned(
-                  left: busOffset.dx - 18,
-                  top: busOffset.dy - 24,
-                  child: _BusMarker(color: primaryColor),
-                ),
+                Obx(() {
+                  if (controller.isTripActive.value && controller.isSocketConnected.value) {
+                    return Positioned(
+                      left: busOffset.dx - 18,
+                      top: busOffset.dy - 24,
+                      child: _BusMarker(color: primaryColor),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }),
                 Positioned(
                   left: 20,
                   right: 20,
@@ -324,10 +374,37 @@ class _LiveTrackingMap extends StatelessWidget {
 }
 
 class _MapBackdropPainter extends CustomPainter {
-  _MapBackdropPainter({required this.primaryColor, required this.stops});
+  _MapBackdropPainter({
+    required this.primaryColor,
+    required this.stops,
+    this.startLocation,
+    this.endLocation,
+    this.routePoints = const [],
+  });
 
   final Color primaryColor;
   final List<Offset> stops;
+  final dynamic startLocation;
+  final dynamic endLocation;
+  final List<dynamic> routePoints;
+
+  Offset _latLngToOffset(double lat, double lng, Size size, double minLat, double maxLat, double minLng, double maxLng) {
+    final padding = 40.0;
+    final availableWidth = size.width - (2 * padding);
+    final availableHeight = size.height - (2 * padding);
+
+    final latRange = maxLat - minLat;
+    final lngRange = maxLng - minLng;
+
+    if (latRange == 0 || lngRange == 0) {
+      return Offset(size.width / 2, size.height / 2);
+    }
+
+    final x = padding + ((lng - minLng) / lngRange) * availableWidth;
+    final y = padding + ((maxLat - lat) / latRange) * availableHeight;
+
+    return Offset(x, y);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -357,55 +434,294 @@ class _MapBackdropPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final controlPoints = [
-      stops.first,
-      Offset(size.width * 0.32, size.height * 0.55),
-      Offset(size.width * 0.48, size.height * 0.35),
-      stops.last,
-    ];
+    bool useRealCoordinates = startLocation != null && endLocation != null;
 
-    final path = Path()
-      ..moveTo(stops.first.dx, stops.first.dy)
-      ..cubicTo(
-        controlPoints[1].dx,
-        controlPoints[1].dy,
-        controlPoints[2].dx,
-        controlPoints[2].dy,
-        stops.last.dx,
-        stops.last.dy,
+    if (useRealCoordinates) {
+      print('🚨 ROUTE POINT COUNT BEFORE DRAW: ${routePoints.length}');
+      print('🗺️ Paint: Start(${startLocation.latitude}, ${startLocation.longitude}), End(${endLocation.latitude}, ${endLocation.longitude}), Points: ${routePoints.length}');
+      
+      final filteredRoutePoints = routePoints.where((p) => p.latitude != 0 && p.longitude != 0).toList();
+      
+      var intermediatePoints = filteredRoutePoints;
+      
+      if (intermediatePoints.isNotEmpty && endLocation != null) {
+        final lastPoint = intermediatePoints.last;
+        final isLastPointEndLocation = 
+            (lastPoint.latitude - endLocation.latitude).abs() < 0.0001 &&
+            (lastPoint.longitude - endLocation.longitude).abs() < 0.0001;
+        
+        if (isLastPointEndLocation) {
+          intermediatePoints = filteredRoutePoints.sublist(0, filteredRoutePoints.length - 1);
+          print('🗺️ Excluded last route point (matches end location)');
+        }
+      }
+      
+      print('🗺️ Using BACKEND END_LOCATION: (${endLocation.latitude}, ${endLocation.longitude})');
+      
+      final allCoords = [
+        (startLocation.latitude as double, startLocation.longitude as double),
+        if (intermediatePoints.isNotEmpty) ...intermediatePoints.map((p) => (p.latitude as double, p.longitude as double)),
+        (endLocation.latitude as double, endLocation.longitude as double),
+      ];
+      
+      print('🗺️ AllCoords: $allCoords, Intermediate Points: ${intermediatePoints.length}');
+
+      if (allCoords.isEmpty) {
+        print('❌ No valid coordinates to plot');
+        canvas.drawRect(Offset.zero & size, background);
+        return;
+      }
+
+      double minLat = allCoords.map((c) => c.$1).reduce((a, b) => a < b ? a : b);
+      double maxLat = allCoords.map((c) => c.$1).reduce((a, b) => a > b ? a : b);
+      double minLng = allCoords.map((c) => c.$2).reduce((a, b) => a < b ? a : b);
+      double maxLng = allCoords.map((c) => c.$2).reduce((a, b) => a > b ? a : b);
+      
+      print('🗺️ Raw Bounds - Lat: [$minLat, $maxLat], Lng: [$minLng, $maxLng]');
+
+      const latBuffer = 0.0005;
+      const lngBuffer = 0.0005;
+      minLat = (minLat - latBuffer).clamp(-90.0, 90.0);
+      maxLat = (maxLat + latBuffer).clamp(-90.0, 90.0);
+      minLng = (minLng - lngBuffer).clamp(-180.0, 180.0);
+      maxLng = (maxLng + lngBuffer).clamp(-180.0, 180.0);
+      
+      print('🗺️ Final Bounds - Lat: [$minLat, $maxLat], Lng: [$minLng, $maxLng]');
+
+      final startOffset = _latLngToOffset(
+        startLocation.latitude as double,
+        startLocation.longitude as double,
+        size,
+        minLat,
+        maxLat,
+        minLng,
+        maxLng,
+      );
+      
+      print('🟢 START MARKER - Lat: ${startLocation.latitude}, Lng: ${startLocation.longitude} → Canvas Offset: $startOffset');
+
+      final endOffset = _latLngToOffset(
+        endLocation.latitude as double,
+        endLocation.longitude as double,
+        size,
+        minLat,
+        maxLat,
+        minLng,
+        maxLng,
+      );
+      
+      print('🔴 END MARKER - Lat: ${endLocation.latitude}, Lng: ${endLocation.longitude} → Canvas Offset: $endOffset');
+
+      final routeOffsets = intermediatePoints
+          .map((p) => _latLngToOffset(
+            p.latitude as double,
+            p.longitude as double,
+            size,
+            minLat,
+            maxLat,
+            minLng,
+            maxLng,
+          ))
+          .toList();
+
+      final path = Path()..moveTo(startOffset.dx, startOffset.dy);
+      for (final offset in routeOffsets) {
+        path.lineTo(offset.dx, offset.dy);
+      }
+      path.lineTo(endOffset.dx, endOffset.dy);
+
+      canvas.drawPath(path, routeShadow);
+
+      for (final metric in path.computeMetrics()) {
+        double distance = 0;
+        const double dashLength = 18;
+        const double gapLength = 12;
+        while (distance < metric.length) {
+          final double next = (distance + dashLength).clamp(0, metric.length);
+          final segment = metric.extractPath(distance, next);
+          canvas.drawPath(segment, routePaint);
+          distance = next + gapLength;
+        }
+      }
+
+      final markerPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(startOffset, 10, markerPaint);
+      canvas.drawCircle(
+        startOffset,
+        10,
+        Paint()
+          ..color = Colors.green
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3,
       );
 
-    canvas.drawPath(path, routeShadow);
+      for (int i = 0; i < routeOffsets.length; i++) {
+        final offset = routeOffsets[i];
+        canvas.drawCircle(offset, 8, markerPaint);
+        canvas.drawCircle(
+          offset,
+          8,
+          Paint()
+            ..color = primaryColor
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
 
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      const double dashLength = 18;
-      const double gapLength = 12;
-      while (distance < metric.length) {
-        final double next = (distance + dashLength).clamp(0, metric.length);
-        final segment = metric.extractPath(distance, next);
-        canvas.drawPath(segment, routePaint);
-        distance = next + gapLength;
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: '${i + 1}',
+            style: const TextStyle(
+              color: Color(0xFF3366FF),
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(offset.dx - textPainter.width / 2, offset.dy - textPainter.height / 2),
+        );
       }
-    }
+      
+      print('🗺️ Drew ${routeOffsets.length} intermediate stop markers');
 
-    final stopPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    final stopBorder = Paint()
-      ..color = primaryColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      canvas.drawCircle(endOffset, 10, markerPaint);
+      canvas.drawCircle(
+        endOffset,
+        10,
+        Paint()
+          ..color = Colors.red
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3,
+      );
 
-    for (final stop in stops) {
-      canvas.drawCircle(stop, 9, stopPaint);
-      canvas.drawCircle(stop, 9, stopBorder);
+      print('🔍 DEBUG: startOffset=$startOffset, endOffset=$endOffset');
+      print('🔍 DEBUG: Canvas size=${size.width}x${size.height}');
+      
+      final debugCircleStart = Paint()
+        ..color = Colors.yellow
+        ..style = PaintingStyle.fill;
+      final debugCircleEnd = Paint()
+        ..color = Colors.orange
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawCircle(startOffset, 8, debugCircleStart);
+      canvas.drawCircle(endOffset, 8, debugCircleEnd);
+      
+      final debugTextStyle = TextStyle(
+        color: Colors.white,
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+        backgroundColor: Colors.red,
+      );
+      
+      final startDebugPainter = TextPainter(
+        text: TextSpan(
+          text: 'S:${startLocation.latitude.toStringAsFixed(3)},${startLocation.longitude.toStringAsFixed(3)}',
+          style: debugTextStyle,
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      startDebugPainter.layout();
+      startDebugPainter.paint(canvas, Offset(startOffset.dx - 80, startOffset.dy - 30));
+      
+      final endDebugPainter = TextPainter(
+        text: TextSpan(
+          text: 'E:${endLocation.latitude.toStringAsFixed(3)},${endLocation.longitude.toStringAsFixed(3)}',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            backgroundColor: Colors.redAccent,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      endDebugPainter.layout();
+      endDebugPainter.paint(canvas, Offset(endOffset.dx - 80, endOffset.dy + 10));
+      
+      final boundsDebugPainter = TextPainter(
+        text: TextSpan(
+          text: 'L:${minLat.toStringAsFixed(4)} L:${maxLat.toStringAsFixed(4)} Ln:${minLng.toStringAsFixed(4)} Ln:${maxLng.toStringAsFixed(4)}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            backgroundColor: Colors.blue,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      boundsDebugPainter.layout();
+      boundsDebugPainter.paint(canvas, Offset(5, 5));
+      
+    } else {
+      final controlPoints = [
+        stops.first,
+        Offset(size.width * 0.32, size.height * 0.55),
+        Offset(size.width * 0.48, size.height * 0.35),
+        stops.last,
+      ];
+
+      final path = Path()
+        ..moveTo(stops.first.dx, stops.first.dy)
+        ..cubicTo(
+          controlPoints[1].dx,
+          controlPoints[1].dy,
+          controlPoints[2].dx,
+          controlPoints[2].dy,
+          stops.last.dx,
+          stops.last.dy,
+        );
+
+      canvas.drawPath(path, routeShadow);
+
+      for (final metric in path.computeMetrics()) {
+        double distance = 0;
+        const double dashLength = 18;
+        const double gapLength = 12;
+        while (distance < metric.length) {
+          final double next = (distance + dashLength).clamp(0, metric.length);
+          final segment = metric.extractPath(distance, next);
+          canvas.drawPath(segment, routePaint);
+          distance = next + gapLength;
+        }
+      }
+
+      final stopPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+      final stopBorder = Paint()
+        ..color = primaryColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3;
+
+      for (int i = 0; i < stops.length; i++) {
+        final stop = stops[i];
+        canvas.drawCircle(stop, 9, stopPaint);
+        final border = i == 0
+            ? (Paint()
+              ..color = Colors.green
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3)
+            : stopBorder;
+        canvas.drawCircle(stop, 9, border);
+      }
     }
   }
 
   @override
   bool shouldRepaint(covariant _MapBackdropPainter oldDelegate) {
-    return oldDelegate.primaryColor != primaryColor || oldDelegate.stops != stops;
+    return oldDelegate.primaryColor != primaryColor ||
+        oldDelegate.stops != stops ||
+        oldDelegate.startLocation != startLocation ||
+        oldDelegate.endLocation != endLocation ||
+        oldDelegate.routePoints != routePoints;
   }
 }
 

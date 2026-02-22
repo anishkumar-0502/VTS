@@ -84,6 +84,7 @@ class ParentProfileEditPage extends GetView<ParentProfileController> {
                     prefixIcon: Icon(Icons.phone, color: primaryColor),
                     maxLength: 10,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Phone number is required';

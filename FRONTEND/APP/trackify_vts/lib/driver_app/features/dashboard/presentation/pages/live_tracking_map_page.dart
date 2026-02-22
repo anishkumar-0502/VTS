@@ -16,6 +16,7 @@ class LiveTrackingMapPage extends StatefulWidget {
   final List<dynamic>? stops;
   final Color? primaryColor;
   final String? tripId;
+  final dynamic endLocation;
 
   const LiveTrackingMapPage({
     super.key,
@@ -24,6 +25,7 @@ class LiveTrackingMapPage extends StatefulWidget {
     this.stops,
     this.primaryColor,
     this.tripId,
+    this.endLocation,
   });
 
   @override
@@ -98,7 +100,19 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
 
       if (routePolyline.isNotEmpty) {
         startPoint = routePolyline.first;
-        endPoint = routePolyline.last;
+        
+        if (widget.endLocation != null) {
+          endPoint = LatLng(
+            (widget.endLocation.latitude as num).toDouble(),
+            (widget.endLocation.longitude as num).toDouble(),
+          );
+          if (routePolyline.last.latitude != endPoint!.latitude || 
+              routePolyline.last.longitude != endPoint!.longitude) {
+            routePolyline.add(endPoint!);
+          }
+        } else {
+          endPoint = routePolyline.last;
+        }
 
         // Fit map bounds to show the entire route
         if (routePolyline.length > 1 && !_userHasZoomed) {

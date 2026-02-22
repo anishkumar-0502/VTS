@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:trackify_vts/driver_app/features/auth/presentation/controllers/login_page_controller.dart';
+import 'package:trackify_vts/driver_app/features/scheduled_trips/presentation/controllers/scheduled_trips_controller.dart';
+import 'package:trackify_vts/driver_app/features/live_tracking/presentation/controllers/driver_live_tracking_controller.dart';
 import '../core/Network/internet_connectivity.dart';
 import 'Sessionhandler/session_controller.dart';
 import 'features/splashscreen/presentation/pages/splash_screen_page.dart';
@@ -10,6 +12,8 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   Get.put(SessionController(), permanent: true, tag: 'driver');
   Get.put(DriverLoginPageController(), permanent: true);
+  Get.put(ScheduledTripsController(), permanent: true, tag: 'scheduled_trips');
+  Get.put(DriverLiveTrackingController(), permanent: true, tag: 'driver_live_tracking');
   GoogleFonts.config.allowRuntimeFetching = false;
   runApp(const DriverApp());
 }
