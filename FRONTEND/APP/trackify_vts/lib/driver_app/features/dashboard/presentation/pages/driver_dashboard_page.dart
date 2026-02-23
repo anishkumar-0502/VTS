@@ -2075,14 +2075,13 @@ class _ActiveTripMapState extends State<_ActiveTripMap> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) => Scaffold(
+        builder: (context) => Scaffold(
           appBar: AppBar(
-            backgroundColor: Colors.white,
-            iconTheme: const IconThemeData(color: Colors.black),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            iconTheme: const IconThemeData(color: Colors.white),
             title: const Text(
-              'Full Screen Map',
-              style: TextStyle(color: Colors.black),
+              'Route Map',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ),
           body: _FullScreenMap(
@@ -2276,6 +2275,46 @@ class _FullScreenMap extends StatefulWidget {
 class _FullScreenMapState extends State<_FullScreenMap> {
   final MapController _mapController = MapController();
   double _currentZoom = 16.0;
+  late OpenRouteService _routeService;
+  List<LatLng> _calculatedPolyline = [];
+  bool _isLoadingRoute = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _routeService = OpenRouteService(trackify_vts.openRouteServiceApiKey);
+    _calculateRoute();
+  }
+
+  Future<void> _calculateRoute() async {
+    setState(() => _isLoadingRoute = true);
+    try {
+      final latLngPoints =
+          widget.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+      final startPoint = latLngPoints.first;
+
+      late final LatLng endPoint;
+      if (widget.endLocation != null) {
+        endPoint = LatLng(widget.endLocation!.latitude, widget.endLocation!.longitude);
+      } else {
+        endPoint = latLngPoints.last;
+      }
+
+      final pointsToRoute = List<LatLng>.from(latLngPoints);
+      if (endPoint.latitude != pointsToRoute.last.latitude ||
+          endPoint.longitude != pointsToRoute.last.longitude) {
+        pointsToRoute.add(endPoint);
+      }
+
+      final polyline = await _routeService.getRouteThrough(pointsToRoute);
+      setState(() {
+        _calculatedPolyline = polyline;
+        _isLoadingRoute = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingRoute = false);
+    }
+  }
 
   void _zoomIn() {
     setState(() {
@@ -2291,73 +2330,67 @@ class _FullScreenMapState extends State<_FullScreenMap> {
     });
   }
 
-  List<LatLng> _buildPolylineWithEndpoint(List<LatLng> routePoints, LatLng startPoint, LatLng endPoint) {
-    final polyline = List<LatLng>.from(routePoints);
-    
-    if (polyline.isNotEmpty) {
-      if ((polyline.first.latitude != startPoint.latitude || polyline.first.longitude != startPoint.longitude) &&
-          (polyline.last.latitude != startPoint.latitude || polyline.last.longitude != startPoint.longitude)) {
-        polyline.insert(0, startPoint);
-      }
-      
-      if (polyline.last.latitude != endPoint.latitude || polyline.last.longitude != endPoint.longitude) {
-        polyline.add(endPoint);
-      }
-    }
-    
-    return polyline;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.points.isEmpty)
       return const Center(child: Text("No route data"));
 
     final latLngPoints =
-    widget.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+        widget.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
     final startPoint = latLngPoints.first;
-    
+
     late final LatLng endPoint;
     if (widget.endLocation != null) {
       endPoint = LatLng(widget.endLocation!.latitude, widget.endLocation!.longitude);
     } else {
       endPoint = latLngPoints.last;
     }
-    
+
     final markers = <Marker>[
       Marker(
+        width: 40,
+        height: 40,
         point: startPoint,
-        child: _ActiveMapMarker(
-          icon: Icons.play_arrow_rounded,
-          background: widget.primaryColor,
-          iconColor: Colors.white,
-        ),
+        child: Icon(Icons.location_on, color: Colors.green, size: 40),
       ),
       Marker(
+        width: 40,
+        height: 40,
         point: endPoint,
-        child: _ActiveMapMarker(
-          icon: Icons.flag,
-          background: Colors.white,
-          iconColor: widget.primaryColor,
-          borderColor: widget.primaryColor,
-        ),
+        child: Icon(Icons.location_on, color: Colors.red, size: 40),
       ),
     ];
 
-    final stopMarkers =
-    widget.stops
+    final stopMarkers = widget.stops
         .where((stop) => stop.label?.isNotEmpty == true)
+        .toList()
+        .asMap()
+        .entries
         .map(
-          (stop) => Marker(
-        point: LatLng(stop.latitude, stop.longitude),
-        width: 120,
-        height: 80,
-        child: _StopMarker(
-          label: stop.label ?? '',
-          color: widget.primaryColor,
-        ),
-      ),
-    )
+          (entry) => Marker(
+            width: 30,
+            height: 30,
+            point: LatLng(entry.value.latitude, entry.value.longitude),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(blurRadius: 2, color: Colors.black26)
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  '${entry.key + 1}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        )
         .toList();
 
     markers.addAll(stopMarkers);
@@ -2379,11 +2412,11 @@ class _FullScreenMapState extends State<_FullScreenMap> {
               subdomains: const ['a', 'b', 'c'],
               userAgentPackageName: 'com.trackify.driver',
             ),
-            if (widget.routePoints.isNotEmpty)
+            if (_calculatedPolyline.isNotEmpty)
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: _buildPolylineWithEndpoint(widget.routePoints, startPoint, endPoint),
+                    points: _calculatedPolyline,
                     color: widget.primaryColor,
                     strokeWidth: 5,
                   ),
@@ -2392,8 +2425,13 @@ class _FullScreenMapState extends State<_FullScreenMap> {
             MarkerLayer(markers: markers),
           ],
         ),
-
-        // Zoom controls
+        if (_isLoadingRoute)
+          Container(
+            color: Colors.black.withOpacity(0.3),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
         Positioned(
           bottom: 30,
           right: 20,

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math';
 
 import '../../../../../core/core.dart';
+import '../../../../../services/socket_io_service.dart';
 import '../../../../../services/open_route_service.dart';
 import '../../../../../utilities/widgets/status_banner.dart';
 
@@ -32,23 +33,35 @@ class LiveTrackingMapPage extends StatefulWidget {
   State<LiveTrackingMapPage> createState() => _LiveTrackingMapPageState();
 }
 
-class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
-  IO.Socket? socket;
+class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
+    with TickerProviderStateMixin {
   late MapController mapController;
   late OpenRouteService _routeService;
+  late SocketIOService _socketIOService;
   LatLng? currentLocation;
   String? currentFrameData;
   String? assignedVehicleId;
   bool _isDisposed = false;
   List<LatLng> routePolyline = [];
+  List<LatLng> initialRoutePolyline = [];
   List<({LatLng point, String? label, int? order})> stopsList = [];
   LatLng? startPoint;
   LatLng? endPoint;
   bool _isLoadingRoute = false;
+  bool _isCalculatingRoute = false;
   bool _userHasZoomed = false;
   DateTime? _lastUserInteraction;
   bool _isConnected = false;
   bool _isSosLoading = false;
+  double vehicleHeading = 0.0;
+  LatLng? _lastSnappedVehicleLocation;
+  LatLng? _snappedEndLocation;
+  static const double _minDistanceKmForRouteUpdate = 0.15;
+  static const double _minDistanceKmFarOffRoute = 0.5;
+  late FrameUpdateCallback _frameUpdateCallback;
+  late AnimationController _pulseAnimationController;
+  late Animation<double> _pulseAnimation;
+  late ConnectionStateCallback _connectionStateCallback;
 
   final List<String> _sosReasons = [
     'Vehicle breakdown',
@@ -67,61 +80,228 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
     _isConnected = false;
     mapController = MapController();
     _routeService = OpenRouteService(trackify_vts.openRouteServiceApiKey);
+    _socketIOService = SocketIOService();
     assignedVehicleId = widget.assignedVehicleId;
+    
+    _pulseAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+    
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 0.4).animate(
+      CurvedAnimation(parent: _pulseAnimationController, curve: Curves.easeInOut),
+    );
+    
     _extractRouteData();
-    _loadTokenAndConnect();
+    _setupSocketListener();
+    _fitMapToRoute();
   }
 
-  Future<void> _extractRouteData() async {
-    if (widget.routePoints != null && widget.routePoints!.isNotEmpty) {
-      final rawPoints = widget.routePoints!
-          .map((p) => LatLng(
-            p.latitude,
-            p.longitude,
-          ))
-          .toList();
+  void _fitMapToRoute() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!_isDisposed && routePolyline.length > 1) {
+        final bounds = LatLngBounds.fromPoints(routePolyline);
+        mapController.fitCamera(
+          CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(100)),
+        );
+      }
+    });
+  }
 
-      if (rawPoints.length >= 2) {
+  int _findClosestIndexOnRoute(LatLng location) {
+    if (initialRoutePolyline.isEmpty) return 0;
+    
+    int closestIndex = 0;
+    double minDistance = double.infinity;
+    
+    for (int i = 0; i < initialRoutePolyline.length; i++) {
+      final distance = _calculateDistanceKm(location, initialRoutePolyline[i]);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = i;
+      }
+    }
+    
+    return closestIndex;
+  }
+
+  Future<void> _snapAndRecalculateRoute(LatLng vehicleLocation) async {
+    if (_isDisposed || _isCalculatingRoute) return;
+
+    if (_lastSnappedVehicleLocation != null &&
+        _calculateDistanceKm(vehicleLocation, _lastSnappedVehicleLocation!) <
+            _minDistanceKmForRouteUpdate) {
+      return;
+    }
+
+    if (initialRoutePolyline.isEmpty) {
+      return;
+    }
+
+    _isCalculatingRoute = true;
+
+    try {
+      final snappedVehicle = await _routeService.snapToRoad(vehicleLocation);
+      
+      final closestIndex = _findClosestIndexOnRoute(snappedVehicle);
+      final closestPoint = initialRoutePolyline[closestIndex];
+      final distanceOffRoute = _calculateDistanceKm(snappedVehicle, closestPoint);
+
+      if (distanceOffRoute > _minDistanceKmFarOffRoute) {
         if (!_isDisposed) setState(() => _isLoadingRoute = true);
 
         try {
-          // Get proper road route using OpenRouteService
-          routePolyline = await _routeService.getRouteThrough(rawPoints);
-        } catch (e) {
-          // Fallback to straight line if routing fails
-          routePolyline = rawPoints;
-        }
-
-        if (!_isDisposed) setState(() => _isLoadingRoute = false);
-      } else {
-        // If only one point or none, use as-is
-        routePolyline = rawPoints;
-      }
-
-      if (routePolyline.isNotEmpty) {
-        startPoint = routePolyline.first;
-        
-        if (widget.endLocation != null) {
-          endPoint = LatLng(
-            (widget.endLocation.latitude as num).toDouble(),
-            (widget.endLocation.longitude as num).toDouble(),
-          );
-          if (routePolyline.last.latitude != endPoint!.latitude || 
-              routePolyline.last.longitude != endPoint!.longitude) {
-            routePolyline.add(endPoint!);
+          LatLng? effectiveEnd = _snappedEndLocation;
+          if (effectiveEnd == null && endPoint != null) {
+            effectiveEnd = await _routeService.snapToRoad(endPoint!);
+            _snappedEndLocation = effectiveEnd;
           }
-        } else {
-          endPoint = routePolyline.last;
+
+          if (effectiveEnd != null) {
+            final newPolyline = await _routeService.getRouteThrough([
+              snappedVehicle,
+              effectiveEnd,
+            ]);
+
+            final travelledSegment = initialRoutePolyline.sublist(0, closestIndex + 1);
+
+            if (!_isDisposed) {
+              setState(() {
+                routePolyline = [...travelledSegment, ...newPolyline];
+                _lastSnappedVehicleLocation = snappedVehicle;
+                _isLoadingRoute = false;
+              });
+            }
+
+            print('[LiveTrackingMapPage] ✅ Route recalculated (far off): travelled ${travelledSegment.length}');
+          } else {
+            if (!_isDisposed) setState(() => _isLoadingRoute = false);
+          }
+        } catch (e) {
+          print('[LiveTrackingMapPage] ❌ Route recalculation error: $e');
+          if (!_isDisposed) setState(() => _isLoadingRoute = false);
+        }
+      } else {
+        final travelledRoute = initialRoutePolyline.sublist(0, closestIndex + 1);
+        final remainingRoute = closestIndex + 1 < initialRoutePolyline.length
+            ? initialRoutePolyline.sublist(closestIndex + 1)
+            : [];
+
+        if (!_isDisposed) {
+          setState(() {
+            routePolyline = [...travelledRoute, ...remainingRoute];
+            _lastSnappedVehicleLocation = snappedVehicle;
+          });
         }
 
-        // Fit map bounds to show the entire route
-        if (routePolyline.length > 1 && !_userHasZoomed) {
-          final bounds = LatLngBounds.fromPoints(routePolyline);
-          mapController.fitCamera(
-            CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(50)),
-          );
-        }
+        print('[LiveTrackingMapPage] ✅ Route updated: travelled ${travelledRoute.length}, remaining ${remainingRoute.length}');
       }
+    } catch (e) {
+      print('[LiveTrackingMapPage] ❌ Route update error: $e');
+    } finally {
+      _isCalculatingRoute = false;
+    }
+  }
+
+  void _setupSocketListener() {
+    if (assignedVehicleId != null && assignedVehicleId!.isNotEmpty) {
+      print('[LiveTrackingMapPage] 🎯 Setting vehicle filter: $assignedVehicleId');
+      _socketIOService.setVehicleFilter(assignedVehicleId!);
+      
+      _connectionStateCallback = (isConnected) {
+        if (!_isDisposed) {
+          setState(() {
+            _isConnected = isConnected;
+          });
+        }
+      };
+      _socketIOService.addConnectionStateListener(_connectionStateCallback);
+      
+      _frameUpdateCallback = (data) {
+        if (!_isDisposed && data is Map) {
+          final lat = data['latitude'];
+          final lng = data['longitude'];
+          final heading = data['course'] ?? data['heading'];
+
+          if (lat != null && lng != null) {
+            final newLocation = LatLng(
+              double.parse(lat.toString()),
+              double.parse(lng.toString()),
+            );
+
+            if (!_isDisposed) {
+              setState(() {
+                currentLocation = newLocation;
+                if (heading != null) {
+                  vehicleHeading = double.parse(heading.toString());
+                }
+              });
+            }
+
+            _snapAndRecalculateRoute(newLocation);
+
+            bool shouldAutoZoom = !_userHasZoomed ||
+                (_lastUserInteraction != null &&
+                    DateTime.now().difference(_lastUserInteraction!).inSeconds > 30);
+
+            if (shouldAutoZoom && !_isDisposed) {
+              mapController.move(newLocation, 15.0);
+              _userHasZoomed = false;
+            }
+
+            print('[LiveTrackingMapPage] 📍 Vehicle updated: ${newLocation.latitude}, ${newLocation.longitude}');
+          }
+        }
+      };
+      
+      _socketIOService.addFrameUpdateListener(_frameUpdateCallback);
+    }
+  }
+
+  Future<void> _extractRouteData() async {
+    if (!_isDisposed) setState(() => _isLoadingRoute = true);
+
+    try {
+      if (widget.endLocation != null) {
+        endPoint = LatLng(
+          (widget.endLocation.latitude as num).toDouble(),
+          (widget.endLocation.longitude as num).toDouble(),
+        );
+      }
+
+      if (widget.routePoints != null && widget.routePoints!.length >= 2) {
+        final rawPoints = widget.routePoints!
+            .map((p) => LatLng(p.latitude, p.longitude))
+            .toList();
+
+        startPoint = rawPoints.first;
+        _lastSnappedVehicleLocation = startPoint;
+
+        final pointsToRoute = List<LatLng>.from(rawPoints);
+        
+        if (endPoint != null && 
+            (rawPoints.isEmpty || 
+             rawPoints.last.latitude != endPoint!.latitude || 
+             rawPoints.last.longitude != endPoint!.longitude)) {
+          pointsToRoute.add(endPoint!);
+        }
+
+        routePolyline = await _routeService.getRouteThrough(pointsToRoute);
+        initialRoutePolyline = List.from(routePolyline);
+
+        if (endPoint != null) {
+          _snappedEndLocation = await _routeService.snapToRoad(endPoint!);
+        }
+
+        print('[LiveTrackingMapPage] ✅ Initial route loaded: ${routePolyline.length} points (${pointsToRoute.length} waypoints)');
+        _fitMapToRoute();
+      } else if (endPoint != null) {
+        _snappedEndLocation = await _routeService.snapToRoad(endPoint!);
+      }
+    } catch (e) {
+      print('[LiveTrackingMapPage] ❌ Route extraction error: $e');
+    } finally {
+      if (!_isDisposed) setState(() => _isLoadingRoute = false);
     }
 
     if (widget.stops != null && widget.stops!.isNotEmpty) {
@@ -138,138 +318,19 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
     }
   }
 
-  Future<void> _loadTokenAndConnect() async {
-    final authToken = await _getAuthToken();
-    _connectSocket(authToken);
+  double _calculateDistanceKm(LatLng p1, LatLng p2) {
+    const R = 6371;
+    final dLat = _toRad(p2.latitude - p1.latitude);
+    final dLon = _toRad(p2.longitude - p1.longitude);
+    final lat1Rad = _toRad(p1.latitude);
+    final lat2Rad = _toRad(p2.latitude);
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1Rad) * cos(lat2Rad) * sin(dLon / 2) * sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
   }
 
-  Future<String> _getAuthToken() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('token') ?? '';
-    } catch (e) {
-      return '';
-    }
-  }
-
-
-
-  void _connectSocket(String authToken) {
-    print('🔌 Attempting Socket.IO connection...');
-    
-    _disconnectSocket();
-
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (_isDisposed) return;
-      
-      print('🔌 Creating new Socket.IO instance...');
-      socket = IO.io(
-        trackify_vts.socketUrl,
-        IO.OptionBuilder()
-            .setTransports(['websocket'])
-            .setPath('/socket.io')
-            .enableReconnection()
-            .setReconnectionDelay(2000)
-            .setReconnectionAttempts(20)
-            .setTimeout(8000)
-            .setAuth({'token': authToken})
-            .setExtraHeaders({'Authorization': 'Bearer $authToken'})
-            .disableAutoConnect()
-            .build(),
-      );
-      
-      print('🔌 Connecting socket...');
-      socket?.connect();
-      
-      print('🔌 Socket instance created, registering listeners...');
-      _setupSocketListeners();
-    });
-  }
-
-  void _disconnectSocket() {
-    if (socket != null) {
-      print('🔌 Cleaning up existing socket (connected: ${socket?.connected})...');
-      socket?.clearListeners();
-      if (socket?.connected ?? false) {
-        print('🔌 Disconnecting socket...');
-        socket?.disconnect();
-      }
-      socket?.dispose();
-      socket = null;
-    }
-  }
-
-  void _setupSocketListeners() {
-    if (socket == null || _isDisposed) return;
-    
-    socket?.onConnect((_) {
-      print('✅ Socket.IO connected successfully!');
-      if (!_isDisposed) setState(() => _isConnected = true);
-      socket?.emit("join_admin");
-      socket?.emit("subscribe_live_tracking", {});
-    });
-
-    socket?.onConnectError((e) {
-      print('❌ Socket.IO connection error: $e');
-      if (!_isDisposed) setState(() => _isConnected = false);
-    });
-
-    socket?.onError((e) {
-      print('❌ Socket.IO error: $e');
-      if (!_isDisposed) setState(() => _isConnected = false);
-    });
-
-    socket?.onDisconnect((reason) {
-      print('⚠️ Socket.IO disconnected: $reason');
-      if (!_isDisposed) setState(() => _isConnected = false);
-    });
-
-    socket?.on("live_tracking_update", (data) {
-      if (data is Map && data["vehicleId"] == assignedVehicleId) {
-        LatLng? newLocation;
-        if (data["latitude"] != null && data["longitude"] != null) {
-          newLocation = LatLng(
-            double.parse(data["latitude"].toString()),
-            double.parse(data["longitude"].toString()),
-          );
-        }
-
-        if (!_isDisposed) setState(() {
-          currentLocation = newLocation;
-        });
-
-        if (newLocation != null) {
-          bool shouldAutoZoom = !_userHasZoomed ||
-              (_lastUserInteraction != null &&
-                  DateTime.now().difference(_lastUserInteraction!).inSeconds > 30);
-
-          if (shouldAutoZoom) {
-            mapController.move(newLocation, 15.0);
-            _userHasZoomed = false;
-          }
-        }
-      }
-    });
-
-    socket?.on("frame", (data) {
-      bool shouldUpdate = false;
-      if (data is Map && (data["vehicleId"] == assignedVehicleId || data["vehicleId"] == null)) {
-        shouldUpdate = data.containsKey('frame');
-      } else if (data is String) {
-        shouldUpdate = true;
-      }
-
-      if (shouldUpdate) {
-        if (!_isDisposed) setState(() {
-          if (data is Map && data.containsKey('frame')) {
-            currentFrameData = data['frame'];
-          } else if (data is String) {
-            currentFrameData = data;
-          }
-        });
-      }
-    });
-  }
+  double _toRad(double deg) => deg * (pi / 180.0);
 
   Future<void> _callSos(String reason) async {
     print('🚨 SOS Call initiated');
@@ -483,22 +544,33 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
 
   @override
   void dispose() {
-    print('🧹 Cleaning up LiveTrackingMapPage...');
+    print('[LiveTrackingMapPage] 🧹 Cleaning up...');
     _isDisposed = true;
-    _disconnectSocket();
+    _socketIOService.clearVehicleFilter();
+    _socketIOService.removeFrameUpdateListener(_frameUpdateCallback);
+    _socketIOService.removeConnectionStateListener(_connectionStateCallback);
     currentLocation = null;
+    _lastSnappedVehicleLocation = null;
+    _snappedEndLocation = null;
     currentFrameData = null;
     _isConnected = false;
     _userHasZoomed = false;
+    _isCalculatingRoute = false;
     _lastUserInteraction = null;
+    routePolyline.clear();
+    initialRoutePolyline.clear();
     mapController.dispose();
-    print('🧹 LiveTrackingMapPage cleanup complete');
+    _pulseAnimationController.dispose();
+    print('[LiveTrackingMapPage] 🧹 Cleanup complete');
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final Color primaryColor = widget.primaryColor ?? Theme.of(context).colorScheme.primary;
+    final mediaQuery = MediaQuery.of(context);
+    final double width = mediaQuery.size.width;
+    final double scale = width / 375.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -506,7 +578,6 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
         title: const Text("Live Tracking", style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // Connection indicator
           Container(
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.all(8),
@@ -547,8 +618,10 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
                   polylines: [
                     Polyline(
                       points: routePolyline,
-                      color: primaryColor.withOpacity(0.6),
-                      strokeWidth: 4,
+                      color: Colors.blue,
+                      strokeWidth: 5 * scale,
+                      strokeCap: StrokeCap.round,
+                      strokeJoin: StrokeJoin.round,
                     ),
                   ],
                 ),
@@ -556,91 +629,66 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
                 markers: [
                   if (startPoint != null)
                     Marker(
-                      width: 36,
-                      height: 36,
+                      width: 40 * scale,
+                      height: 40 * scale,
                       point: startPoint!,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
-                      ),
+                      child: Icon(Icons.location_on, color: Colors.green, size: 40 * scale),
                     ),
                   if (endPoint != null)
                     Marker(
-                      width: 36,
-                      height: 36,
+                      width: 40 * scale,
+                      height: 40 * scale,
                       point: endPoint!,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(Icons.stop_circle, color: Colors.white, size: 16),
-                      ),
+                      child: Icon(Icons.location_on, color: Colors.red, size: 40 * scale),
                     ),
                   for (final stop in stopsList)
                     Marker(
-                      width: 45,
-                      height: 60,
+                      width: 30 * scale,
+                      height: 30 * scale,
                       point: stop.point,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.orange,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              '${stop.order ?? ''}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(blurRadius: 2, color: Colors.black26)
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${stop.order ?? ''}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12 * scale,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: Colors.orange,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 1),
-                            ),
-                            child: const Icon(Icons.location_on, color: Colors.white, size: 12),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   if (currentLocation != null)
                     Marker(
-                      width: 40,
-                      height: 40,
+                      width: 50 * scale,
+                      height: 50 * scale,
                       point: currentLocation!,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: primaryColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primaryColor.withOpacity(0.5),
-                              blurRadius: 8,
-                              spreadRadius: 2,
-                            ),
-                          ],
+                      child: Transform.rotate(
+                        angle: (vehicleHeading) * (3.14159 / 180),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                blurRadius: 4,
+                                color: Colors.black26,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.navigation,
+                            color: Colors.blueAccent,
+                            size: 30 * scale,
+                          ),
                         ),
-                        child: const Icon(Icons.location_on, color: Colors.white, size: 18),
                       ),
                     ),
                 ],
@@ -655,8 +703,54 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
               ),
             ),
           Positioned(
-            right: 16,
-            bottom: 32,
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              margin: EdgeInsets.all(12 * scale),
+              padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                border: Border.all(
+                  color: Colors.green,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(12 * scale),
+              ),
+              child: Row(
+                children: [
+                  AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _pulseAnimation.value,
+                        child: Container(
+                          width: 10 * scale,
+                          height: 10 * scale,
+                          decoration: const BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 10 * scale),
+                  Text(
+                    'Live Data Streaming...',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13 * scale,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: 16 * scale,
+            bottom: 32 * scale,
             child: Column(
               children: [
                 if (_isConnected)
@@ -666,53 +760,58 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
                     backgroundColor: Colors.red,
                     onPressed: _isSosLoading ? null : _showSosReasonDialog,
                     child: _isSosLoading
-                        ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+                        ? SizedBox(
+                          width: 18 * scale,
+                          height: 18 * scale,
+                          child: const CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : Icon(Icons.emergency_share, size: 20 * scale,color: Colors.white,),
+                  ),
+                if (_isConnected) SizedBox(height: 12 * scale),
+                Container(
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: BorderRadius.circular(12 * scale),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        final center = currentLocation ?? mapController.camera.center;
+                        final newZoom = mapController.camera.zoom + 1;
+                        mapController.move(center, newZoom);
+                      },
+                      borderRadius: BorderRadius.circular(12 * scale),
+                      child: Padding(
+                        padding: EdgeInsets.all(12 * scale),
+                        child: Image.asset('assets/icons/zoom-in.png', height: 25 * scale,color: Colors.white,),
                       ),
-                    )
-                        : Image.asset(
-                      'assets/icons/sos.png',
-                      width: 18,
-                      height: 18,
-                      color: Colors.white,
                     ),
                   ),
-                if (_isConnected) const SizedBox(height: 12),
-                FloatingActionButton(
-                  heroTag: 'zoom_in',
-                  mini: true,
-                  backgroundColor: primaryColor,
-                  onPressed: () {
-                    final center = currentLocation ?? mapController.camera.center;
-                    final newZoom = mapController.camera.zoom + 1;
-                    mapController.move(center, newZoom);
-                  },
-                  child: Image.asset(
-                    'assets/icons/zoom-in.png',
-                    width: 20,
-                    height: 20,
-                    color: Colors.white,
-                  ),
                 ),
-                const SizedBox(height: 12),
-                FloatingActionButton(
-                  heroTag: 'zoom_out',
-                  mini: true,
-                  backgroundColor: primaryColor,
-                  onPressed: () {
-                    final center = currentLocation ?? mapController.camera.center;
-                    final newZoom = mapController.camera.zoom - 1;
-                    mapController.move(center, newZoom);
-                  },
-                  child: Image.asset(
-                    'assets/icons/zoom-out.png',
-                    width: 20,
-                    height: 20,
-                    color: Colors.white,
+                SizedBox(height: 12 * scale),
+                Container(
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    borderRadius: BorderRadius.circular(12 * scale),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        final center = currentLocation ?? mapController.camera.center;
+                        final newZoom = mapController.camera.zoom - 1;
+                        mapController.move(center, newZoom);
+                      },
+                      borderRadius: BorderRadius.circular(12 * scale),
+                      child: Padding(
+                        padding: EdgeInsets.all(12 * scale),
+                        child: Image.asset('assets/icons/zoom-out.png', height: 25 * scale,color: Colors.white,),
+                      ),
+                    ),
                   ),
                 ),
               ],

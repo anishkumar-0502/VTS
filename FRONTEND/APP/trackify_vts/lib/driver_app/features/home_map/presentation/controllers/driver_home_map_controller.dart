@@ -41,6 +41,9 @@ class DriverHomeMapController extends GetxController
   
   // To track which trip we are showing
   final RxnString showingTripId = RxnString();
+  
+  // Store callback reference for cleanup
+  late FrameUpdateCallback _frameUpdateCallback;
 
   @override
   void onInit() {
@@ -50,12 +53,7 @@ class DriverHomeMapController extends GetxController
     // Register lifecycle observer for auto-refresh
     WidgetsBinding.instance.addObserver(this);
     
-    // Attempt to sync with Dashboard Controller first
-    _syncWithDashboardController();
-    
-    loadData();
-    
-    // Initialize socket with token if available
+    // Initialize socket with token if available (before syncing with dashboard)
     final token = _sessionController.token.value;
     if (token.isNotEmpty) {
       _socketIOService.initialize(authToken: token);
@@ -63,41 +61,54 @@ class DriverHomeMapController extends GetxController
       _socketIOService.initialize();
     }
     
-    // Listen for socket updates
-    _socketIOService.onFrameUpdate = (data) {
+    _frameUpdateCallback = (data) {
       if (data is Map) {
         final lat = data['latitude'];
         final lng = data['longitude'];
         final heading = data['heading'] ?? data['course'];
         
-        // Check if this update belongs to our active vehicle
-        if (activeTrip.value != null) {
-          final assignedDeviceId = activeTrip.value!.vehicleId.assignedDeviceId;
-          final vehicleId = activeTrip.value!.vehicleId.vehicleId;
-          
-          final incomingDeviceId = data['gpsDeviceId'];
-          final incomingVehicleId = data['vehicleId'] ?? data['vehicle_id'];
-          
-          bool isMatch = false;
-          // Match by Device ID (preferred as per logs 'simulated-tracker-2')
-          if (assignedDeviceId.isNotEmpty && incomingDeviceId == assignedDeviceId) {
-            isMatch = true;
-          }
-          // Fallback match by Vehicle ID
-          else if (vehicleId.isNotEmpty && incomingVehicleId == vehicleId) {
-            isMatch = true;
-          }
-          
-          if (isMatch && lat != null && lng != null) {
-            vehicleLocation.value = LatLng((lat as num).toDouble(), (lng as num).toDouble());
-            if (heading != null) {
-              vehicleHeading.value = (heading as num).toDouble();
+        if (lat != null && lng != null) {
+          if (activeTrip.value != null) {
+            final assignedDeviceId = activeTrip.value!.vehicleId.assignedDeviceId;
+            final vehicleId = activeTrip.value!.vehicleId.vehicleId;
+            
+            final incomingDeviceId = data['gpsDeviceId'];
+            final incomingVehicleId = data['vehicleId'] ?? data['vehicle_id'];
+            
+            bool isMatch = false;
+            if (assignedDeviceId.isNotEmpty && incomingDeviceId == assignedDeviceId) {
+              isMatch = true;
+              debugPrint('[DriverHomeMap] ✅ Matched by Device ID: $incomingDeviceId == $assignedDeviceId');
             }
-            debugPrint('🚗 Vehicle updated: ${vehicleLocation.value}, Heading: ${vehicleHeading.value}');
+            else if (vehicleId.isNotEmpty && incomingVehicleId == vehicleId) {
+              isMatch = true;
+              debugPrint('[DriverHomeMap] ✅ Matched by Vehicle ID: $incomingVehicleId == $vehicleId');
+            }
+            else {
+              debugPrint('[DriverHomeMap] ❌ No match - Device: $incomingDeviceId vs $assignedDeviceId, Vehicle: $incomingVehicleId vs $vehicleId');
+            }
+            
+            if (isMatch) {
+              vehicleLocation.value = LatLng((lat as num).toDouble(), (lng as num).toDouble());
+              if (heading != null) {
+                vehicleHeading.value = (heading as num).toDouble();
+              }
+              debugPrint('🚗 Vehicle updated: ${vehicleLocation.value}, Heading: ${vehicleHeading.value}');
+            }
+          } else {
+            debugPrint('[DriverHomeMap] ⚠️ No active trip to match against');
           }
         }
       }
     };
+    
+    _socketIOService.addFrameUpdateListener(_frameUpdateCallback);
+    
+    // Attempt to sync with Dashboard Controller
+    _syncWithDashboardController();
+    
+    // Load initial data
+    loadData();
   }
 
   @override
@@ -107,6 +118,19 @@ class DriverHomeMapController extends GetxController
     
     if (state == AppLifecycleState.resumed) {
       debugPrint('[DriverHomeMap] App resumed - Refreshing data...');
+      
+      if (!_socketIOService.isConnected) {
+        debugPrint('[DriverHomeMap] Socket not connected, reconnecting...');
+        _socketIOService.reconnect();
+      }
+      
+      if (activeTrip.value != null) {
+        final vehicleId = activeTrip.value!.vehicleId.vehicleId;
+        final deviceId = activeTrip.value!.vehicleId.assignedDeviceId;
+        debugPrint('[DriverHomeMap] Setting vehicle filter - DeviceId: $deviceId, VehicleId: $vehicleId');
+        _socketIOService.setVehicleFilter(deviceId.isNotEmpty ? deviceId : vehicleId);
+      }
+      
       loadData();
     }
   }
@@ -119,12 +143,25 @@ class DriverHomeMapController extends GetxController
         // Listen to active trip changes
         ever(dashboardController.activeTrip, (trip) {
           activeTrip.value = trip;
+          
+          if (trip != null) {
+            final vehicleId = trip.vehicleId.vehicleId;
+            final deviceId = trip.vehicleId.assignedDeviceId;
+            debugPrint('[DriverHomeMap] Active trip changed - Setting vehicle filter - DeviceId: $deviceId, VehicleId: $vehicleId');
+            _socketIOService.setVehicleFilter(deviceId.isNotEmpty ? deviceId : vehicleId);
+          }
+          
           _updateMapData();
         });
         
         // Initial value if available
         if (dashboardController.activeTrip.value != null) {
           activeTrip.value = dashboardController.activeTrip.value;
+          final trip = dashboardController.activeTrip.value!;
+          final vehicleId = trip.vehicleId.vehicleId;
+          final deviceId = trip.vehicleId.assignedDeviceId;
+          debugPrint('[DriverHomeMap] Initial active trip - Setting vehicle filter - DeviceId: $deviceId, VehicleId: $vehicleId');
+          _socketIOService.setVehicleFilter(deviceId.isNotEmpty ? deviceId : vehicleId);
           _updateMapData();
         }
       }
@@ -135,9 +172,8 @@ class DriverHomeMapController extends GetxController
 
   @override
   void onClose() {
-    // Unregister lifecycle observer
     WidgetsBinding.instance.removeObserver(this);
-    _socketIOService.disconnect();
+    _socketIOService.removeFrameUpdateListener(_frameUpdateCallback);
     super.onClose();
   }
 
@@ -200,10 +236,25 @@ class DriverHomeMapController extends GetxController
         return;
       }
 
+      // Ensure socket is connected before fetching data
+      if (!_socketIOService.isConnected) {
+        debugPrint('[DriverHomeMap] Socket not connected, initializing...');
+        await _socketIOService.reconnect(authToken: token);
+      }
+
       // 1. Fetch Active Trip
       final activeResponse = await _scheduledRepository.getActiveTrip(token);
       if (!activeResponse.error && activeResponse.data != null) {
         activeTrip.value = activeResponse.data;
+        
+        // Set vehicle filter after fetching active trip
+        if (activeResponse.data != null) {
+          final trip = activeResponse.data!;
+          final vehicleId = trip.vehicleId.vehicleId;
+          final deviceId = trip.vehicleId.assignedDeviceId;
+          debugPrint('[DriverHomeMap] Loaded active trip - Setting vehicle filter - DeviceId: $deviceId, VehicleId: $vehicleId');
+          _socketIOService.setVehicleFilter(deviceId.isNotEmpty ? deviceId : vehicleId);
+        }
       } else {
         activeTrip.value = null;
       }
