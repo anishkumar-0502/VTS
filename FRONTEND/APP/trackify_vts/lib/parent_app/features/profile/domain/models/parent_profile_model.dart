@@ -554,6 +554,7 @@ class TripRoutePoint {
   final List<dynamic> checklist;
   final List<dynamic> photoNotes;
   final List<dynamic> incidents;
+  final bool isUserStop;
 
   TripRoutePoint({
     required this.stopId,
@@ -574,6 +575,7 @@ class TripRoutePoint {
     required this.checklist,
     required this.photoNotes,
     required this.incidents,
+    this.isUserStop = false,
   });
 
   factory TripRoutePoint.fromJson(Map<String, dynamic> json) {
@@ -612,6 +614,7 @@ class TripRoutePoint {
       checklist: (json['checklist'] as List<dynamic>?) ?? [],
       photoNotes: (json['photo_notes'] as List<dynamic>?) ?? [],
       incidents: (json['incidents'] as List<dynamic>?) ?? [],
+      isUserStop: json['is_user_stop'] as bool? ?? false,
     );
   }
 
@@ -635,6 +638,7 @@ class TripRoutePoint {
       'checklist': checklist,
       'photo_notes': photoNotes,
       'incidents': incidents,
+      'is_user_stop': isUserStop,
     };
   }
 }

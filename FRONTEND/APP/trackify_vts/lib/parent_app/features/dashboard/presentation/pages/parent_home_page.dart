@@ -616,6 +616,7 @@ class CurrentLocationMapWithSocket extends StatefulWidget {
   final Color primaryColor;
   final String? vehicleNumber;
   final String? vehicleId;
+  final MapController? mapController;
 
   const CurrentLocationMapWithSocket({
     super.key,
@@ -623,6 +624,7 @@ class CurrentLocationMapWithSocket extends StatefulWidget {
     required this.primaryColor,
     this.vehicleNumber,
     this.vehicleId,
+    this.mapController,
   });
 
   @override
@@ -650,7 +652,7 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
       debugPrint('❌ [CurrentLocationMapWithSocket] Failed to find ParentHomeController: $e');
       rethrow;
     }
-    mapController = controller.mapController;
+    mapController = widget.mapController ?? controller.mapController;
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -795,8 +797,19 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
           initialCenter: displayLocation,
           initialZoom: 13.0,
           backgroundColor: Colors.grey[100]!,
+          onMapReady: () {
+            // Force a move with a tiny zoom change and delay to ensure the map is fully loaded and avoids grey tiles
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted) {
+                mapController.move(displayLocation, 13.01);
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted) mapController.move(displayLocation, 13.0);
+                });
+              }
+            });
+          },
           interactionOptions: const InteractionOptions(
-            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            flags: InteractiveFlag.all,
           ),
           onPositionChanged: (position, hasGesture) {
             if (position.zoom != null) {
@@ -809,6 +822,8 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
             urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
             subdomains: const ['a', 'b', 'c'],
             userAgentPackageName: 'com.trackify.parent',
+            keepBuffer: 5,
+            tileDisplay: const TileDisplay.fadeIn(),
           ),
           PolylineLayer(
             polylines: [
@@ -848,36 +863,37 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
                 ),
               
               // Vehicle Marker (Mirrored from Driver App)
-              Marker(
-                width: 50.0 * scale,
-                height: 50.0 * scale,
-                point: displayLocation,
-                alignment: Alignment.center,
-                child: GestureDetector(
-                  onTap: () {
+              if (!controller.isUpcomingTrip.value)
+                Marker(
+                  width: 50.0 * scale,
+                  height: 50.0 * scale,
+                  point: displayLocation,
+                  alignment: Alignment.center,
+                  child: GestureDetector(
+                    onTap: () {
 
-                  },
-                  child: Transform.rotate(
-                    angle: (controller.vehicleHeading.value != 0.0 
-                        ? controller.vehicleHeading.value 
-                        : (controller.vehicleHeadings[widget.vehicleId] ?? 0.0)) * (pi / 180),
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(blurRadius: 4, color: Colors.black26)
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.navigation,
-                        color: Colors.blueAccent,
-                        size: 30 * scale,
+                    },
+                    child: Transform.rotate(
+                      angle: (controller.vehicleHeading.value != 0.0 
+                          ? controller.vehicleHeading.value 
+                          : (controller.vehicleHeadings[widget.vehicleId] ?? 0.0)) * (pi / 180),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(blurRadius: 4, color: Colors.black26)
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.navigation,
+                          color: Colors.blueAccent,
+                          size: 30 * scale,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
@@ -894,6 +910,7 @@ class LiveTripMap extends StatefulWidget {
   final ParentLiveTripData tripData;
   final ParentHomeController controller;
   final Color primaryColor;
+  final MapController? mapController;
   final Function(MapController) onMapCreated;
 
   const LiveTripMap({
@@ -901,6 +918,7 @@ class LiveTripMap extends StatefulWidget {
     required this.tripData,
     required this.controller,
     required this.primaryColor,
+    this.mapController,
     required this.onMapCreated,
   });
 
@@ -916,13 +934,20 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    mapController = widget.controller.mapController;
+    mapController = widget.mapController ?? widget.controller.mapController;
     widget.onMapCreated(mapController);
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isDisposed) {
-        final startLocation = widget.controller.vehicleLocation.value ?? widget.tripData.startLocation;
-        _animateMapMove(startLocation, 13.0);
+        if (widget.controller.isUpcomingTrip.value) {
+          widget.controller.fitMapToRoute();
+        } else {
+          // For active trips, focus on live location if available
+          if (widget.controller.vehicleLocation.value != null) {
+            widget.controller.fitMapToVehicle();
+          }
+          // If null, we wait for the first socket update which will trigger auto-zoom
+        }
       }
     });
 
@@ -995,8 +1020,20 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
           initialCenter: currentLocation ?? widget.tripData.startLocation,
           initialZoom: 13.0,
           backgroundColor: Colors.grey[100]!,
+          onMapReady: () {
+            // Force a move with a tiny zoom change and delay to ensure the map is fully loaded and avoids grey tiles
+            final center = currentLocation ?? widget.tripData.startLocation;
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted) {
+                mapController.move(center, 13.01);
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted) mapController.move(center, 13.0);
+                });
+              }
+            });
+          },
           interactionOptions: const InteractionOptions(
-            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            flags: InteractiveFlag.all,
           ),
           onPositionChanged: (position, hasGesture) {
             if (position.zoom != null) {
@@ -1009,6 +1046,8 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
             urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
             subdomains: const ['a', 'b', 'c'],
             userAgentPackageName: 'com.trackify.parent',
+            keepBuffer: 5,
+            tileDisplay: const TileDisplay.fadeIn(),
           ),
           Obx(() {
             final double scale = (widget.controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
@@ -1116,6 +1155,11 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                     alignment: Alignment.center,
                     child: GestureDetector(
                       onTap: () async {
+                        // Animate to stop location if it's a user stop or just generally improve UX
+                        if (isTargetStop || stop.isUserStop) {
+                          widget.controller.animatedMapMove(stop.location, 16.0, offset: const Offset(0, -0.15));
+                        }
+
                         final address = await getAddressFromLatLng(
                           stop.location.latitude,
                           stop.location.longitude,
@@ -1154,7 +1198,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                 }),
 
                 // Vehicle Marker (Live) - PLOTTED EXACTLY LIKE DRIVER APP SNIPPET
-                if (vehicleLocation != null)
+                if (vehicleLocation != null && !widget.controller.isUpcomingTrip.value)
                   Marker(
                     point: vehicleLocation,
                     width: 50 * scale,
@@ -1327,6 +1371,70 @@ class ParentHomePage extends GetView<ParentHomeController> {
               child: Icon(
                 Icons.my_location,
                 color: Colors.blue[400],
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget _buildHomeButton(VoidCallback onPressed) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 6,
+              spreadRadius: 0,
+            ),
+          ],
+          border: Border.all(color: Colors.green[200]!, width: 1.5),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Image.asset(
+                'assets/icons/homemarker.png',
+                width: 20,
+                height: 20,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget _buildStartLocationButton(VoidCallback onPressed) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 6,
+              spreadRadius: 0,
+            ),
+          ],
+          border: Border.all(color: Colors.orange[200]!, width: 1.5),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(12),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
+              child: Icon(
+                Icons.flag_rounded,
+                color: Colors.orange,
                 size: 20,
               ),
             ),
@@ -2138,229 +2246,197 @@ class ParentHomePage extends GetView<ParentHomeController> {
           return _buildShimmerLoading(primaryColor);
         }
 
-        return Container(
-          color: Colors.grey[50],
-          child: Stack(
-            children: [
-              _buildPageContent(context, primaryColor),
+        return Obx(() {
+          final hasTrip = controller.tripMapData.value != null;
+          
+          if (!hasTrip) {
+            return _buildPageContent(context, primaryColor);
+          }
 
-              Obx(() {
-                final tripData = controller.tripMapData.value;
-                if (tripData == null) {
-                  return const SizedBox.shrink();
-                }
+          final tripData = controller.tripMapData.value!;
+          String formatTimeWithAmPm(String time) {
+            try {
+              if (time.isEmpty || time == 'N/A') return '--:--';
+              if (time.contains(':') && !time.contains('-')) {
+                final parts = time.split(':');
+                int hour = int.parse(parts[0]);
+                int minute = int.parse(parts[1]);
+                final amPm = hour >= 12 ? 'PM' : 'AM';
+                hour = hour % 12 == 0 ? 12 : hour % 12;
+                return '$hour:${minute.toString().padLeft(2, '0')} $amPm';
+              }
+              final dt = DateTime.parse(time);
+              final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+              final minute = dt.minute.toString().padLeft(2, '0');
+              final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+              return '$hour:$minute $amPm';
+            } catch (_) {
+              return time.isNotEmpty ? time : '--:--';
+            }
+          }
 
-                String formatTimeWithAmPm(String time) {
-                  try {
-                    if (time.isEmpty || time == 'N/A') return '--:--';
-                    
-                    // Handle HH:mm format
-                    if (time.contains(':') && !time.contains('-')) {
-                      final parts = time.split(':');
-                      int hour = int.parse(parts[0]);
-                      int minute = int.parse(parts[1]);
-                      final amPm = hour >= 12 ? 'PM' : 'AM';
-                      hour = hour % 12 == 0 ? 12 : hour % 12;
-                      return '$hour:${minute.toString().padLeft(2, '0')} $amPm';
-                    }
+          String startTime = formatTimeWithAmPm(tripData.scheduledStartTime);
 
-                    final dt = DateTime.parse(time);
-                    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-                    final minute = dt.minute.toString().padLeft(2, '0');
-                    final amPm = dt.hour >= 12 ? 'PM' : 'AM';
-                    return '$hour:$minute $amPm';
-                  } catch (_) {
-                    return time.isNotEmpty ? time : '--:--';
-                  }
-                }
-
-                String startTime = formatTimeWithAmPm(tripData.scheduledStartTime);
-
-                return Positioned(
-                top: 0,
-                left: 12,
-                right: 12,
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 10,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.route, color: Color(0xFF2764FF), size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    tripData.routeName,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'Poppins',
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (controller.isUpcomingTrip.value)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: Colors.orange,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Upcoming Trip',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.orange,
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    ),
-                                  )
-                                else if (tripData.associatedTripId.isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: Colors.green,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Active Trip',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.green,
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Start Time: $startTime',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-              }),
-
-
-
-              Obx(() {
-                if (controller.tripMapData.value != null) {
-                  return const SizedBox.shrink();
-                }
-
-                String greeting = 'Good Morning';
-                final hour = DateTime.now().hour;
-                if (hour >= 12 && hour < 17) {
-                  greeting = 'Good Afternoon';
-                } else if (hour >= 17) {
-                  greeting = 'Good Evening';
-                }
-
-                final parentName = controller.parentProfile.value?.name ?? 'Parent';
-
-                return Positioned(
+          return Container(
+            color: Colors.grey[50],
+            child: Stack(
+              children: [
+                _buildPageContent(context, primaryColor),
+                Positioned(
                   top: 0,
                   left: 12,
                   right: 12,
                   child: Container(
                     margin: const EdgeInsets.only(top: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 10,
                           spreadRadius: 0,
-                          offset: const Offset(0, 2),
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          greeting,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          parentName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                            fontFamily: 'Poppins',
+                        const Icon(Icons.route, color: Color(0xFF2764FF), size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      tripData.routeName,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (controller.isUpcomingTrip.value)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: Colors.orange,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Upcoming Trip',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.orange,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    )
+                                  else if (tripData.associatedTripId.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: Colors.green,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Active Trip',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.green,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Start Time: $startTime',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                );
-              }),
-              
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _buildRouteStopsCard(context, primaryColor),
-              ),
+                ),
+                _buildRouteStopsCard(context, primaryColor),
+                _buildShowStopsButton(primaryColor),
 
               Obx(() {
                 if (controller.tripMapData.value == null) {
                   return const SizedBox.shrink();
                 }
+                final screenHeight = MediaQuery.of(context).size.height;
+                final sheetExpansion = _sheetExtent.value - 0.35;
+                final additionalOffset = screenHeight * sheetExpansion;
+                final dynamicBottom = 400.0 + additionalOffset;
+                
                 return Positioned(
-                  bottom: 300,
+                  bottom: dynamicBottom,
                   left: 16,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      _buildHomeButton(() {
+                        controller.focusOnUserStop();
+                      }),
+                      const SizedBox(height: 8),
                       _buildSOSButton(context, primaryColor),
+                      const SizedBox(height: 8),
+                      _buildChildLocationButton(() {
+                        controller.focusOnVehicle();
+                      }),
+                    ],
+                  ),
+                );
+              }),
+
+              Obx(() {
+                if (controller.tripMapData.value == null) {
+                  return const SizedBox.shrink();
+                }
+                final screenHeight = MediaQuery.of(context).size.height;
+                final sheetExpansion = _sheetExtent.value - 0.35;
+                final additionalOffset = screenHeight * sheetExpansion;
+                final dynamicBottom = 400.0 + additionalOffset;
+                
+                return Positioned(
+                  bottom: dynamicBottom,
+                  right: 16,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildZoomButton('assets/icons/zoom-in.png', () {
+                        _zoomIn();
+                      }),
+                      const SizedBox(height: 8),
+                      _buildZoomButton('assets/icons/zoom-out.png', () {
+                        _zoomOut();
+                      }),
                       const SizedBox(height: 8),
                       _buildFullscreenButton(() {
                         Get.dialog(
@@ -2372,11 +2448,34 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                 children: [
                                   Obx(() {
                                     if (controller.tripMapData.value != null) {
-                                      return _buildFullScreenMap(context, controller.tripMapData.value!, primaryColor);
+                                      return LiveTripMap(
+                                        tripData: controller.tripMapData.value!,
+                                        controller: controller,
+                                        primaryColor: primaryColor,
+                                        mapController: MapController(),
+                                        onMapCreated: (mc) {
+                                          controller.fullscreenMapController = mc;
+                                        },
+                                      );
                                     }
                                     final currentLocation = controller.vehicleLocation.value;
                                     if (currentLocation != null) {
-                                      return _buildCurrentLocationMap(context, currentLocation, primaryColor);
+                                      return FlutterMap(
+                                        mapController: MapController(),
+                                        options: MapOptions(
+                                          initialCenter: currentLocation,
+                                          initialZoom: 13.0,
+                                          onMapReady: () {
+                                            // Handle if needed
+                                          },
+                                        ),
+                                        children: [
+                                          TileLayer(
+                                            urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                                            subdomains: const ['a', 'b', 'c'],
+                                          ),
+                                        ],
+                                      );
                                     }
                                     return Container(
                                       color: Colors.grey[100],
@@ -2385,6 +2484,24 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                       ),
                                     );
                                   }),
+                                  Positioned(
+                                    bottom: 16,
+                                    left: 16,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _buildHomeButton(() {
+                                          controller.focusOnUserStop();
+                                        }),
+                                        const SizedBox(height: 8),
+                                        _buildSOSButton(context, primaryColor),
+                                        const SizedBox(height: 8),
+                                        _buildChildLocationButton(() {
+                                          controller.focusOnVehicle();
+                                        }),
+                                      ],
+                                    ),
+                                  ),
                                   Positioned(
                                     bottom: 16,
                                     right: 16,
@@ -2400,7 +2517,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                         }),
                                         const SizedBox(height: 8),
                                         _buildExitFullscreenButton(() {
+                                          controller.fullscreenMapController = null;
                                           Get.back();
+                                          Future.delayed(const Duration(milliseconds: 300), () {
+                                            controller.nudgeMap();
+                                          });
                                         }),
                                       ],
                                     ),
@@ -2409,34 +2530,15 @@ class ParentHomePage extends GetView<ParentHomeController> {
                               ),
                             ),
                           ),
-                        );
+                        ).then((_) {
+                          controller.fullscreenMapController = null;
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            controller.nudgeMap();
+                          });
+                        });
                       }),
-                    ],
-                  ),
-                );
-              }),
-
-              Obx(() {
-                if (controller.tripMapData.value == null) {
-                  return const SizedBox.shrink();
-                }
-                return Positioned(
-                  bottom: 300,
-                  right: 16,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildZoomButton('assets/icons/zoom-in.png', () {
-                        _zoomIn();
-                      }),
-                      const SizedBox(height: 8),
-                      _buildZoomButton('assets/icons/zoom-out.png', () {
-                        _zoomOut();
-                      }),
-                      const SizedBox(height: 8),
-                      _buildChildLocationButton(() {
-                        controller.focusOnVehicle();
-                      }),
+                   
+                      
                     ],
                   ),
                 );
@@ -2444,7 +2546,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
             ],
           ),
         );
-      }),
+      });
+    })
     );
   }
 
@@ -2512,6 +2615,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
       tripData: tripData,
       controller: controller,
       primaryColor: primaryColor,
+      mapController: controller.mapController,
       onMapCreated: (mapController) {
         // Map controller is now managed by the ParentHomeController
       },
@@ -2524,10 +2628,140 @@ class ParentHomePage extends GetView<ParentHomeController> {
       primaryColor: primaryColor,
       vehicleNumber: controller.assignedVehicleNumber ?? 'Unknown',
       vehicleId: controller.assignedVehicleId,
+      mapController: controller.mapController,
     );
   }
 
   final Map<String, Future<String>> _addressCache = {};
+  final RxBool _modalVisible = RxBool(true);
+  final RxDouble _sheetSnapSize = RxDouble(0.35);
+  final RxDouble _sheetExtent = RxDouble(0.35);
+  final GlobalKey _sheetKey = GlobalKey();
+  final DraggableScrollableController _sheetController = DraggableScrollableController();
+
+  Widget _buildRouteStopsCardContent(BuildContext context, Color primaryColor, ParentLiveTripData tripData) {
+    final stops = tripData.timeline;
+    if (stops.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(
+          stops.length,
+          (index) {
+            final stop = stops[index];
+            final isLast = index == stops.length - 1;
+            final isTargetStop = controller.targetLocation.value != null &&
+                (stop.location.latitude - controller.targetLocation.value!.latitude).abs() < 0.0001 &&
+                (stop.location.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001;
+
+            final stopNumber = index + 1;
+            return Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Column(
+                      children: [
+                        if (isTargetStop)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Image.asset(
+                              'assets/icons/homemarker.png',
+                              width: 18,
+                              height: 18,
+                            ),
+                          )
+                        else
+                          Container(
+                            width: 10,
+                            height: 10,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        if (!isLast)
+                          Container(
+                            width: 2,
+                            height: 32,
+                            color: primaryColor.withValues(alpha: 0.3),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Colors.grey.shade200,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Stop $stopNumber: ${stop.name}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (stop.landmark.isNotEmpty)
+                                    Text(
+                                      'Landmark: ${stop.landmark}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[400],
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            if (stop.scheduledTime.isNotEmpty)
+                              Text(
+                                'Estimated: ${stop.scheduledTime}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            Icon(
+                              Icons.chevron_right,
+                              color: Colors.grey.shade400,
+                              size: 22,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (index < tripData.timeline.length - 1)
+                  const SizedBox(height: 6),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 
   Widget _buildRouteStopsCard(BuildContext context, Color primaryColor) {
     return Obx(() {
@@ -2537,211 +2771,232 @@ class ParentHomePage extends GetView<ParentHomeController> {
         _addressCache.clear();
         return const SizedBox.shrink();
       }
-      
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 20,
-              spreadRadius: 2,
-              offset: const Offset(0, -4),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              spreadRadius: 0,
-              offset: const Offset(0, -1),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                          Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                tripData.routeName,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                  letterSpacing: -0.3,
-                                  fontFamily: 'Poppins',
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            GestureDetector(
-                              onTap: () => _showCallDriverDialog(context, primaryColor),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.call,
-                                      color: Colors.green[700],
-                                      size: 14,
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      'Call Driver',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.green[700],
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+
+      return DraggableScrollableSheet(
+        key: _sheetKey,
+        controller: _sheetController,
+        initialChildSize: 0.35,
+        minChildSize: 0.0,
+        maxChildSize: 0.35,
+        snap: true,
+        snapSizes: const [0.0, 0.35],
+        builder: (context, scrollController) {
+          return NotificationListener<DraggableScrollableNotification>(
+            onNotification: (notification) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _sheetExtent.value = notification.extent;
+                if (notification.extent < 0.05) {
+                  _modalVisible.value = false;
+                } else {
+                  _modalVisible.value = true;
+                }
+              });
+              return false;
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                    offset: const Offset(0, -4),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                    offset: const Offset(0, -1),
                   ),
                 ],
               ),
-            ),
-            Divider(height: 1, color: Colors.grey[200], indent: 20, endIndent: 20),
-            if (tripData.timeline.isNotEmpty)
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                itemCount: tripData.timeline.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, index) {
-                  final stop = tripData.timeline[index];
-                  final isLast = index == tripData.timeline.length - 1;
-                  final isTargetStop = controller.targetLocation.value != null &&
-                      (stop.location.latitude - controller.targetLocation.value!.latitude).abs() < 0.0001 &&
-                      (stop.location.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001;
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Timeline indicator
-                      Column(
-                        children: [
-                          if (isTargetStop)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Image.asset(
-                                'assets/icons/homemarker.png',
-                                width: 18,
-                                height: 18,
-                              ),
-                            )
-                          else
-                            Container(
-                              width: 10,
-                              height: 10,
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              decoration: BoxDecoration(
-                                color: primaryColor,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          if (!isLast)
-                            Container(
-                              width: 2,
-                              height: 32,
-                              color: primaryColor.withValues(alpha: 0.3),
-                            ),
-                        ],
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.only(top: 82),
+                      children: [
+                        _buildRouteStopsCardContent(context, primaryColor, tripData),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(24),
+                          topRight: Radius.circular(24),
+                        ),
                       ),
-                      const SizedBox(width: 14),
-
-                      // Stop content
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Colors.grey.shade200,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onVerticalDragUpdate: (details) {
+                              final currentExtent = _sheetExtent.value;
+                              final newExtent = (currentExtent - details.delta.dy / MediaQuery.of(context).size.height).clamp(0.0, 0.35);
+                              _sheetExtent.value = newExtent;
+                              _sheetController.jumpTo(newExtent);
+                            },
+                            onVerticalDragEnd: (details) {
+                              if (_sheetExtent.value < 0.15) {
+                                _sheetController.animateTo(0.0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                              } else {
+                                _sheetController.animateTo(0.35, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                              }
+                            },
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                                child: Container(
+                                  width: 50,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[400],
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      stop.name,
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onVerticalDragUpdate: (details) {
+                              final currentExtent = _sheetExtent.value;
+                              final newExtent = (currentExtent - details.delta.dy / MediaQuery.of(context).size.height).clamp(0.0, 0.35);
+                              _sheetExtent.value = newExtent;
+                              _sheetController.jumpTo(newExtent);
+                            },
+                            onVerticalDragEnd: (details) {
+                              if (_sheetExtent.value < 0.15) {
+                                _sheetController.animateTo(0.0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                              } else {
+                                _sheetController.animateTo(0.35, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      tripData.routeName,
                                       style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.black87,
+                                        letterSpacing: -0.3,
                                         fontFamily: 'Poppins',
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-
-                                    if (stop.landmark.isNotEmpty)
-                                      Text(
-                                        'Landmark: ${stop.landmark}',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey[400],
-                                          fontFamily: 'Poppins',
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              if (stop.scheduledTime.isNotEmpty)
-                                Text(
-                                  'Estimated: ${stop.scheduledTime}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey[600],
-                                    fontFamily: 'Poppins',
                                   ),
-                                ),
-                              Icon(
-                                Icons.chevron_right,
-                                color: Colors.grey.shade400,
-                                size: 22,
+                                  const SizedBox(width: 5),
+                                  GestureDetector(
+                                    onTap: () => _showCallDriverDialog(context, primaryColor),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.call,
+                                            color: Colors.green[700],
+                                            size: 14,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Call Driver',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.green[700],
+                                              fontFamily: 'Poppins',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                          Divider(height: 1, color: Colors.grey[200], indent: 20, endIndent: 20),
+                        ],
                       ),
-                    ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  Widget _buildShowStopsButton(Color primaryColor) {
+    return Obx(() {
+      if (_modalVisible.value) {
+        return const SizedBox.shrink();
+      }
+
+      return Positioned(
+        bottom: 70,
+        right: 16,
+        child: ScaleTransition(
+          scale: AlwaysStoppedAnimation(1.0),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: primaryColor,
+              boxShadow: [
+                BoxShadow(
+                  color: primaryColor.withOpacity(0.4),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  _sheetController.animateTo(
+                    0.35,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
                   );
                 },
+                borderRadius: BorderRadius.circular(30),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Icon(
+                    Icons.expand_less,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
               ),
-
-          ],
+            ),
+          ),
         ),
       );
     });

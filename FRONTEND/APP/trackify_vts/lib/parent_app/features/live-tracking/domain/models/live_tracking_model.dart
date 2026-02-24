@@ -12,6 +12,7 @@ class TripStop {
   final bool isCompleted; 
   final bool isChildStop; 
   final bool isReminder; // Added this field to fix UI error
+  final bool isUserStop;
 
   TripStop({
     required this.id,
@@ -24,6 +25,7 @@ class TripStop {
     this.isCompleted = false, 
     this.isChildStop = false, 
     this.isReminder = false,
+    this.isUserStop = false,
   });
 
   // Factory to create from the 'route_points' array in the current-trip API response
@@ -43,7 +45,8 @@ class TripStop {
       scheduledTime: json['approximate_reach_time']?.toString() ?? json['scheduled_time']?.toString() ?? '00:00',
       isCompleted: json['is_completed'] as bool? ?? false, 
       isChildStop: json['is_child_stop'] as bool? ?? false, 
-      isReminder: json['is_reminder'] as bool? ?? false, 
+      isReminder: json['is_reminder'] as bool? ?? false,
+      isUserStop: json['is_user_stop'] as bool? ?? false,
     );
   }
 }
