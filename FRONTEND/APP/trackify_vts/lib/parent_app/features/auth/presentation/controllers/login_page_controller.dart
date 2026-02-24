@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import '../../../../Sessionhandler/session_controller.dart';
 import '../../../dashboard/presentation/controllers/parent_home_controller.dart';
 import '../../../dashboard/presentation/pages/parent_home_page.dart';
@@ -7,6 +9,8 @@ import '../../domain/repositories/login_repository.dart';
 import '../../../profile/domain/repositories/parent_profile_repository.dart';
 import '../../../../../utilities/exception/exception.dart' as exceptions;
 import '../../../../../utilities/widgets/status_banner.dart';
+import '../../../../../services/firebase_notification_service.dart';
+import '../../../../../core/core.dart';
 
 class ParentLoginPageController extends GetxController {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
@@ -62,6 +66,7 @@ class ParentLoginPageController extends GetxController {
         final response = await _authRepository.login(email, password);
         if (!response.error) {
           await _saveSession(response);
+          await _registerFCMToken(response.data?['user_id']);
           await _fetchAndUpdateFullProfile();
           showStatusBanner(response.message, Colors.green, Icons.check_circle);
           Get.offAllNamed('/dashboard'); 
@@ -166,5 +171,55 @@ class ParentLoginPageController extends GetxController {
     }
   }
 
+  Future<void> _registerFCMToken(dynamic userId) async {
+    try {
+      if (userId == null) {
+        debugPrint('⚠️ User ID is null, skipping FCM token registration');
+        return;
+      }
+
+      final token = await FirebaseNotificationService().getDeviceToken();
+      if (token == null) {
+        debugPrint('⚠️ FCM token is null, skipping registration');
+        return;
+      }
+
+      final url = Uri.parse('${trackify_vts.baseUrl}/fcm/register-token');
+      
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('📤 Registering FCM Token with Backend');
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('URL: $url');
+      debugPrint('User ID: $userId');
+      debugPrint('Token: $token');
+      
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${_sessionController.token.value}',
+        },
+        body: jsonEncode({
+          'fcm_token': token,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      debugPrint('Response Status: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        debugPrint('═══════════════════════════════════════════════════════');
+        debugPrint('✅ FCM TOKEN REGISTERED SUCCESSFULLY');
+        debugPrint('═══════════════════════════════════════════════════════');
+      } else {
+        debugPrint('═══════════════════════════════════════════════════════');
+        debugPrint('❌ FCM TOKEN REGISTRATION FAILED');
+        debugPrint('Status Code: ${response.statusCode}');
+        debugPrint('═══════════════════════════════════════════════════════');
+      }
+    } catch (e) {
+      debugPrint('❌ Error registering FCM token: $e');
+    }
+  }
 
 }
