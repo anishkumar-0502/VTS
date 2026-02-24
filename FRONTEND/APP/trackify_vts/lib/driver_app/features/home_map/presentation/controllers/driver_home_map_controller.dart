@@ -179,15 +179,31 @@ class DriverHomeMapController extends GetxController
 
   void zoomIn() {
     final currentZoom = mapController.camera.zoom;
-    // Zoom towards start location if available, otherwise current center
-    final target = startLocation.value ?? mapController.camera.center;
+    LatLng target = mapController.camera.center;
+
+    if (activeTrip.value != null) {
+      // Focus on live tracking (vehicle location) for active trips
+      target = vehicleLocation.value ?? startLocation.value ?? mapController.camera.center;
+    } else if (scheduledTrips.isNotEmpty) {
+      // Focus on start location for upcoming trips
+      target = startLocation.value ?? mapController.camera.center;
+    }
+    
     _animatedMapMove(target, currentZoom + 1);
   }
 
   void zoomOut() {
     final currentZoom = mapController.camera.zoom;
-    // Zoom out from start location if available, otherwise current center
-    final target = startLocation.value ?? mapController.camera.center;
+    LatLng target = mapController.camera.center;
+
+    if (activeTrip.value != null) {
+      // Focus on live tracking (vehicle location) for active trips
+      target = vehicleLocation.value ?? startLocation.value ?? mapController.camera.center;
+    } else if (scheduledTrips.isNotEmpty) {
+      // Focus on start location for upcoming trips
+      target = startLocation.value ?? mapController.camera.center;
+    }
+    
     _animatedMapMove(target, currentZoom - 1);
   }
 
@@ -291,6 +307,24 @@ class DriverHomeMapController extends GetxController
       // No trips
       _clearMap();
     }
+
+    // Focus camera on the relevant target
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        LatLng? target;
+        if (activeTrip.value != null) {
+          target = vehicleLocation.value ?? startLocation.value;
+        } else if (scheduledTrips.isNotEmpty) {
+          target = startLocation.value;
+        }
+        
+        if (target != null) {
+          _animatedMapMove(target, 13);
+        }
+      } catch (e) {
+        debugPrint('Error focusing camera: $e');
+      }
+    });
   }
 
   void _displayActiveTrip(ActiveTrip trip) {

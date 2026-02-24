@@ -112,7 +112,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Trackify Driver',
+                    'Trackit Driver',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,

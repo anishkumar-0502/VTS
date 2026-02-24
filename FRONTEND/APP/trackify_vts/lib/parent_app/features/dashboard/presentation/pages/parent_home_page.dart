@@ -2391,9 +2391,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
                   return const SizedBox.shrink();
                 }
                 final screenHeight = MediaQuery.of(context).size.height;
-                final sheetExpansion = _sheetExtent.value - 0.35;
-                final additionalOffset = screenHeight * sheetExpansion;
-                final dynamicBottom = 400.0 + additionalOffset;
+                final double currentSheetHeight = _sheetExtent.value * screenHeight;
+                final double dynamicBottom = (currentSheetHeight > 125 ? currentSheetHeight : 125) + 20;
                 
                 return Positioned(
                   bottom: dynamicBottom,
@@ -2420,9 +2419,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
                   return const SizedBox.shrink();
                 }
                 final screenHeight = MediaQuery.of(context).size.height;
-                final sheetExpansion = _sheetExtent.value - 0.35;
-                final additionalOffset = screenHeight * sheetExpansion;
-                final dynamicBottom = 400.0 + additionalOffset;
+                final double currentSheetHeight = _sheetExtent.value * screenHeight;
+                final double dynamicBottom = (currentSheetHeight > 125 ? currentSheetHeight : 125) + 20;
                 
                 return Positioned(
                   bottom: dynamicBottom,

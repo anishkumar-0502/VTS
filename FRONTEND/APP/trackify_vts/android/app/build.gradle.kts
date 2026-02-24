@@ -56,17 +56,17 @@ android {
        create("dev") {
            dimension = "default"
            applicationId = "com.trackify.dev"
-           resValue("string", "app_name", "Trackify Dev")
+           resValue("string", "app_name", "Trackit Dev")
        }
        create("driver") {
            dimension = "default"
            applicationId = "com.trackify.driver"
-           resValue("string", "app_name", "Trackify Driver")
+           resValue("string", "app_name", "Trackit Driver")
        }
        create("parent") {
            dimension = "default"
            applicationId = "com.trackify.parent"
-           resValue("string", "app_name", "Trackify Parent")
+           resValue("string", "app_name", "Trackit Parent")
        }
     }
 }

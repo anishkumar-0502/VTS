@@ -42,22 +42,15 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
   String? currentFrameData;
   String? assignedVehicleId;
   bool _isDisposed = false;
-  List<LatLng> routePolyline = [];
   List<LatLng> initialRoutePolyline = [];
   List<({LatLng point, String? label, int? order})> stopsList = [];
   LatLng? startPoint;
   LatLng? endPoint;
-  bool _isLoadingRoute = false;
-  bool _isCalculatingRoute = false;
   bool _userHasZoomed = false;
   DateTime? _lastUserInteraction;
   bool _isConnected = false;
   bool _isSosLoading = false;
   double vehicleHeading = 0.0;
-  LatLng? _lastSnappedVehicleLocation;
-  LatLng? _snappedEndLocation;
-  static const double _minDistanceKmForRouteUpdate = 0.15;
-  static const double _minDistanceKmFarOffRoute = 0.5;
   late FrameUpdateCallback _frameUpdateCallback;
   late AnimationController _pulseAnimationController;
   late Animation<double> _pulseAnimation;
@@ -99,8 +92,8 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
 
   void _fitMapToRoute() {
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (!_isDisposed && routePolyline.length > 1) {
-        final bounds = LatLngBounds.fromPoints(routePolyline);
+      if (!_isDisposed && initialRoutePolyline.length > 1) {
+        final bounds = LatLngBounds.fromPoints(initialRoutePolyline);
         mapController.fitCamera(
           CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(100)),
         );
@@ -123,84 +116,6 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
     }
     
     return closestIndex;
-  }
-
-  Future<void> _snapAndRecalculateRoute(LatLng vehicleLocation) async {
-    if (_isDisposed || _isCalculatingRoute) return;
-
-    if (_lastSnappedVehicleLocation != null &&
-        _calculateDistanceKm(vehicleLocation, _lastSnappedVehicleLocation!) <
-            _minDistanceKmForRouteUpdate) {
-      return;
-    }
-
-    if (initialRoutePolyline.isEmpty) {
-      return;
-    }
-
-    _isCalculatingRoute = true;
-
-    try {
-      final snappedVehicle = await _routeService.snapToRoad(vehicleLocation);
-      
-      final closestIndex = _findClosestIndexOnRoute(snappedVehicle);
-      final closestPoint = initialRoutePolyline[closestIndex];
-      final distanceOffRoute = _calculateDistanceKm(snappedVehicle, closestPoint);
-
-      if (distanceOffRoute > _minDistanceKmFarOffRoute) {
-        if (!_isDisposed) setState(() => _isLoadingRoute = true);
-
-        try {
-          LatLng? effectiveEnd = _snappedEndLocation;
-          if (effectiveEnd == null && endPoint != null) {
-            effectiveEnd = await _routeService.snapToRoad(endPoint!);
-            _snappedEndLocation = effectiveEnd;
-          }
-
-          if (effectiveEnd != null) {
-            final newPolyline = await _routeService.getRouteThrough([
-              snappedVehicle,
-              effectiveEnd,
-            ]);
-
-            final travelledSegment = initialRoutePolyline.sublist(0, closestIndex + 1);
-
-            if (!_isDisposed) {
-              setState(() {
-                routePolyline = [...travelledSegment, ...newPolyline];
-                _lastSnappedVehicleLocation = snappedVehicle;
-                _isLoadingRoute = false;
-              });
-            }
-
-            print('[LiveTrackingMapPage] ✅ Route recalculated (far off): travelled ${travelledSegment.length}');
-          } else {
-            if (!_isDisposed) setState(() => _isLoadingRoute = false);
-          }
-        } catch (e) {
-          print('[LiveTrackingMapPage] ❌ Route recalculation error: $e');
-          if (!_isDisposed) setState(() => _isLoadingRoute = false);
-        }
-      } else {
-        final travelledRoute = initialRoutePolyline.sublist(0, closestIndex + 1);
-        final remainingRoute = closestIndex + 1 < initialRoutePolyline.length
-            ? initialRoutePolyline.sublist(closestIndex + 1)
-            : [];
-
-        if (!_isDisposed) {
-          setState(() {
-            routePolyline = [...travelledRoute, ...remainingRoute];
-            _lastSnappedVehicleLocation = snappedVehicle;
-          });
-        }
-
-        print('[LiveTrackingMapPage] ✅ Route updated: travelled ${travelledRoute.length}, remaining ${remainingRoute.length}');
-      }
-    } catch (e) {
-      print('[LiveTrackingMapPage] ❌ Route update error: $e');
-    } finally {
-      _isCalculatingRoute = false;
-    }
   }
 
   void _setupSocketListener() {
@@ -238,15 +153,21 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
               });
             }
 
-            _snapAndRecalculateRoute(newLocation);
-
             bool shouldAutoZoom = !_userHasZoomed ||
                 (_lastUserInteraction != null &&
                     DateTime.now().difference(_lastUserInteraction!).inSeconds > 30);
 
             if (shouldAutoZoom && !_isDisposed) {
-              mapController.move(newLocation, 15.0);
-              _userHasZoomed = false;
+              final currentZoom = mapController.camera.zoom;
+              final currentCenter = mapController.camera.center;
+              final distance = _calculateDistanceKm(currentCenter, newLocation);
+
+              // Only move if the vehicle has moved significantly (e.g., > 5 meters)
+              // to avoid constant map "refreshing" and jittering
+              if (distance > 0.005) {
+                mapController.move(newLocation, currentZoom);
+                _userHasZoomed = false;
+              }
             }
 
             print('[LiveTrackingMapPage] 📍 Vehicle updated: ${newLocation.latitude}, ${newLocation.longitude}');
@@ -259,8 +180,6 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
   }
 
   Future<void> _extractRouteData() async {
-    if (!_isDisposed) setState(() => _isLoadingRoute = true);
-
     try {
       if (widget.endLocation != null) {
         endPoint = LatLng(
@@ -275,7 +194,6 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
             .toList();
 
         startPoint = rawPoints.first;
-        _lastSnappedVehicleLocation = startPoint;
 
         final pointsToRoute = List<LatLng>.from(rawPoints);
         
@@ -286,22 +204,13 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
           pointsToRoute.add(endPoint!);
         }
 
-        routePolyline = await _routeService.getRouteThrough(pointsToRoute);
-        initialRoutePolyline = List.from(routePolyline);
+        initialRoutePolyline = await _routeService.getRouteThrough(pointsToRoute);
 
-        if (endPoint != null) {
-          _snappedEndLocation = await _routeService.snapToRoad(endPoint!);
-        }
-
-        print('[LiveTrackingMapPage] ✅ Initial route loaded: ${routePolyline.length} points (${pointsToRoute.length} waypoints)');
+        print('[LiveTrackingMapPage] ✅ Initial route loaded: ${initialRoutePolyline.length} points (${pointsToRoute.length} waypoints)');
         _fitMapToRoute();
-      } else if (endPoint != null) {
-        _snappedEndLocation = await _routeService.snapToRoad(endPoint!);
       }
     } catch (e) {
       print('[LiveTrackingMapPage] ❌ Route extraction error: $e');
-    } finally {
-      if (!_isDisposed) setState(() => _isLoadingRoute = false);
     }
 
     if (widget.stops != null && widget.stops!.isNotEmpty) {
@@ -550,14 +459,10 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
     _socketIOService.removeFrameUpdateListener(_frameUpdateCallback);
     _socketIOService.removeConnectionStateListener(_connectionStateCallback);
     currentLocation = null;
-    _lastSnappedVehicleLocation = null;
-    _snappedEndLocation = null;
     currentFrameData = null;
     _isConnected = false;
     _userHasZoomed = false;
-    _isCalculatingRoute = false;
     _lastUserInteraction = null;
-    routePolyline.clear();
     initialRoutePolyline.clear();
     mapController.dispose();
     _pulseAnimationController.dispose();
@@ -613,11 +518,11 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
                 subdomains: const ['a', 'b', 'c'],
                 userAgentPackageName: 'com.trackify.driver',
               ),
-              if (routePolyline.isNotEmpty)
+              if (initialRoutePolyline.isNotEmpty)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: routePolyline,
+                      points: initialRoutePolyline,
                       color: Colors.blue,
                       strokeWidth: 5 * scale,
                       strokeCap: StrokeCap.round,
@@ -695,13 +600,6 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
               ),
             ],
           ),
-          if (_isLoadingRoute)
-            Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
           Positioned(
             top: 0,
             left: 0,
@@ -780,9 +678,11 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        final center = currentLocation ?? mapController.camera.center;
-                        final newZoom = mapController.camera.zoom + 1;
-                        mapController.move(center, newZoom);
+                        final target = currentLocation ?? mapController.camera.center;
+                        final currentZoom = mapController.camera.zoom;
+                        if (currentZoom >= 18.0) return; // Stay there if maximum zoom reached
+                        
+                        mapController.move(target, currentZoom + 1);
                       },
                       borderRadius: BorderRadius.circular(12 * scale),
                       child: Padding(
@@ -802,9 +702,9 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage>
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        final center = currentLocation ?? mapController.camera.center;
-                        final newZoom = mapController.camera.zoom - 1;
-                        mapController.move(center, newZoom);
+                        final target = currentLocation ?? mapController.camera.center;
+                        final currentZoom = mapController.camera.zoom;
+                        mapController.move(target, currentZoom - 1);
                       },
                       borderRadius: BorderRadius.circular(12 * scale),
                       child: Padding(

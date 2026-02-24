@@ -48,7 +48,9 @@ class _DriverHomeMapPageState extends State<DriverHomeMapPage> {
           Builder(builder: (context) {
             // Determine initial center once
             LatLng center = const LatLng(11.1271, 78.6569);
-            if (controller.startLocation.value != null) {
+            if (controller.activeTrip.value != null && controller.vehicleLocation.value != null) {
+              center = controller.vehicleLocation.value!;
+            } else if (controller.startLocation.value != null) {
               center = controller.startLocation.value!;
             }
 

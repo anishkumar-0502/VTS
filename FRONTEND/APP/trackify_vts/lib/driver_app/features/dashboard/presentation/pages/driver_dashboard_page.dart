@@ -2317,16 +2317,24 @@ class _FullScreenMapState extends State<_FullScreenMap> {
   }
 
   void _zoomIn() {
+    if (widget.points.isEmpty) return;
+    final startPoint = LatLng(widget.points.first.latitude, widget.points.first.longitude);
+    
+    if (_currentZoom >= 18.0) return; // Stay there if maximum zoom reached
+
     setState(() {
       _currentZoom += 1;
-      _mapController.move(_mapController.camera.center, _currentZoom);
+      _mapController.move(startPoint, _currentZoom);
     });
   }
 
   void _zoomOut() {
+    if (widget.points.isEmpty) return;
+    final startPoint = LatLng(widget.points.first.latitude, widget.points.first.longitude);
+
     setState(() {
       _currentZoom -= 1;
-      _mapController.move(_mapController.camera.center, _currentZoom);
+      _mapController.move(startPoint, _currentZoom);
     });
   }
 
