@@ -13,6 +13,8 @@ class TripStop {
   final bool isChildStop; 
   final bool isReminder; // Added this field to fix UI error
   final bool isUserStop;
+  final bool isStopReached;
+  final bool isStopCrossed;
 
   TripStop({
     required this.id,
@@ -26,6 +28,8 @@ class TripStop {
     this.isChildStop = false, 
     this.isReminder = false,
     this.isUserStop = false,
+    this.isStopReached = false,
+    this.isStopCrossed = false,
   });
 
   // Factory to create from the 'route_points' array in the current-trip API response
@@ -47,6 +51,8 @@ class TripStop {
       isChildStop: json['is_child_stop'] as bool? ?? false, 
       isReminder: json['is_reminder'] as bool? ?? false,
       isUserStop: json['is_user_stop'] as bool? ?? false,
+      isStopReached: json['is_stop_reached'] as bool? ?? false,
+      isStopCrossed: json['is_stop_crossed'] as bool? ?? false,
     );
   }
 }
@@ -181,7 +187,11 @@ class ParentLiveTripData {
 
   // Factory to create the BASE data from the current-trip API (API 1)
   factory ParentLiveTripData.fromCurrentTripJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>? ?? {};
+    final rawData = json['data'];
+    if (rawData == null || rawData is! Map || (rawData as Map).isEmpty) {
+      throw Exception('Invalid trip data: expected non-empty Map');
+    }
+    final data = rawData as Map<String, dynamic>;
     
     final driverId = data['driver_id']?.toString() ?? 'N/A';
     final routePointsData = data['route_points'] as List? ?? [];

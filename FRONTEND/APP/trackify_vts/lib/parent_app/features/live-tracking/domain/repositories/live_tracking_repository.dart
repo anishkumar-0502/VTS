@@ -24,7 +24,8 @@ class LiveTrackingRepositoryImpl implements LiveTrackingRepository {
   @override
   Future<ParentLiveTripData?> fetchBaseTripData(String token, String childId) async {
     final response = await _api.getCurrentTrip(token, childId);
-    if (response['data'] == null) {
+    final data = response['data'];
+    if (data == null || data is! Map || (data as Map).isEmpty) {
       return null;
     }
     return ParentLiveTripData.fromCurrentTripJson(response);

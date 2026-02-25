@@ -700,38 +700,28 @@ class _DriverHomeMapPageState extends State<DriverHomeMapPage> {
 
                                   // Stop name and Landmark
                                   Expanded(
-                                    child: Row(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              stop.name,
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 14 * scale,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-
-                                            ),
-                                            // Text(
-                                            //   stop.landmark ?? '',                                              style: GoogleFonts.poppins(
-                                            //     fontSize: 14 * scale,
-                                            //     fontWeight: FontWeight.w500,
-                                            //   ),
-                                            //
-                                            // ),
-
-                                          ],
+                                        Text(
+                                          stop.name,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14 * scale,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        // Text(
-                                        //  stop.approximateReachTime ?? '--',
-                                        //   style: GoogleFonts.poppins(
-                                        //     fontSize: 14 * scale,
-                                        //     fontWeight: FontWeight.w500,
-                                        //   ),
-                                        //
-                                        // ),
+                                        if (stop.landmark != null && stop.landmark!.isNotEmpty)
+                                          Text(
+                                            stop.landmark!,
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12 * scale,
+                                              color: Colors.grey[600],
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                       ],
                                     ),
                                   ),

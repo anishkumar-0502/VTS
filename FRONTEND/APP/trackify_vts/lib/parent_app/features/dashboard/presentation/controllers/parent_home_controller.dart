@@ -17,7 +17,7 @@ import '../../../../../services/socket_io_service.dart';
 import '../../../../../services/open_route_service.dart';
 import '../../../../../core/core.dart';
 
-enum MapFocusMode { vehicle, userStop }
+enum MapFocusMode { vehicle, userStop, startLocation }
 
 class ParentHomeController extends GetxController
     with WidgetsBindingObserver, GetTickerProviderStateMixin {
@@ -35,6 +35,7 @@ class ParentHomeController extends GetxController
   final Rx<CurrentTrip?> currentTrip = Rxn<CurrentTrip>();
   final RxBool isFetchingTrip = false.obs;
   final RxString tripError = ''.obs;
+  final RxBool isServerError = false.obs;
   final RxBool isUpcomingTrip = false.obs;
 
   final Rx<ParentLiveTripData?> tripMapData = Rxn<ParentLiveTripData>();
@@ -46,7 +47,7 @@ class ParentHomeController extends GetxController
   final RxList<LatLng> routePolylinePoints = <LatLng>[].obs;
 
   final Rx<ParentProfileData?> parentProfile = Rxn<ParentProfileData>();
-  final Rx<MapFocusMode> mapFocusMode = MapFocusMode.vehicle.obs;
+  final Rx<MapFocusMode> mapFocusMode = MapFocusMode.startLocation.obs;
 
   IO.Socket? socket;
   final RxBool isSocketConnected = false.obs;
@@ -64,6 +65,8 @@ class ParentHomeController extends GetxController
   final RxBool isInitializationComplete = false.obs;
   final RxBool pageVisibilityTrigger = false.obs;
   final RxBool showRouteBanner = false.obs;
+  final RxString flashMessage = ''.obs;
+  final RxString flashMessageType = 'info'.obs; // info, success, warning, error
   Timer? _bannerTimer;
   final MapController mapController = MapController();
   MapController? fullscreenMapController;
@@ -93,15 +96,10 @@ class ParentHomeController extends GetxController
 
    ever(tripMapData, (data) {
   if (data != null && !_autoFitLocked) {
-    if (isUpcomingTrip.value) {
-      _autoFitLocked = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        fitMapToRoute();
-      });
-    } else {
-      // For active trips, we let the vehicleLocation listener handle the first zoom
-      debugPrint('[ParentHome] Active trip map data loaded. Waiting for vehicle location for auto-zoom.');
-    }
+    _autoFitLocked = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      fitMapToRoute();
+    });
   }
 });
 
@@ -160,14 +158,8 @@ class ParentHomeController extends GetxController
       await fetchCurrentTrip();
       await fetchTripMapData();
 
-      if (isUpcomingTrip.value) {
-        debugPrint(
-          '[ParentHome] Upcoming trip detected. Skipping socket connection.',
-        );
-      } else {
-        debugPrint('[ParentHome] Active trip detected. Connecting to socket.');
-        _setupSocketConnection();
-      }
+      debugPrint('[ParentHome] Initializing socket connection for trip tracking.');
+      _setupSocketConnection();
     } catch (e) {
       debugPrint('[Home] Error during initialization: $e');
     } finally {
@@ -189,6 +181,7 @@ class ParentHomeController extends GetxController
 
   Future<void> fetchCurrentTrip({bool showLoading = false}) async {
     try {
+      isServerError.value = false;
       final token = sessionController.token.value;
       if (token.isEmpty) {
         debugPrint('[Home] No authentication token');
@@ -217,13 +210,22 @@ class ParentHomeController extends GetxController
       } else {
         debugPrint('[Home] Error fetching trip: ${response.message}');
         tripError.value = response.message;
+        currentTrip.value = null; // Ensure it is cleared
+        tripMapData.value = null; // Also clear map data if trip is gone
       }
     } on exceptions.HttpException catch (e) {
       debugPrint('[Home] HttpException: $e');
       tripError.value = e.message;
+      if (e.statusCode == 503 || e.message.toLowerCase().contains('unable to reach')) {
+        isServerError.value = true;
+      }
+      currentTrip.value = null;
+      tripMapData.value = null;
     } catch (e) {
       debugPrint('[Home] Exception: $e');
       tripError.value = '';
+      currentTrip.value = null;
+      tripMapData.value = null;
     } finally {
       if (showLoading) isFetchingTrip.value = false;
     }
@@ -231,6 +233,7 @@ class ParentHomeController extends GetxController
 
   Future<void> fetchTripMapData({bool showLoading = false}) async {
     try {
+      isServerError.value = false;
       final token = sessionController.token.value;
       if (token.isEmpty) {
         debugPrint('[Home] ❌ No token for trip map data');
@@ -302,7 +305,7 @@ class ParentHomeController extends GetxController
             timeline:
                 trip.routePoints
                     .map(
-                      (rp) => TripStop(
+                      (TripRoutePoint rp) => TripStop(
                         id: rp.stopId,
                         name: rp.name,
                         location: LatLng(rp.latitude, rp.longitude),
@@ -312,6 +315,8 @@ class ParentHomeController extends GetxController
                         scheduledTime: rp.approximateReachTime ?? '',
                         isCompleted: rp.status == 'completed',
                         isUserStop: rp.isUserStop,
+                        isStopReached: rp.isStopReached,
+                        isStopCrossed: rp.isStopCrossed,
                       ),
                     )
                     .toList(),
@@ -396,44 +401,72 @@ class ParentHomeController extends GetxController
       );
       debugPrint('[Home] Status Code: ${e.statusCode}');
       tripMapError.value = e.message;
+      if (e.statusCode == 503 || e.message.toLowerCase().contains('unable to reach')) {
+        isServerError.value = true;
+      }
+      tripMapData.value = null;
       if (showLoading) isFetchingTripMap.value = false;
     } catch (e, stackTrace) {
       debugPrint('[Home] ❌ Exception in fetchTripMapData: $e');
       debugPrint('[Home] Stack trace: $stackTrace');
       tripMapError.value = e.toString();
+      tripMapData.value = null;
       if (showLoading) isFetchingTripMap.value = false;
     }
   }
 
   Future<void> _generateRoutePolyline(ParentLiveTripData tripData) async {
+    final isPickup = tripData.tripType?.toLowerCase() == 'pickup';
+    final isDrop = tripData.tripType?.toLowerCase() == 'drop';
+    
+    debugPrint('[Home] 🛣️ Generating straight-line route for ${tripData.tripType}...');
+
+    // Find user target stop index in timeline
+    int userStopIndex = tripData.timeline.indexWhere((stop) => stop.isUserStop);
+
+    final List<LatLng> coordinates = [];
+    
+    if (isPickup) {
+      // Full route for Pickup: From Start Location to All Stops to End Location (School)
+      coordinates.add(tripData.startLocation);
+      coordinates.addAll(tripData.timeline.map((s) => s.location));
+      coordinates.add(tripData.endLocation);
+    } else if (isDrop) {
+      // From Start Location (School) to User Stop
+      coordinates.add(tripData.startLocation);
+      if (userStopIndex != -1) {
+        for (int i = 0; i <= userStopIndex; i++) {
+          coordinates.add(tripData.timeline[i].location);
+        }
+      }
+    } else {
+      // Default: Full trip
+      coordinates.add(tripData.startLocation);
+      coordinates.addAll(tripData.timeline.map((s) => s.location));
+      coordinates.add(tripData.endLocation);
+    }
+
+    if (coordinates.isEmpty) {
+      coordinates.add(tripData.startLocation);
+      coordinates.add(tripData.endLocation);
+    }
+
     try {
-      debugPrint('[Home] 🛣️ Generating route polyline through all stops...');
-
-      final coordinates = [
-        tripData.startLocation,
-        ...tripData.timeline.map((stop) => stop.location),
-        tripData.endLocation,
-      ];
-
-      debugPrint('[Home] 🛣️ Route coordinates count: ${coordinates.length}');
-
-      final polylinePoints = await _openRouteService.getRouteThrough(
-        coordinates,
-      );
-
-      routePolylinePoints.value = polylinePoints;
-      debugPrint(
-        '[Home] ✅ Route polyline generated with ${polylinePoints.length} points',
-      );
+      debugPrint('[Home] 🛣️ Fetching road-following route for ${coordinates.length} points');
+      final roadPoints = await _openRouteService.getRouteThrough(coordinates);
+      if (roadPoints.isNotEmpty) {
+        routePolylinePoints.value = roadPoints;
+        debugPrint('[Home] ✅ Road-following route generated with ${roadPoints.length} points');
+      } else {
+        // Fallback to straight lines if road points empty
+        routePolylinePoints.value = coordinates;
+        debugPrint('[Home] ⚠️ Empty road points, falling back to straight lines');
+      }
     } catch (e) {
-      debugPrint('[Home] ❌ Error generating route polyline: $e');
-      final coordinates = [
-        tripData.startLocation,
-        ...tripData.timeline.map((stop) => stop.location),
-        tripData.endLocation,
-      ];
+      debugPrint('[Home] ❌ Error generating road route: $e');
+      // Fallback to straight lines
       routePolylinePoints.value = coordinates;
-      debugPrint('[Home] ℹ️ Using straight-line route as fallback');
+      debugPrint('[Home] ⚠️ Falling back to straight-line route');
     }
   }
 
@@ -460,6 +493,7 @@ class ParentHomeController extends GetxController
 
   Future<void> _fetchProfileAndGetVehicleId() async {
     try {
+      isServerError.value = false;
       final token = sessionController.token.value;
       if (token.isEmpty) {
         debugPrint('[ParentHome] ❌ No token available for profile fetch');
@@ -500,6 +534,9 @@ class ParentHomeController extends GetxController
       }
     } catch (e, stackTrace) {
       debugPrint('[ParentHome] ❌ Error fetching profile: $e');
+      if (e.toString().toLowerCase().contains('unable to reach')) {
+        isServerError.value = true;
+      }
       debugPrint('[ParentHome] Stack trace: $stackTrace');
     }
   }
@@ -531,6 +568,44 @@ class ParentHomeController extends GetxController
 
   void _handleSocketData(Map data) {
     try {
+      final type = (data['type'] ?? data['event'])?.toString();
+      
+      // Handle Trip Started and Stop Reached messages
+      final isPickup = tripMapData.value?.tripType?.toLowerCase() == 'pickup';
+      final tripPrefix = isPickup ? 'Pick up' : 'Drop';
+
+      if (type == 'trip_started') {
+        debugPrint('═══════════════════════════════════════════════════════');
+        debugPrint('[ParentHome] 🚀 TRIP STARTED EVENT RECEIVED');
+        debugPrint('[ParentHome] Frame Data: $data');
+        debugPrint('═══════════════════════════════════════════════════════');
+        
+        // Extract tripId from nested data if available, otherwise from top level
+        final eventData = data['data'];
+        final tripId = (eventData is Map ? eventData['tripId'] ?? eventData['trip_id'] : data['tripId'] ?? data['trip_id'])?.toString();
+        
+        if (tripId != null && currentTrip.value != null) {
+          final currentTripId = currentTrip.value!.tripId;
+          debugPrint('[ParentHome] Comparing tripId: $tripId with current: $currentTripId');
+          
+          if (tripId == currentTripId) {
+            debugPrint('[ParentHome] ✅ Match! Refreshing trip data...');
+            isUpcomingTrip.value = false; // Immediately clear upcoming status for UI
+            fetchCurrentTrip(showLoading: true);
+            fetchTripMapData(showLoading: true);
+          }
+        }
+
+        flashMessage.value = '$tripPrefix: Trip started';
+        flashMessageType.value = 'success';
+        showRouteBannerTemporarily();
+      } else if (type == 'reached') {
+        final stopName = data['name']?.toString() ?? 'Stop';
+        flashMessage.value = '$tripPrefix: $stopName reached';
+        flashMessageType.value = 'info';
+        showRouteBannerTemporarily();
+      }
+
       final vehicleId =
           (data['vehicleId'] ?? data['vehicle_id'] ?? data['id'])?.toString();
       final gpsDeviceId = data['gpsDeviceId']?.toString();
@@ -661,6 +736,10 @@ class ParentHomeController extends GetxController
     try {
       final currentCenter = activeController.camera.center;
       final currentZoomValue = activeController.camera.zoom;
+      
+      if (currentZoomValue.isNaN || currentZoomValue.isInfinite) return;
+      if (currentCenter.latitude == 0.0 && currentCenter.longitude == 0.0) return;
+
       activeController.move(currentCenter, currentZoomValue + 0.0001);
       Future.delayed(const Duration(milliseconds: 100), () {
         activeController.move(currentCenter, currentZoomValue);
@@ -691,6 +770,14 @@ class ParentHomeController extends GetxController
         }
       } else {
         targetPos = targetLocation.value;
+      }
+    } else if (mapFocusMode.value == MapFocusMode.startLocation) {
+      final trip = tripMapData.value;
+      if (trip != null) {
+        targetPos = trip.startLocation;
+      } else {
+        // Fallback to center point or some reasonable default
+        targetPos = activeController.camera.center;
       }
     } else {
       targetPos = vehicleLocation.value ??
@@ -729,56 +816,27 @@ class ParentHomeController extends GetxController
     final trip = tripMapData.value;
     if (trip == null) {
       if (targetLocation.value != null) {
-        animatedMapMove(targetLocation.value!, 16.0);
+        animatedMapMove(targetLocation.value!, 14.5, offset: const Offset(0, -0.005));
       }
       return;
     }
 
     try {
       final userStop = trip.timeline.firstWhere((stop) => stop.isUserStop);
-      animatedMapMove(userStop.location, 16.0);
+      animatedMapMove(userStop.location, 14.5, offset: const Offset(0, -0.005));
     } catch (e) {
       // No user stop found, fallback to targetLocation
       if (targetLocation.value != null) {
-        animatedMapMove(targetLocation.value!, 16.0);
+        animatedMapMove(targetLocation.value!, 14.5, offset: const Offset(0, -0.005));
       }
     }
   }
 
   void fitMapToRoute() {
-    if (routePolylinePoints.isEmpty && tripMapData.value == null) return;
-
-    final List<LatLng> points =
-        routePolylinePoints.isNotEmpty
-            ? routePolylinePoints
-            : [
-              tripMapData.value!.startLocation,
-              ...tripMapData.value!.timeline.map((s) => s.location),
-              tripMapData.value!.endLocation,
-            ];
-
-    if (points.isEmpty) return;
-
-    final bounds = LatLngBounds.fromPoints(points);
-    activeController.fitCamera(
-      CameraFit.bounds(
-        bounds: bounds,
-        padding:
-            isRouteStopsCollapsed.value
-                ? const EdgeInsets.only(
-                  top: 100,
-                  bottom: 100,
-                  left: 50,
-                  right: 50,
-                )
-                : const EdgeInsets.only(
-                  top: 50,
-                  bottom: 400,
-                  left: 50,
-                  right: 50,
-                ),
-      ),
-    );
+    if (tripMapData.value == null) return;
+    
+    // Default focus to start location at zoom 16
+    animatedMapMove(tripMapData.value!.startLocation, 16.0, offset: const Offset(0, -0.003));
   }
 
   void fitMapToVehicle() {
@@ -789,7 +847,7 @@ class ParentHomeController extends GetxController
             : null);
 
     if (location != null) {
-      animatedMapMove(location, 16.0);
+      animatedMapMove(location, 14.5, offset: const Offset(0, -0.005));
     } else {
       debugPrint('[ParentHome] Vehicle location not available for fitting');
       fitMapToRoute();

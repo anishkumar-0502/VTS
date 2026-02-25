@@ -402,13 +402,16 @@ class TripVehicleDetails {
     }
 
     return TripVehicleDetails(
-      id: (json['_id'] as dynamic)?.toString() ?? '',
+      id: (json['_id'] ?? json['id'] as dynamic)?.toString() ?? '',
       vehicleNumber: (json['vehicle_number'] as dynamic)?.toString() ?? '',
       operatorId: (json['operator_id'] as dynamic)?.toString() ?? '',
       assignedDeviceId: (json['assigned_device_id'] as dynamic)?.toString() ?? '',
       vehicleType: (json['vehicle_type'] as dynamic)?.toString() ?? '',
       assignedDriverId: (json['assigned_driver_id'] as dynamic)?.toString() ?? '',
-      endUserIds: json['end_user_ids'] != null ? (json['end_user_ids'] as List).map((e) => e.toString()).toList() : [],
+      endUserIds:
+          json['end_user_ids'] != null
+              ? List<String>.from(json['end_user_ids'])
+              : const [],
       capacity: _toInt(json['capacity']),
       currentStatus: (json['current_status'] as dynamic)?.toString() ?? '',
       status: json['status'] as bool? ?? false,
@@ -424,14 +427,14 @@ class TripVehicleDetails {
       latitude: _toDouble(json['latitude']),
       longitude: _toDouble(json['longitude']),
       currentTripId: (json['current_trip_id'] as dynamic)?.toString() ?? '',
-      deviceId: (json['device_id'] as dynamic)?.toString() ?? '',
-      driverId: (json['driver_id'] as dynamic)?.toString() ?? '',
+      deviceId: (json['deviceId'] as dynamic)?.toString() ?? '',
+      driverId: (json['driverId'] as dynamic)?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      '_id': id,
+      'id': id,
       'vehicle_number': vehicleNumber,
       'operator_id': operatorId,
       'assigned_device_id': assignedDeviceId,
@@ -453,8 +456,8 @@ class TripVehicleDetails {
       'latitude': latitude,
       'longitude': longitude,
       'current_trip_id': currentTripId,
-      'device_id': deviceId,
-      'driver_id': driverId,
+      'deviceId': deviceId,
+      'driverId': driverId,
     };
   }
 }
@@ -463,11 +466,8 @@ class TripPassenger {
   final Location pickupStop;
   final Location dropStop;
   final String userId;
-  final String? name;
-  final String? phoneNumber;
   final bool pickedUp;
   final bool dropped;
-  final String? parentContact;
   final bool parentConfirmedPickup;
   final bool parentConfirmedDropoff;
   final bool notificationSentBeforePickup;
@@ -479,11 +479,8 @@ class TripPassenger {
     required this.pickupStop,
     required this.dropStop,
     required this.userId,
-    this.name,
-    this.phoneNumber,
     required this.pickedUp,
     required this.dropped,
-    this.parentContact,
     required this.parentConfirmedPickup,
     required this.parentConfirmedDropoff,
     required this.notificationSentBeforePickup,
@@ -494,18 +491,11 @@ class TripPassenger {
 
   factory TripPassenger.fromJson(Map<String, dynamic> json) {
     return TripPassenger(
-      pickupStop: json['pickup_stop'] != null
-          ? Location.fromJson(json['pickup_stop'] as Map<String, dynamic>)
-          : Location(latitude: 0.0, longitude: 0.0, address: '', name: ''),
-      dropStop: json['drop_stop'] != null
-          ? Location.fromJson(json['drop_stop'] as Map<String, dynamic>)
-          : Location(latitude: 0.0, longitude: 0.0, address: '', name: ''),
+      pickupStop: Location.fromJson(json['pickup_stop'] as Map<String, dynamic>),
+      dropStop: Location.fromJson(json['drop_stop'] as Map<String, dynamic>),
       userId: (json['user_id'] as dynamic)?.toString() ?? '',
-      name: json['name'] != null ? (json['name'] as dynamic)?.toString() : null,
-      phoneNumber: json['phone_number'] != null ? (json['phone_number'] as dynamic)?.toString() : null,
       pickedUp: json['picked_up'] as bool? ?? false,
       dropped: json['dropped'] as bool? ?? false,
-      parentContact: json['parent_contact'] != null ? (json['parent_contact'] as dynamic)?.toString() : null,
       parentConfirmedPickup: json['parent_confirmed_pickup'] as bool? ?? false,
       parentConfirmedDropoff: json['parent_confirmed_dropoff'] as bool? ?? false,
       notificationSentBeforePickup: json['notification_sent_before_pickup'] as bool? ?? false,
@@ -520,17 +510,14 @@ class TripPassenger {
       'pickup_stop': pickupStop.toJson(),
       'drop_stop': dropStop.toJson(),
       'user_id': userId,
-      'name': name,
-      'phone_number': phoneNumber,
       'picked_up': pickedUp,
       'dropped': dropped,
-      'parent_contact': parentContact,
       'parent_confirmed_pickup': parentConfirmedPickup,
       'parent_confirmed_dropoff': parentConfirmedDropoff,
       'notification_sent_before_pickup': notificationSentBeforePickup,
       'notification_sent_before_dropoff': notificationSentBeforeDropoff,
       'geofence_exit_alert_sent': geofenceExitAlertSent,
-      '_id': id,
+      'id': id,
     };
   }
 }
@@ -555,6 +542,8 @@ class TripRoutePoint {
   final List<dynamic> photoNotes;
   final List<dynamic> incidents;
   final bool isUserStop;
+  final bool isStopReached;
+  final bool isStopCrossed;
 
   TripRoutePoint({
     required this.stopId,
@@ -576,6 +565,8 @@ class TripRoutePoint {
     required this.photoNotes,
     required this.incidents,
     this.isUserStop = false,
+    this.isStopReached = false,
+    this.isStopCrossed = false,
   });
 
   factory TripRoutePoint.fromJson(Map<String, dynamic> json) {
@@ -615,6 +606,8 @@ class TripRoutePoint {
       photoNotes: (json['photo_notes'] as List<dynamic>?) ?? [],
       incidents: (json['incidents'] as List<dynamic>?) ?? [],
       isUserStop: json['is_user_stop'] as bool? ?? false,
+      isStopReached: json['is_stop_reached'] as bool? ?? false,
+      isStopCrossed: json['is_stop_crossed'] as bool? ?? false,
     );
   }
 
@@ -639,42 +632,9 @@ class TripRoutePoint {
       'photo_notes': photoNotes,
       'incidents': incidents,
       'is_user_stop': isUserStop,
+      'is_stop_reached': isStopReached,
+      'is_stop_crossed': isStopCrossed,
     };
-  }
-}
-
-class TripAnalytics {
-  final String tripId;
-  final String vehicleId;
-  final String driverId;
-  final String startTime;
-  final int speedViolationsCount;
-  final int routeDeviationsCount;
-  final int totalStops;
-  final int trackingPoints;
-
-  TripAnalytics({
-    required this.tripId,
-    required this.vehicleId,
-    required this.driverId,
-    required this.startTime,
-    required this.speedViolationsCount,
-    required this.routeDeviationsCount,
-    required this.totalStops,
-    required this.trackingPoints,
-  });
-
-  factory TripAnalytics.fromJson(Map<String, dynamic> json) {
-    return TripAnalytics(
-      tripId: (json['trip_id'] as dynamic)?.toString() ?? '',
-      vehicleId: (json['vehicle_id'] as dynamic)?.toString() ?? '',
-      driverId: (json['driver_id'] as dynamic)?.toString() ?? '',
-      startTime: (json['start_time'] as dynamic)?.toString() ?? '',
-      speedViolationsCount: (json['speed_violations_count'] as num?)?.toInt() ?? 0,
-      routeDeviationsCount: (json['route_deviations_count'] as num?)?.toInt() ?? 0,
-      totalStops: (json['total_stops'] as num?)?.toInt() ?? 0,
-      trackingPoints: (json['tracking_points'] as num?)?.toInt() ?? 0,
-    );
   }
 }
 
@@ -686,132 +646,73 @@ class SOSContact {
 
   factory SOSContact.fromJson(Map<String, dynamic> json) {
     return SOSContact(
-      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
-      phoneNumber: json['phone_number'] != null
-          ? int.tryParse(json['phone_number'].toString()) ?? 0
-          : 0,
+      name: (json['name'] as dynamic)?.toString() ?? '',
+      phoneNumber: (json['phone_number'] as num?)?.toInt() ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'phone_number': phoneNumber,
-    };
-  }
-}
-
-class VehicleDetails {
-  final String id;
-  final String vehicleNumber;
-  final String vehicleType;
-  final String status;
-  final String? currentStatus;
-  final int? seatingCapacity;
-  final String? registrationNumber;
-  final String? color;
-  final String? assignedDeviceId;
-
-  VehicleDetails({
-    required this.id,
-    required this.vehicleNumber,
-    required this.vehicleType,
-    required this.status,
-    this.currentStatus,
-    this.seatingCapacity,
-    this.registrationNumber,
-    this.color,
-    this.assignedDeviceId,
-  });
-
-  factory VehicleDetails.fromJson(Map<String, dynamic> json) {
-    return VehicleDetails(
-      id: (json['id'] as dynamic)?.toString() ?? '',
-      vehicleNumber: (json['vehicle_number'] as dynamic)?.toString() ?? '',
-      vehicleType: (json['vehicle_type'] as dynamic)?.toString() ?? '',
-      status: (json['status'] as dynamic)?.toString() ?? '',
-      currentStatus: json['current_status'] != null ? (json['current_status'] as dynamic)?.toString() : null,
-      seatingCapacity: (json['seating_capacity'] as num?)?.toInt(),
-      registrationNumber: json['registration_number'] != null ? (json['registration_number'] as dynamic)?.toString() : null,
-      color: json['color'] != null ? (json['color'] as dynamic)?.toString() : null,
-      assignedDeviceId: json['assigned_device_id'] != null ? (json['assigned_device_id'] as dynamic)?.toString() : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'vehicle_number': vehicleNumber,
-      'vehicle_type': vehicleType,
-      'status': status,
-      'current_status': currentStatus,
-      'seating_capacity': seatingCapacity,
-      'registration_number': registrationNumber,
-      'color': color,
-      'assigned_device_id': assignedDeviceId,
-    };
+    return {'name': name, 'phone_number': phoneNumber};
   }
 }
 
 class EndUserProfile {
-  final String id;
+  final String endUserId;
   final String name;
-  final String email;
   final int? phoneNumber;
+  final String operatorId;
+  final String? profileImage;
 
   EndUserProfile({
-    required this.id,
+    required this.endUserId,
     required this.name,
-    required this.email,
     this.phoneNumber,
+    required this.operatorId,
+    this.profileImage,
   });
 
   factory EndUserProfile.fromJson(Map<String, dynamic> json) {
     return EndUserProfile(
-      id: json['id'] != null ? (json['id'] as dynamic)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
-      email: json['email'] != null ? (json['email'] as dynamic)?.toString() ?? '' : '',
-      phoneNumber: json['phone_number'] != null
-          ? int.tryParse(json['phone_number'].toString())
-          : null,
+      endUserId: (json['end_user_id'] as dynamic)?.toString() ?? '',
+      name: (json['name'] as dynamic)?.toString() ?? '',
+      phoneNumber: (json['phone_number'] as num?)?.toInt(),
+      operatorId: (json['operator_id'] as dynamic)?.toString() ?? '',
+      profileImage: json['profile_image']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      'end_user_id': endUserId,
       'name': name,
-      'email': email,
       'phone_number': phoneNumber,
+      'operator_id': operatorId,
+      'profile_image': profileImage,
     };
   }
 }
 
 class AssociatedUser {
-  final String id;
+  final String userId;
   final String name;
-  final String role;
+  final int phoneNumber;
 
   AssociatedUser({
-    required this.id,
+    required this.userId,
     required this.name,
-    required this.role,
+    required this.phoneNumber,
   });
 
   factory AssociatedUser.fromJson(Map<String, dynamic> json) {
     return AssociatedUser(
-      id: json['id'] != null ? (json['id'] as dynamic)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
-      role: json['role'] != null ? (json['role'] as dynamic)?.toString() ?? '' : '',
+      userId: (json['user_id'] as dynamic)?.toString() ?? '',
+      name: (json['name'] as dynamic)?.toString() ?? '',
+      phoneNumber: (json['phone_number'] as num?)?.toInt() ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'role': role,
-    };
+    return {'user_id': userId, 'name': name, 'phone_number': phoneNumber};
   }
 }
 
@@ -918,6 +819,7 @@ class CurrentTrip {
   Map<String, dynamic> toJson() {
     return {
       'trip_id': tripId,
+      'associated_trip_id': associatedTripId,
       'status': status,
       'current_location': currentLocation?.toJson(),
       'trip_details': tripDetails?.toJson(),
@@ -928,37 +830,8 @@ class CurrentTrip {
       'start_location': startLocation?.toJson(),
       'end_location': endLocation?.toJson(),
       'scheduled_trip_id': scheduledTripId,
+      'trip_type': tripType,
       'scheduled_start_time': scheduledStartTime,
-    };
-  }
-}
-
-class ChildProfile {
-  final String id;
-  final String name;
-  final int? phoneNumber;
-
-  ChildProfile({
-    required this.id,
-    required this.name,
-    this.phoneNumber,
-  });
-
-  factory ChildProfile.fromJson(Map<String, dynamic> json) {
-    return ChildProfile(
-      id: json['id'] != null ? (json['id'] as dynamic)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
-      phoneNumber: json['phone_number'] != null
-          ? int.tryParse(json['phone_number'].toString())
-          : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'phone_number': phoneNumber,
     };
   }
 }
@@ -984,12 +857,12 @@ class TrackChild {
 
   factory TrackChild.fromJson(Map<String, dynamic> json) {
     return TrackChild(
-      childId: json['child_id'] != null ? (json['child_id'] as dynamic)?.toString() ?? '' : '',
-      name: json['name'] != null ? (json['name'] as dynamic)?.toString() ?? '' : '',
+      childId: (json['child_id'] as dynamic)?.toString() ?? '',
+      name: (json['name'] as dynamic)?.toString() ?? 'N/A',
       currentLocation: json['current_location'] != null
           ? Location.fromJson(json['current_location'])
           : null,
-      status: json['status'] != null ? (json['status'] as dynamic)?.toString() ?? '' : '',
+      status: (json['status'] as dynamic)?.toString() ?? 'unknown',
       child: json['child'] != null
           ? ChildProfile.fromJson(json['child'])
           : ChildProfile(id: '', name: 'N/A', phoneNumber: null),
@@ -1065,19 +938,22 @@ class CurrentTripResponse {
             .toList();
         if (trips.isNotEmpty) {
           // Prefer active trips, otherwise take the first one
-          currentTrip = trips.firstWhere(
-            (t) => t.status.toLowerCase() == 'active' || t.status.toLowerCase() == 'in-progress',
-            orElse: () => trips.first,
-          );
+          try {
+            currentTrip = trips.firstWhere(
+              (t) => t.status.toLowerCase() == 'active' || t.status.toLowerCase() == 'in-progress',
+            );
+          } catch (e) {
+            currentTrip = trips.first;
+          }
         }
-      } else if (rawData is Map) {
+      } else if (rawData is Map && rawData.isNotEmpty) {
         currentTrip = CurrentTrip.fromJson(rawData as Map<String, dynamic>);
         trips = [currentTrip];
       }
     }
 
     return CurrentTripResponse(
-      error: json['error'] as bool? ?? true,
+      error: json['error'] as bool? ?? false,
       message: json['message'] as String? ?? '',
       data: currentTrip,
       allTrips: trips,
@@ -1118,6 +994,82 @@ class TrackChildResponse {
       'error': error,
       'message': message,
       'data': data?.toJson(),
+    };
+  }
+}
+
+class VehicleDetails {
+  final String id;
+  final String vehicleNumber;
+  final String vehicleType;
+  final String registrationNumber;
+  final String color;
+  final int seatingCapacity;
+  final String? assignedDeviceId;
+  final String? currentStatus;
+
+  VehicleDetails({
+    required this.id,
+    required this.vehicleNumber,
+    required this.vehicleType,
+    required this.registrationNumber,
+    required this.color,
+    required this.seatingCapacity,
+    this.assignedDeviceId,
+    this.currentStatus,
+  });
+
+  factory VehicleDetails.fromJson(Map<String, dynamic> json) {
+    return VehicleDetails(
+      id: (json['_id'] ?? json['id'] ?? json['vehicle_id'] as dynamic)?.toString() ?? '',
+      vehicleNumber: json['vehicle_number']?.toString() ?? '',
+      vehicleType: json['vehicle_type']?.toString() ?? '',
+      registrationNumber: json['registration_number']?.toString() ?? '',
+      color: json['color']?.toString() ?? '',
+      seatingCapacity: (json['seating_capacity'] as num?)?.toInt() ?? 0,
+      assignedDeviceId: json['assigned_device_id']?.toString(),
+      currentStatus: json['current_status']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'vehicle_number': vehicleNumber,
+      'vehicle_type': vehicleType,
+      'registration_number': registrationNumber,
+      'color': color,
+      'seating_capacity': seatingCapacity,
+      'assigned_device_id': assignedDeviceId,
+      'current_status': currentStatus,
+    };
+  }
+}
+
+class ChildProfile {
+  final String id;
+  final String name;
+  final int? phoneNumber;
+
+  ChildProfile({
+    required this.id,
+    required this.name,
+    this.phoneNumber,
+  });
+
+  factory ChildProfile.fromJson(Map<String, dynamic> json) {
+    return ChildProfile(
+      id: (json['_id'] ?? json['id'] ?? json['user_id'] as dynamic)?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      phoneNumber: (json['phone_number'] as num?)?.toInt(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'phone_number': phoneNumber,
     };
   }
 }

@@ -407,10 +407,19 @@ class DriverHomeMapController extends GetxController
       }
       
       // Add stops
-      // Filter out stops that are 0,0 or invalid if any
+      // Filter out stops that are 0,0 or excessively far from start (> 50km) to prevent loops
       for (var stop in stops) {
         if (stop.latitude != 0 && stop.longitude != 0) {
-           points.add(LatLng(stop.latitude, stop.longitude));
+           final stopLatLng = LatLng(stop.latitude, stop.longitude);
+           
+           if (startLocation.value != null) {
+              final distance = const Distance().as(LengthUnit.Kilometer, startLocation.value!, stopLatLng);
+              if (distance > 50) {
+                debugPrint('⚠️ Ignoring stop ${stop.name} - Too far ($distance km)');
+                continue;
+              }
+           }
+           points.add(stopLatLng);
         }
       }
       

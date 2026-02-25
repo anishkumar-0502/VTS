@@ -247,6 +247,19 @@ class SocketIOService {
       _updateVehicleLocation(data);
       _notifyFrameUpdateListeners(data);
     });
+
+    socket!.on('trip_started', (data) {
+      print('═══════════════════════════════════════════════════════════');
+      print('🚀 TRIP STARTED FRAME RECEIVED');
+      print('📦 Data: $data');
+      print('═══════════════════════════════════════════════════════════');
+      
+      // Ensure data has type for ParentHomeController handler
+      if (data is Map && !data.containsKey('type')) {
+        data['type'] = 'trip_started';
+      }
+      _notifyFrameUpdateListeners(data);
+    });
   }
 
   void _checkAndPrintMatchedFrame(String event, dynamic data) {

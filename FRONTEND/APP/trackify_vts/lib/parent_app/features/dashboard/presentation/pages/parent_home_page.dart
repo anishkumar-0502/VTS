@@ -611,6 +611,38 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
   }
 }
 
+class BlinkingMarker extends StatefulWidget {
+  final Widget child;
+  const BlinkingMarker({super.key, required this.child});
+
+  @override
+  State<BlinkingMarker> createState() => _BlinkingMarkerState();
+}
+
+class _BlinkingMarkerState extends State<BlinkingMarker> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _controller, child: widget.child);
+  }
+}
+
 class CurrentLocationMapWithSocket extends StatefulWidget {
   final LatLng initialLocation;
   final Color primaryColor;
@@ -669,7 +701,7 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
         _animateMapMove(widget.initialLocation, 15.0);
         controller.markAutoZoomComplete();
       } else if (!_isDisposed) {
-        // Even if not first login, animate to location on load for "focus over start location" effect
+        // Even if not first login, animate to location on load for focus effect
         _animateMapMove(widget.initialLocation, 15.0);
       }
     });
@@ -801,10 +833,12 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
             // Force a move with a tiny zoom change and delay to ensure the map is fully loaded and avoids grey tiles
             Future.delayed(const Duration(milliseconds: 300), () {
               if (mounted) {
-                mapController.move(displayLocation, 13.01);
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (mounted) mapController.move(displayLocation, 13.0);
-                });
+                if (displayLocation.latitude.isFinite && displayLocation.longitude.isFinite) {
+                  mapController.move(displayLocation, 13.01);
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    if (mounted) mapController.move(displayLocation, 13.0);
+                  });
+                }
               }
             });
           },
@@ -939,15 +973,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isDisposed) {
-        if (widget.controller.isUpcomingTrip.value) {
-          widget.controller.fitMapToRoute();
-        } else {
-          // For active trips, focus on live location if available
-          if (widget.controller.vehicleLocation.value != null) {
-            widget.controller.fitMapToVehicle();
-          }
-          // If null, we wait for the first socket update which will trigger auto-zoom
-        }
+        // We rely on onMapReady for the initial fit to ensure map is fully loaded
       }
     });
 
@@ -1021,14 +1047,14 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
           initialZoom: 13.0,
           backgroundColor: Colors.grey[100]!,
           onMapReady: () {
-            // Force a move with a tiny zoom change and delay to ensure the map is fully loaded and avoids grey tiles
-            final center = currentLocation ?? widget.tripData.startLocation;
-            Future.delayed(const Duration(milliseconds: 300), () {
+            // Force a small delay to ensure the map is fully loaded and layout is complete
+            Future.delayed(const Duration(milliseconds: 600), () {
               if (mounted) {
-                mapController.move(center, 13.01);
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (mounted) mapController.move(center, 13.0);
-                });
+                try {
+                  widget.controller.fitMapToRoute();
+                } catch (e) {
+                  debugPrint('[LiveTripMap] Error in fitMapToRoute onMapReady: $e');
+                }
               }
             });
           },
@@ -1085,43 +1111,64 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
               ],
             );
           }),
+          // Removing geofencing circle for reached stops as requested
+          /*CircleLayer(
+            circles: [
+              ...widget.tripData.timeline
+                  .where((stop) => stop.isUserStop && stop.isStopReached)
+                  .map((stop) => CircleMarker(
+                        point: stop.location,
+                        radius: 100, // Based on geofence_radius_meters from JSON
+                        useRadiusInMeter: true,
+                        color: Colors.green.withValues(alpha: 0.2),
+                        borderColor: Colors.green.withValues(alpha: 0.5),
+                        borderStrokeWidth: 2,
+                      )),
+            ],
+          ),*/
           Obx(() {
             final double scale = (widget.controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
             final vehicleLocation = widget.controller.vehicleLocation.value;
             final vehicleHeading = widget.controller.vehicleHeading.value;
 
-            final isTargetStart = widget.controller.targetLocation.value != null &&
-                (widget.tripData.startLocation.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
-                (widget.tripData.startLocation.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
+            final isPickup = widget.tripData.tripType?.toLowerCase() == 'pickup';
+            final isDrop = widget.tripData.tripType?.toLowerCase() == 'drop';
+            final userStopIndex = widget.tripData.timeline.indexWhere((stop) => stop.isUserStop);
 
-            final isTargetEnd = widget.controller.targetLocation.value != null &&
-                (widget.tripData.endLocation.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
-                (widget.tripData.endLocation.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
+            // Find the latest stop that is reached
+            int lastReachedIndex = -1;
+            for (int i = widget.tripData.timeline.length - 1; i >= 0; i--) {
+              if (widget.tripData.timeline[i].isStopReached) {
+                lastReachedIndex = i;
+                break;
+              }
+            }
 
             return MarkerLayer(
               markers: [
-                // Start Location Marker
-                if (!isTargetStart)
-                  Marker(
-                    width: 40 * scale,
-                    height: 40 * scale,
-                    point: widget.tripData.startLocation,
-                    alignment: Alignment.center,
-                    child: GestureDetector(
-                      onTap: () async {
-                        final address = await getAddressFromLatLng(
-                          widget.tripData.startLocation.latitude,
-                          widget.tripData.startLocation.longitude,
-                        );
-                        if (!mounted) return;
-                        showAddressPopup(context, 'Start Location', address, widget.primaryColor);
-                      },
-                      child: Icon(Icons.location_on, color: Colors.green, size: 40 * scale),
-                    ),
+                // Start Location Marker (School in Drop, Start Point in Pickup)
+                Marker(
+                  width: 40 * scale,
+                  height: 40 * scale,
+                  point: widget.tripData.startLocation,
+                  alignment: Alignment.center,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final address = await getAddressFromLatLng(
+                        widget.tripData.startLocation.latitude,
+                        widget.tripData.startLocation.longitude,
+                      );
+                      if (!mounted) return;
+                      showAddressPopup(context, isDrop ? 'School' : 'Start Location', address, widget.primaryColor);
+                    },
+                    child: isDrop 
+                        ? Image.asset('assets/icons/school.png', width: 40 * scale, height: 40 * scale)
+                        : Icon(Icons.location_on, color: Colors.green, size: 40 * scale),
                   ),
+                ),
 
-                // End Location Marker
-                if (!isTargetEnd)
+                // End Location Marker (School in Pickup, Hidden in Drop)
+                if (!isDrop)
                   Marker(
                     width: 40 * scale,
                     height: 40 * scale,
@@ -1134,19 +1181,35 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                           widget.tripData.endLocation.longitude,
                         );
                         if (!mounted) return;
-                        showAddressPopup(context, 'End Location', address, widget.primaryColor);
+                        showAddressPopup(context, isPickup ? 'School' : 'End Location', address, widget.primaryColor);
                       },
-                      child: Icon(Icons.location_on, color: Colors.red, size: 40 * scale),
+                      child: isPickup 
+                          ? Image.asset('assets/icons/school.png', width: 40 * scale, height: 40 * scale)
+                          : Icon(Icons.location_on, color: Colors.red, size: 40 * scale),
                     ),
                   ),
 
-                // Stop Markers (Numbered)
-                ...widget.tripData.timeline.asMap().entries.map((entry) {
+                // Stop Markers (Numbered, Check, or Blinking)
+                ...widget.tripData.timeline.asMap().entries
+                .where((entry) {
+                  // For Pickup: Show ALL stops as per requirement
+                  if (isPickup) return true;
+                  // For Drop: Show stops from Start Location to Home Point (User Stop)
+                  if (isDrop && userStopIndex != -1) return entry.key <= userStopIndex;
+                  return true;
+                })
+                .map((entry) {
                   final index = entry.key + 1;
                   final stop = entry.value;
-                  final isTargetStop = widget.controller.targetLocation.value != null &&
-                      (stop.location.latitude - widget.controller.targetLocation.value!.latitude).abs() < 0.0001 &&
-                      (stop.location.longitude - widget.controller.targetLocation.value!.longitude).abs() < 0.0001;
+                  final isTargetStop = stop.isUserStop;
+                  final isReached = stop.isStopReached;
+                  final isCrossed = stop.isStopCrossed;
+                  
+                  // Only blink if it's the LATEST reached stop and NOT crossed.
+                  // Previous reached stops should show check icon.
+                  final bool isLatestReached = entry.key == lastReachedIndex;
+                  final bool shouldShowCheck = isCrossed || (isReached && !isLatestReached);
+                  final bool shouldBlink = isReached && isLatestReached && !isCrossed;
 
                   return Marker(
                     point: stop.location,
@@ -1155,7 +1218,6 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                     alignment: Alignment.center,
                     child: GestureDetector(
                       onTap: () async {
-                        // Animate to stop location if it's a user stop or just generally improve UX
                         if (isTargetStop || stop.isUserStop) {
                           widget.controller.animatedMapMove(stop.location, 16.0, offset: const Offset(0, -0.15));
                         }
@@ -1165,40 +1227,111 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                           stop.location.longitude,
                         );
                         if (!mounted) return;
-                        showAddressPopup(context, isTargetStop ? 'Your Location' : 'Stop $index', address, widget.primaryColor);
+                        
+                        String title;
+                        if (isTargetStop) {
+                          if (isReached) {
+                            title = isPickup ? 'Picked up' : 'Dropped';
+                          } else {
+                            title = 'Your Location';
+                          }
+                        } else {
+                          title = shouldShowCheck ? 'Stop $index (Reached)' : 'Stop $index';
+                        }
+                        
+                        showAddressPopup(context, title, address, widget.primaryColor);
                       },
                       child: isTargetStop
                           ? Image.asset(
-                              'assets/icons/homemarker.png',
+                              isReached ? 'assets/icons/homemarkerreached.png' : 'assets/icons/homemarker.png',
                               width: 40 * scale,
                               height: 40 * scale,
                             )
-                          : Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(blurRadius: 2, color: Colors.black26)
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '$index',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12 * scale,
-                                    color: Colors.black,
-                                    fontFamily: 'Poppins',
+                          : shouldShowCheck 
+                            ? Container(
+                                width: 28 * scale,
+                                height: 28 * scale,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(blurRadius: 2, color: Colors.black26)
+                                  ],
+                                ),
+                                child: Center(
+                                  child:  Image.asset(
+                    'assets/icons/check.png',
+                    width: 22 * scale,
+                    height: 22 * scale,
+                  ),
+                                ),
+                              )
+                            : shouldBlink
+                              ? Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    BlinkingMarker(
+                                      child: Container(
+                                        width: 32 * scale,
+                                        height: 32 * scale,
+                                        decoration: BoxDecoration(
+                                          color: Colors.yellow.withValues(alpha: 0.4),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 26 * scale,
+                                      height: 26 * scale,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(blurRadius: 2, color: Colors.black26)
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '$index',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11 * scale,
+                                            color: Colors.black,
+                                            fontFamily: 'Poppins',
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(blurRadius: 2, color: Colors.black26)
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '$index',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12 * scale,
+                                        color: Colors.black,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
                     ),
                   );
                 }),
 
-                // Vehicle Marker (Live) - PLOTTED EXACTLY LIKE DRIVER APP SNIPPET
-                if (vehicleLocation != null && !widget.controller.isUpcomingTrip.value)
+                // Vehicle Marker (Live) - Only show when socket is connected and trip is active
+                if (vehicleLocation != null && 
+                    !widget.controller.isUpcomingTrip.value && 
+                    widget.controller.isSocketConnected.value)
                   Marker(
                     point: vehicleLocation,
                     width: 50 * scale,
@@ -2282,6 +2415,15 @@ class ParentHomePage extends GetView<ParentHomeController> {
             child: Stack(
               children: [
                 _buildPageContent(context, primaryColor),
+                
+                // Live Flash Message
+                Positioned(
+                  top: 90, // Below the trip card
+                  left: 0,
+                  right: 0,
+                  child: _buildFlashMessage(context),
+                ),
+
                 Positioned(
                   top: 0,
                   left: 12,
@@ -2383,7 +2525,6 @@ class ParentHomePage extends GetView<ParentHomeController> {
                     ),
                   ),
                 ),
-                _buildRouteStopsCard(context, primaryColor),
                 _buildShowStopsButton(primaryColor),
 
               Obx(() {
@@ -2391,8 +2532,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                   return const SizedBox.shrink();
                 }
                 final screenHeight = MediaQuery.of(context).size.height;
-                final double currentSheetHeight = _sheetExtent.value * screenHeight;
-                final double dynamicBottom = (currentSheetHeight > 125 ? currentSheetHeight : 125) + 20;
+                final double dynamicBottom = (0.35 * screenHeight) + 20;
                 
                 return Positioned(
                   bottom: dynamicBottom,
@@ -2405,10 +2545,16 @@ class ParentHomePage extends GetView<ParentHomeController> {
                       }),
                       const SizedBox(height: 8),
                       _buildSOSButton(context, primaryColor),
-                      const SizedBox(height: 8),
-                      _buildChildLocationButton(() {
-                        controller.focusOnVehicle();
-                      }),
+                      Obx(() => controller.isUpcomingTrip.value 
+                          ? const SizedBox.shrink() 
+                          : Column(
+                              children: [
+                                const SizedBox(height: 8),
+                                _buildChildLocationButton(() {
+                                  controller.focusOnVehicle();
+                                }),
+                              ],
+                            )),
                     ],
                   ),
                 );
@@ -2419,8 +2565,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                   return const SizedBox.shrink();
                 }
                 final screenHeight = MediaQuery.of(context).size.height;
-                final double currentSheetHeight = _sheetExtent.value * screenHeight;
-                final double dynamicBottom = (currentSheetHeight > 125 ? currentSheetHeight : 125) + 20;
+                final double dynamicBottom = (0.35 * screenHeight) + 20;
                 
                 return Positioned(
                   bottom: dynamicBottom,
@@ -2493,10 +2638,16 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                         }),
                                         const SizedBox(height: 8),
                                         _buildSOSButton(context, primaryColor),
-                                        const SizedBox(height: 8),
-                                        _buildChildLocationButton(() {
-                                          controller.focusOnVehicle();
-                                        }),
+                                        Obx(() => controller.isUpcomingTrip.value 
+                                            ? const SizedBox.shrink() 
+                                            : Column(
+                                                children: [
+                                                  const SizedBox(height: 8),
+                                                  _buildChildLocationButton(() {
+                                                    controller.focusOnVehicle();
+                                                  }),
+                                                ],
+                                              )),
                                       ],
                                     ),
                                   ),
@@ -2541,6 +2692,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                   ),
                 );
               }),
+              _buildRouteStopsCard(context, primaryColor),
             ],
           ),
         );
@@ -2549,58 +2701,232 @@ class ParentHomePage extends GetView<ParentHomeController> {
     );
   }
 
-  Widget _buildPageContent(BuildContext context, Color primaryColor) {
-    if (controller.tripMapData.value != null) {
-      return _buildFullScreenMap(context, controller.tripMapData.value!, primaryColor);
-    }
+  Widget _buildFlashMessage(BuildContext context) {
+    return Obx(() {
+      if (!controller.showRouteBanner.value || controller.flashMessage.value.isEmpty) {
+        return const SizedBox.shrink();
+      }
 
-    final currentLocation = controller.vehicleLocation.value;
-    if (currentLocation != null) {
-      return _buildCurrentLocationMap(context, currentLocation, primaryColor);
-    }
+      Color bgColor;
+      Color textColor;
+      IconData icon;
 
-    if (controller.assignedVehicleId != null &&
-        controller.vehicleLocations.containsKey(controller.assignedVehicleId)) {
-      return _buildCurrentLocationMap(
-        context,
-        controller.vehicleLocations[controller.assignedVehicleId]!,
-        primaryColor,
+      switch (controller.flashMessageType.value) {
+        case 'success':
+          bgColor = const Color(0xFFE8F5E9);
+          textColor = const Color(0xFF2E7D32);
+          icon = Icons.check_circle_outline;
+          break;
+        case 'warning':
+          bgColor = const Color(0xFFFFF3E0);
+          textColor = const Color(0xFFEF6C00);
+          icon = Icons.warning_amber_rounded;
+          break;
+        case 'error':
+          bgColor = const Color(0xFFFFEBEE);
+          textColor = const Color(0xFFC62828);
+          icon = Icons.error_outline_rounded;
+          break;
+        default:
+          bgColor = const Color(0xFFE3F2FD);
+          textColor = const Color(0xFF1565C0);
+          icon = Icons.info_outline_rounded;
+      }
+
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: textColor.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: textColor, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                controller.flashMessage.value,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.close, color: textColor, size: 20),
+              onPressed: () => controller.showRouteBanner.value = false,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
       );
-    }
+    });
+  }
 
-    return _buildNoActiveTripView();
+  Widget _buildPageContent(BuildContext context, Color primaryColor) {
+    return Obx(() {
+      if (controller.isServerError.value) {
+        return _buildServerErrorView(context, primaryColor);
+      }
+
+      if (controller.tripMapData.value != null) {
+        return _buildFullScreenMap(context, controller.tripMapData.value!, primaryColor);
+      }
+
+      return _buildNoActiveTripView();
+    });
   }
 
   Widget _buildNoActiveTripView() {
     return Container(
       color: Colors.white,
       width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/images/nodata.png',
-            width: 200,
-            height: 200,
-            fit: BoxFit.contain,
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.directions_bus_filled_rounded,
+              size: 80,
+              color: Colors.blue[400],
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           const Text(
-            'No Active Trip',
+            'No Active Trips',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
               fontFamily: 'Poppins',
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'There is no ongoing trip at the moment.',
+          const SizedBox(height: 12),
+          Obx(() => Text(
+            controller.tripError.value.isNotEmpty 
+                ? controller.tripError.value 
+                : 'There are no ongoing trips for your child at this moment. You\'ll be notified when a trip starts.',
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               color: Colors.grey[600],
+              height: 1.5,
               fontFamily: 'Poppins',
+            ),
+          )),
+          const SizedBox(height: 40),
+          OutlinedButton(
+            onPressed: () => controller.refreshAllData(),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.blue.shade200),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              'Refresh Status',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue[600],
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServerErrorView(BuildContext context, Color primaryColor) {
+    return Container(
+      color: Colors.white,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.cloud_off_rounded,
+              size: 80,
+              color: Colors.red[400],
+            ),
+          ),
+          const SizedBox(height: 32),
+          const Text(
+            'Connection Error',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'We\'re having trouble connecting to our servers. Please check your internet connection and try again.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[600],
+              height: 1.5,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const SizedBox(height: 40),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: () => controller.refreshAllData(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.refresh_rounded, size: 22),
+                  SizedBox(width: 10),
+                  Text(
+                    'Try Again',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -2638,9 +2964,70 @@ class ParentHomePage extends GetView<ParentHomeController> {
   final DraggableScrollableController _sheetController = DraggableScrollableController();
 
   Widget _buildRouteStopsCardContent(BuildContext context, Color primaryColor, ParentLiveTripData tripData) {
-    final stops = tripData.timeline;
+    final isPickup = tripData.tripType?.toLowerCase() == 'pickup';
+    final isDrop = tripData.tripType?.toLowerCase() == 'drop';
+    final userStopIndex = tripData.timeline.indexWhere((stop) => stop.isUserStop);
+
+    final List<TripStop> stops = [];
+
+    if (isPickup) {
+      // Add Start point
+      stops.add(TripStop(
+        id: 'start',
+        name: tripData.startAddress.isNotEmpty ? tripData.startAddress : 'Start Location',
+        location: tripData.startLocation,
+        sequence: -1,
+        address: tripData.startAddress,
+        landmark: '',
+        scheduledTime: '',
+        isCompleted: false,
+        isUserStop: false,
+      ));
+      // Add ALL stops
+      stops.addAll(tripData.timeline);
+      // Add School terminal
+      stops.add(TripStop(
+        id: 'school',
+        name: tripData.endAddress.isNotEmpty ? tripData.endAddress : 'School',
+        location: tripData.endLocation,
+        sequence: 9999,
+        address: tripData.endAddress,
+        landmark: '',
+        scheduledTime: '',
+        isCompleted: false,
+        isUserStop: false,
+      ));
+    } else if (isDrop) {
+      // Add School terminal
+      stops.add(TripStop(
+        id: 'school',
+        name: tripData.startAddress.isNotEmpty ? tripData.startAddress : 'School',
+        location: tripData.startLocation,
+        sequence: -1,
+        address: tripData.startAddress,
+        landmark: '',
+        scheduledTime: '',
+        isCompleted: false,
+        isUserStop: false,
+      ));
+      if (userStopIndex != -1) {
+        stops.addAll(tripData.timeline.sublist(0, userStopIndex + 1));
+      }
+    } else {
+      stops.addAll(tripData.timeline);
+    }
+
     if (stops.isEmpty) {
       return const SizedBox.shrink();
+    }
+
+    // Find the latest reached stop in the stops list
+    int lastReachedIndexInList = -1;
+    for (int i = stops.length - 1; i >= 0; i--) {
+      if (stops[i].isStopReached) {
+        lastReachedIndexInList = i;
+        break;
+      }
     }
     
     return Padding(
@@ -2652,44 +3039,148 @@ class ParentHomePage extends GetView<ParentHomeController> {
           (index) {
             final stop = stops[index];
             final isLast = index == stops.length - 1;
-            final isTargetStop = controller.targetLocation.value != null &&
-                (stop.location.latitude - controller.targetLocation.value!.latitude).abs() < 0.0001 &&
-                (stop.location.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001;
+            final isHome = stop.isUserStop;
+            final isSchool = stop.id == 'school';
+            final isStart = stop.id == 'start';
+            final isReached = stop.isStopReached;
+            final isCrossed = stop.isStopCrossed;
 
-            final stopNumber = index + 1;
+            final bool isLatestReached = index == lastReachedIndexInList;
+            final bool shouldShowCheck = isCrossed || (isReached && !isLatestReached);
+            final bool shouldBlink = isReached && isLatestReached && !isCrossed;
+
+            String stopLabel;
+            if (isHome) {
+              if (isReached) {
+                stopLabel = isPickup ? 'Picked up' : 'Dropped';
+              } else {
+                stopLabel = 'Home';
+              }
+            } else if (isSchool) {
+              stopLabel = 'School';
+            } else if (isStart) {
+              stopLabel = 'Start';
+            } else {
+              stopLabel = shouldShowCheck ? 'Stop $index (Reached)' : 'Stop $index';
+            }
+
             return Column(
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      children: [
-                        if (isTargetStop)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Image.asset(
-                              'assets/icons/homemarker.png',
-                              width: 18,
-                              height: 18,
+                    SizedBox(
+                      width: 30,
+                      child: Column(
+                        children: [
+                          if (isHome)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Image.asset(
+                                isReached ? 'assets/icons/homemarkerreached.png' : 'assets/icons/homemarker.png',
+                                width: 18,
+                                height: 18,
+                              ),
+                            )
+                          else if (isSchool)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Image.asset(
+                                'assets/icons/school.png',
+                                width: 22,
+                                height: 22,
+                              ),
+                            )
+                          else if (isStart)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Icon(
+                                Icons.location_on,
+                                color: Colors.green,
+                                size: 22,
+                              ),
+                            )
+                          else if (shouldShowCheck)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(blurRadius: 1, color: Colors.black12)
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else if (shouldBlink)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  BlinkingMarker(
+                                    child: Container(
+                                      width: 22,
+                                      height: 22,
+                                      decoration: BoxDecoration(
+                                        color: Colors.yellow.withValues(alpha: 0.4),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 18,
+                                    height: 18,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(blurRadius: 1, color: Colors.black12)
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '$index',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 9,
+                                          color: Colors.black,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              width: 10,
+                              height: 10,
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          )
-                        else
-                          Container(
-                            width: 10,
-                            height: 10,
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              shape: BoxShape.circle,
+                          if (!isLast)
+                            Container(
+                              width: 2,
+                              height: 32,
+                              color: primaryColor.withValues(alpha: 0.3),
                             ),
-                          ),
-                        if (!isLast)
-                          Container(
-                            width: 2,
-                            height: 32,
-                            color: primaryColor.withValues(alpha: 0.3),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -2709,7 +3200,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Stop $stopNumber: ${stop.name}',
+                                    '$stopLabel: ${stop.name}',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -2726,6 +3217,16 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                         fontSize: 11,
                                         color: Colors.grey[400],
                                         fontFamily: 'Poppins',
+                                      ),
+                                    )
+                                  else if (isReached)
+                                    Text(
+                                      isStart ? 'Started' : (isLast ? 'Destination reached' : ''),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.green[400],
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                 ],
@@ -2751,7 +3252,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                     ),
                   ],
                 ),
-                if (index < tripData.timeline.length - 1)
+                if (index < stops.length - 1)
                   const SizedBox(height: 6),
               ],
             );
@@ -2762,6 +3263,16 @@ class ParentHomePage extends GetView<ParentHomeController> {
   }
 
   Widget _buildRouteStopsCard(BuildContext context, Color primaryColor) {
+    String getTripTypeMessage(String? tripType) {
+  switch (tripType?.toLowerCase()) {
+    case 'pickup':
+      return 'On the way to pick up your child';
+    case 'drop':
+      return 'On the way to drop your child ';
+    default:
+      return 'Trip information not available';
+  }
+}
     return Obx(() {
       final tripData = controller.tripMapData.value;
       
@@ -2775,9 +3286,9 @@ class ParentHomePage extends GetView<ParentHomeController> {
         controller: _sheetController,
         initialChildSize: 0.35,
         minChildSize: 0.0,
-        maxChildSize: 0.35,
+        maxChildSize: 0.95,
         snap: true,
-        snapSizes: const [0.0, 0.35],
+        snapSizes: const [0.0, 0.35, 0.95],
         builder: (context, scrollController) {
           return NotificationListener<DraggableScrollableNotification>(
             onNotification: (notification) {
@@ -2842,15 +3353,17 @@ class ParentHomePage extends GetView<ParentHomeController> {
                           GestureDetector(
                             onVerticalDragUpdate: (details) {
                               final currentExtent = _sheetExtent.value;
-                              final newExtent = (currentExtent - details.delta.dy / MediaQuery.of(context).size.height).clamp(0.0, 0.35);
+                              final newExtent = (currentExtent - details.delta.dy / MediaQuery.of(context).size.height).clamp(0.0, 0.95);
                               _sheetExtent.value = newExtent;
                               _sheetController.jumpTo(newExtent);
                             },
                             onVerticalDragEnd: (details) {
                               if (_sheetExtent.value < 0.15) {
                                 _sheetController.animateTo(0.0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-                              } else {
+                              } else if (_sheetExtent.value < 0.65) {
                                 _sheetController.animateTo(0.35, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                              } else {
+                                _sheetController.animateTo(0.95, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
                               }
                             },
                             child: Center(
@@ -2871,15 +3384,17 @@ class ParentHomePage extends GetView<ParentHomeController> {
                             behavior: HitTestBehavior.opaque,
                             onVerticalDragUpdate: (details) {
                               final currentExtent = _sheetExtent.value;
-                              final newExtent = (currentExtent - details.delta.dy / MediaQuery.of(context).size.height).clamp(0.0, 0.35);
+                              final newExtent = (currentExtent - details.delta.dy / MediaQuery.of(context).size.height).clamp(0.0, 0.95);
                               _sheetExtent.value = newExtent;
                               _sheetController.jumpTo(newExtent);
                             },
                             onVerticalDragEnd: (details) {
                               if (_sheetExtent.value < 0.15) {
                                 _sheetController.animateTo(0.0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-                              } else {
+                              } else if (_sheetExtent.value < 0.65) {
                                 _sheetController.animateTo(0.35, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                              } else {
+                                _sheetController.animateTo(0.95, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
                               }
                             },
                             child: Padding(
@@ -2888,17 +3403,32 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
-                                    child: Text(
-                                      tripData.routeName,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
-                                        letterSpacing: -0.3,
-                                        fontFamily: 'Poppins',
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          tripData.routeName,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black87,
+                                            letterSpacing: -0.3,
+                                            fontFamily: 'Poppins',
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+  getTripTypeMessage(tripData.tripType),
+  style: const TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w500,
+    color: Colors.grey,
+  ),
+),
+                                      ],
                                     ),
                                   ),
                                   const SizedBox(width: 5),
@@ -2951,52 +3481,66 @@ class ParentHomePage extends GetView<ParentHomeController> {
   }
 
   Widget _buildShowStopsButton(Color primaryColor) {
-    return Obx(() {
-      if (_modalVisible.value) {
-        return const SizedBox.shrink();
-      }
+  return Obx(() {
+    if (_modalVisible.value) {
+      return const SizedBox.shrink();
+    }
 
-      return Positioned(
-        bottom: 70,
-        right: 16,
-        child: ScaleTransition(
-          scale: AlwaysStoppedAnimation(1.0),
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: primaryColor,
-              boxShadow: [
-                BoxShadow(
-                  color: primaryColor.withOpacity(0.4),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  _sheetController.animateTo(
-                    0.35,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  );
-                },
-                borderRadius: BorderRadius.circular(30),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Icon(
-                    Icons.expand_less,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+    return Positioned(
+      bottom: 70,
+      right: 16,
+      child: ScaleTransition(
+        scale: const AlwaysStoppedAnimation(1.0),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            color: const Color.fromARGB(255, 3, 64, 144), // Dark navy blue
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black38,
+                blurRadius: 12,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                _sheetController.animateTo(
+                  0.35,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              },
+              borderRadius: BorderRadius.circular(30),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      Icons.touch_app_rounded, // Tap related icon
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Tap to Open',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
-      );
-    });
-  }
-}
+      ),
+    );
+  });
+}}
