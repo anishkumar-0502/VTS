@@ -224,7 +224,7 @@ class _LiveTrackingMapPageState extends State<LiveTrackingMapPage> {
         children: [
           TileLayer(
             urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-            subdomains: const ['a', 'b', 'c'],
+            subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'com.trackify.parent',
           ),
           MarkerLayer(

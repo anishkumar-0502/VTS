@@ -15,6 +15,7 @@ class TripStop {
   final bool isUserStop;
   final bool isStopReached;
   final bool isStopCrossed;
+  final double geofenceRadius;
 
   TripStop({
     required this.id,
@@ -30,12 +31,48 @@ class TripStop {
     this.isUserStop = false,
     this.isStopReached = false,
     this.isStopCrossed = false,
+    this.geofenceRadius = 100.0,
   });
+
+  TripStop copyWith({
+    String? id,
+    String? name,
+    String? address,
+    String? landmark,
+    LatLng? location,
+    int? sequence,
+    String? scheduledTime,
+    bool? isCompleted,
+    bool? isChildStop,
+    bool? isReminder,
+    bool? isUserStop,
+    bool? isStopReached,
+    bool? isStopCrossed,
+    double? geofenceRadius,
+  }) {
+    return TripStop(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      address: address ?? this.address,
+      landmark: landmark ?? this.landmark,
+      location: location ?? this.location,
+      sequence: sequence ?? this.sequence,
+      scheduledTime: scheduledTime ?? this.scheduledTime,
+      isCompleted: isCompleted ?? this.isCompleted,
+      isChildStop: isChildStop ?? this.isChildStop,
+      isReminder: isReminder ?? this.isReminder,
+      isUserStop: isUserStop ?? this.isUserStop,
+      isStopReached: isStopReached ?? this.isStopReached,
+      isStopCrossed: isStopCrossed ?? this.isStopCrossed,
+      geofenceRadius: geofenceRadius ?? this.geofenceRadius,
+    );
+  }
 
   // Factory to create from the 'route_points' array in the current-trip API response
   factory TripStop.fromRoutePointJson(Map<String, dynamic> json) {
     final lat = (json['latitude'] as num?)?.toDouble() ?? 0.0;
     final lng = (json['longitude'] as num?)?.toDouble() ?? 0.0;
+    final radius = (json['geofence_radius_meters'] as num?)?.toDouble() ?? 100.0;
     
     final address = json['name']?.toString() ?? 'Address not available'; 
 
@@ -53,6 +90,7 @@ class TripStop {
       isUserStop: json['is_user_stop'] as bool? ?? false,
       isStopReached: json['is_stop_reached'] as bool? ?? false,
       isStopCrossed: json['is_stop_crossed'] as bool? ?? false,
+      geofenceRadius: radius,
     );
   }
 }

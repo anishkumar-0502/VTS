@@ -44,10 +44,7 @@ Widget buildLocationRow(trackChildData, trip) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      Text(
-        'Location',
-        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-      ),
+      Text('Location', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
       FutureBuilder<String>(
         future: () async {
           double? lat;
@@ -87,10 +84,7 @@ Widget buildLocationRow(trackChildData, trip) {
           }
 
           if (!snapshot.hasData || snapshot.data == 'N/A') {
-            return const Text(
-              "N/A",
-              style: TextStyle(fontSize: 13),
-            );
+            return const Text("N/A", style: TextStyle(fontSize: 13));
           }
 
           return SizedBox(
@@ -100,10 +94,7 @@ Widget buildLocationRow(trackChildData, trip) {
               textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
               maxLines: 2,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           );
         },
@@ -112,7 +103,12 @@ Widget buildLocationRow(trackChildData, trip) {
   );
 }
 
-void showAddressPopup(BuildContext context, String title, String address, Color primaryColor) {
+void showAddressPopup(
+  BuildContext context,
+  String title,
+  String address,
+  Color primaryColor,
+) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -134,11 +130,7 @@ void showAddressPopup(BuildContext context, String title, String address, Color 
                   color: primaryColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.location_on,
-                  color: primaryColor,
-                  size: 28,
-                ),
+                child: Icon(Icons.location_on, color: primaryColor, size: 28),
               ),
               const SizedBox(height: 16),
               Text(
@@ -247,9 +239,10 @@ class _SwipeUpCallButtonState extends State<SwipeUpCallButton>
         /// stagger effect
         final double phase = (_arrowController.value - index * 0.2) % 1.0;
 
-        final opacity = phase < 0.5
-            ? Curves.easeOut.transform(phase * 2)
-            : Curves.easeIn.transform((1 - phase) * 2);
+        final opacity =
+            phase < 0.5
+                ? Curves.easeOut.transform(phase * 2)
+                : Curves.easeIn.transform((1 - phase) * 2);
 
         return Opacity(
           opacity: (_dragOffset > 10) ? 0 : opacity,
@@ -322,7 +315,6 @@ class _SwipeUpCallButtonState extends State<SwipeUpCallButton>
   }
 }
 
-
 class VehicleInfoDialog extends StatefulWidget {
   final double latitude;
   final double longitude;
@@ -356,13 +348,15 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
   void initState() {
     super.initState();
     _address = widget.address;
-    
+
     try {
       controller = Get.find<ParentHomeController>(tag: 'home');
     } catch (e) {
-      debugPrint('❌ [VehicleInfoDialog] Failed to find ParentHomeController: $e');
+      debugPrint(
+        '❌ [VehicleInfoDialog] Failed to find ParentHomeController: $e',
+      );
     }
-    
+
     if (_address == null) {
       _fetchAddress();
     }
@@ -403,7 +397,7 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
     final minute = time.minute.toString().padLeft(2, '0');
     final second = time.second.toString().padLeft(2, '0');
     final microsecond = time.microsecond.toString().padLeft(6, '0');
-    
+
     return '$year-$month-$day $hour:$minute:$second.$microsecond';
   }
 
@@ -446,20 +440,22 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
             Obx(() {
               double latitude = widget.latitude;
               double longitude = widget.longitude;
-              
-              if (widget.vehicleId != null && 
+
+              if (widget.vehicleId != null &&
                   controller.vehicleLocations.containsKey(widget.vehicleId)) {
                 final location = controller.vehicleLocations[widget.vehicleId];
                 if (location != null) {
                   latitude = location.latitude;
                   longitude = location.longitude;
-                  
-                  if (_address == null || _address == 'Loading address...' || _address == 'Unable to fetch address') {
+
+                  if (_address == null ||
+                      _address == 'Loading address...' ||
+                      _address == 'Unable to fetch address') {
                     _fetchAddressForCoordinates(latitude, longitude);
                   }
                 }
               }
-              
+
               return Text(
                 _address ?? 'Loading address...',
                 textAlign: TextAlign.center,
@@ -475,18 +471,19 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
             const SizedBox(height: 20),
             Obx(() {
               controller.vehicleNumbers.toString();
-              
+
               String displayVehicleNumber = widget.vehicleNumber ?? 'Vehicle';
-              if (displayVehicleNumber == 'N/A') displayVehicleNumber = 'Vehicle';
-              
-              if (widget.vehicleId != null && 
+              if (displayVehicleNumber == 'N/A')
+                displayVehicleNumber = 'Vehicle';
+
+              if (widget.vehicleId != null &&
                   controller.vehicleNumbers.containsKey(widget.vehicleId)) {
                 final vn = controller.vehicleNumbers[widget.vehicleId];
                 if (vn != null && vn.isNotEmpty && vn != 'N/A') {
                   displayVehicleNumber = vn;
                 }
               }
-              
+
               return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -525,42 +522,52 @@ class _VehicleInfoDialogState extends State<VehicleInfoDialog> {
                 Obx(() {
                   controller.vehicleTimestamps.toString();
                   controller.vehicleLocations.toString();
-                  
+
                   DateTime displayTime = DateTime.now();
-                  
+
                   String? matchedVehicleId = widget.vehicleId;
-                  
-                  if (matchedVehicleId != null && 
-                      controller.vehicleTimestamps.containsKey(matchedVehicleId)) {
+
+                  if (matchedVehicleId != null &&
+                      controller.vehicleTimestamps.containsKey(
+                        matchedVehicleId,
+                      )) {
                     final ts = controller.vehicleTimestamps[matchedVehicleId];
                     if (ts != null) {
                       displayTime = ts;
-                      debugPrint("🕐 [VehicleInfoDialog] Using live timestamp for $matchedVehicleId: $displayTime");
+                      debugPrint(
+                        "🕐 [VehicleInfoDialog] Using live timestamp for $matchedVehicleId: $displayTime",
+                      );
                     }
                   } else if (matchedVehicleId == null) {
                     for (final vid in controller.vehicleLocations.keys) {
                       final loc = controller.vehicleLocations[vid];
-                      if (loc != null && 
-                          loc.latitude == widget.latitude && 
+                      if (loc != null &&
+                          loc.latitude == widget.latitude &&
                           loc.longitude == widget.longitude) {
                         matchedVehicleId = vid;
                         final ts = controller.vehicleTimestamps[vid];
                         if (ts != null) {
                           displayTime = ts;
-                          debugPrint("🕐 [VehicleInfoDialog] Found matching vehicle $vid with timestamp: $displayTime");
+                          debugPrint(
+                            "🕐 [VehicleInfoDialog] Found matching vehicle $vid with timestamp: $displayTime",
+                          );
                         }
                         break;
                       }
                     }
                   }
-                  
-                  if (displayTime == DateTime.now() && widget.timestamp != null) {
+
+                  if (displayTime == DateTime.now() &&
+                      widget.timestamp != null) {
                     displayTime = widget.timestamp!;
                   }
-                  
+
                   return Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
+                    ),
                     decoration: BoxDecoration(
                       color: widget.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -619,7 +626,8 @@ class BlinkingMarker extends StatefulWidget {
   State<BlinkingMarker> createState() => _BlinkingMarkerState();
 }
 
-class _BlinkingMarkerState extends State<BlinkingMarker> with SingleTickerProviderStateMixin {
+class _BlinkingMarkerState extends State<BlinkingMarker>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -660,10 +668,13 @@ class CurrentLocationMapWithSocket extends StatefulWidget {
   });
 
   @override
-  State<CurrentLocationMapWithSocket> createState() => _CurrentLocationMapWithSocketState();
+  State<CurrentLocationMapWithSocket> createState() =>
+      _CurrentLocationMapWithSocketState();
 }
 
-class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSocket> with TickerProviderStateMixin {
+class _CurrentLocationMapWithSocketState
+    extends State<CurrentLocationMapWithSocket>
+    with TickerProviderStateMixin {
   late MapController mapController;
   LatLng? currentLocation;
   LatLng? animatedLocation;
@@ -681,7 +692,9 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
     try {
       controller = Get.find<ParentHomeController>(tag: 'home');
     } catch (e) {
-      debugPrint('❌ [CurrentLocationMapWithSocket] Failed to find ParentHomeController: $e');
+      debugPrint(
+        '❌ [CurrentLocationMapWithSocket] Failed to find ParentHomeController: $e',
+      );
       rethrow;
     }
     mapController = widget.mapController ?? controller.mapController;
@@ -689,8 +702,11 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
       duration: const Duration(seconds: 2),
       vsync: this,
     );
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
-    
+    _animation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(_animationController);
+
     currentLocation = widget.initialLocation;
     animatedLocation = widget.initialLocation;
     _previousLocation = widget.initialLocation;
@@ -709,10 +725,13 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
 
   double _calculateDistance(LatLng point1, LatLng point2) {
     const p = 0.017453292519943295;
-    final a = 0.5 - 
+    final a =
+        0.5 -
         (cos((point2.latitude - point1.latitude) * p) / 2) +
-        (cos(point1.latitude * p) * cos(point2.latitude * p) *
-            (1 - cos((point2.longitude - point1.longitude) * p)) / 2);
+        (cos(point1.latitude * p) *
+            cos(point2.latitude * p) *
+            (1 - cos((point2.longitude - point1.longitude) * p)) /
+            2);
     return 12742 * asin(sqrt(a));
   }
 
@@ -724,7 +743,7 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
 
   void _animateToNewLocation(LatLng newLocation) {
     if (_isDisposed || _previousLocation == null) return;
-    
+
     _animationController.reset();
     _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.linear),
@@ -733,7 +752,11 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
     _animation.addListener(() {
       if (!_isDisposed && mounted) {
         setState(() {
-          animatedLocation = _interpolate(_previousLocation!, newLocation, _animation.value);
+          animatedLocation = _interpolate(
+            _previousLocation!,
+            newLocation,
+            _animation.value,
+          );
         });
       }
     });
@@ -749,7 +772,7 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
 
   void _animateMapMove(LatLng destLocation, double destZoom) {
     if (_isDisposed) return;
-    
+
     final latTween = Tween<double>(
       begin: mapController.camera.center.latitude,
       end: destLocation.latitude,
@@ -767,7 +790,7 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     final animation = CurvedAnimation(
       parent: controller,
       curve: Curves.fastOutSlowIn,
@@ -793,7 +816,6 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
     controller.forward();
   }
 
-
   @override
   void dispose() {
     _isDisposed = true;
@@ -801,28 +823,35 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
     super.dispose();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final double scale = (controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
-      final vehicleLoc = controller.vehicleLocation.value ?? 
-                            controller.vehicleLocations[widget.vehicleId] ?? 
-                            currentLocation;
-      
+      final double scale = (controller.currentZoom.value / 13.0).clamp(
+        0.6,
+        2.0,
+      );
+      final vehicleLoc =
+          controller.vehicleLocation.value ??
+          controller.vehicleLocations[widget.vehicleId] ??
+          currentLocation;
+
       if (vehicleLoc != null && currentLocation != vehicleLoc) {
         currentLocation = vehicleLoc;
         lastMovementTime = DateTime.now();
-        if (locationHistory.isEmpty || 
+        if (locationHistory.isEmpty ||
             _calculateDistance(locationHistory.last, vehicleLoc) > 0.0001) {
           locationHistory.add(vehicleLoc);
         }
-        
+
         _animateToNewLocation(vehicleLoc);
       }
 
-      final displayLocation = animatedLocation ?? vehicleLoc ?? currentLocation ?? widget.initialLocation;
-      
+      final displayLocation =
+          animatedLocation ??
+          vehicleLoc ??
+          currentLocation ??
+          widget.initialLocation;
+
       return FlutterMap(
         mapController: mapController,
         options: MapOptions(
@@ -833,7 +862,8 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
             // Force a move with a tiny zoom change and delay to ensure the map is fully loaded and avoids grey tiles
             Future.delayed(const Duration(milliseconds: 300), () {
               if (mounted) {
-                if (displayLocation.latitude.isFinite && displayLocation.longitude.isFinite) {
+                if (displayLocation.latitude.isFinite &&
+                    displayLocation.longitude.isFinite) {
                   mapController.move(displayLocation, 13.01);
                   Future.delayed(const Duration(milliseconds: 100), () {
                     if (mounted) mapController.move(displayLocation, 13.0);
@@ -854,7 +884,7 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
         children: [
           TileLayer(
             urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-            subdomains: const ['a', 'b', 'c'],
+            subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'com.trackify.parent',
             keepBuffer: 5,
             tileDisplay: const TileDisplay.fadeIn(),
@@ -873,7 +903,8 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
                   color: widget.primaryColor,
                   strokeWidth: 3.5 * scale,
                 ),
-              if (controller.routePolylinePoints.isEmpty && locationHistory.isNotEmpty)
+              if (controller.routePolylinePoints.isEmpty &&
+                  locationHistory.isNotEmpty)
                 Polyline(
                   points: locationHistory,
                   color: widget.primaryColor,
@@ -881,6 +912,37 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
                 ),
             ],
           ),
+          Obx(() {
+            final targetLoc = controller.targetLocation.value;
+            // Hide geofence if trip is upcoming OR proximity-based visibility is false
+            if (targetLoc == null || 
+                controller.isUpcomingTrip.value || 
+                !controller.showGeofence.value) {
+              return const SizedBox.shrink();
+            }
+            
+            double radius = 100.0;
+            final tripData = controller.tripMapData.value;
+            if (tripData != null) {
+              final userStop = tripData.timeline.firstWhereOrNull((s) => s.isUserStop);
+              if (userStop != null) {
+                radius = userStop.geofenceRadius;
+              }
+            }
+
+            return CircleLayer(
+              circles: [
+                CircleMarker(
+                  point: targetLoc,
+                  radius: radius,
+                  useRadiusInMeter: true,
+                  color: Colors.green.withOpacity(0.15),
+                  borderColor: Colors.green.withOpacity(0.3),
+                  borderStrokeWidth: 2,
+                ),
+              ],
+            );
+          }),
           MarkerLayer(
             markers: [
               if (controller.targetLocation.value != null)
@@ -895,28 +957,33 @@ class _CurrentLocationMapWithSocketState extends State<CurrentLocationMapWithSoc
                     height: 40 * scale,
                   ),
                 ),
-              
+
               // Vehicle Marker (Mirrored from Driver App)
-              if (!controller.isUpcomingTrip.value)
+              if (controller.vehicleLocation.value != null &&
+                  !controller.isUpcomingTrip.value &&
+                  (controller.currentTrip.value?.status.toLowerCase() == 'active' || 
+                   controller.currentTrip.value?.status.toLowerCase() == 'in-progress' ||
+                   controller.currentTrip.value?.status.toLowerCase() == 'started'))
                 Marker(
                   width: 50.0 * scale,
                   height: 50.0 * scale,
                   point: displayLocation,
                   alignment: Alignment.center,
                   child: GestureDetector(
-                    onTap: () {
-
-                    },
+                    onTap: () {},
                     child: Transform.rotate(
-                      angle: (controller.vehicleHeading.value != 0.0 
-                          ? controller.vehicleHeading.value 
-                          : (controller.vehicleHeadings[widget.vehicleId] ?? 0.0)) * (pi / 180),
+                      angle:
+                          (controller.vehicleHeading.value != 0.0
+                              ? controller.vehicleHeading.value
+                              : (controller.vehicleHeadings[widget.vehicleId] ??
+                                  0.0)) *
+                          (pi / 180),
                       child: Container(
                         decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: [
-                            BoxShadow(blurRadius: 4, color: Colors.black26)
+                            BoxShadow(blurRadius: 4, color: Colors.black26),
                           ],
                         ),
                         child: Icon(
@@ -960,7 +1027,8 @@ class LiveTripMap extends StatefulWidget {
   State<LiveTripMap> createState() => _LiveTripMapState();
 }
 
-class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin {
+class _LiveTripMapState extends State<LiveTripMap>
+    with TickerProviderStateMixin {
   late MapController mapController;
   bool _isDisposed = false;
   AnimationController? _animationController;
@@ -970,7 +1038,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
     super.initState();
     mapController = widget.mapController ?? widget.controller.mapController;
     widget.onMapCreated(mapController);
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isDisposed) {
         // We rely on onMapReady for the initial fit to ensure map is fully loaded
@@ -997,7 +1065,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
 
   void _animateMapMove(LatLng destLocation, double destZoom) {
     if (_isDisposed) return;
-    
+
     _animationController?.dispose();
 
     final latTween = Tween<double>(
@@ -1017,7 +1085,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     final animation = CurvedAnimation(
       parent: _animationController!,
       curve: Curves.fastOutSlowIn,
@@ -1039,7 +1107,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     return Obx(() {
       final currentLocation = widget.controller.vehicleLocation.value;
-      
+
       return FlutterMap(
         mapController: mapController,
         options: MapOptions(
@@ -1053,7 +1121,9 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                 try {
                   widget.controller.fitMapToRoute();
                 } catch (e) {
-                  debugPrint('[LiveTripMap] Error in fitMapToRoute onMapReady: $e');
+                  debugPrint(
+                    '[LiveTripMap] Error in fitMapToRoute onMapReady: $e',
+                  );
                 }
               }
             });
@@ -1070,21 +1140,22 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
         children: [
           TileLayer(
             urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-            subdomains: const ['a', 'b', 'c'],
+            subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'com.trackify.parent',
             keepBuffer: 5,
             tileDisplay: const TileDisplay.fadeIn(),
           ),
           Obx(() {
-            final double scale = (widget.controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
+            final double scale = (widget.controller.currentZoom.value / 13.0)
+                .clamp(0.6, 2.0);
             final routePoints = widget.controller.routePolylinePoints;
-            
+
             final fullRoute = [
               widget.tripData.startLocation,
               ...widget.tripData.timeline.map((stop) => stop.location),
               widget.tripData.endLocation,
             ];
-            
+
             if (routePoints.isEmpty) {
               return PolylineLayer(
                 polylines: [
@@ -1111,29 +1182,40 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
               ],
             );
           }),
-          // Removing geofencing circle for reached stops as requested
-          /*CircleLayer(
-            circles: [
-              ...widget.tripData.timeline
-                  .where((stop) => stop.isUserStop && stop.isStopReached)
-                  .map((stop) => CircleMarker(
-                        point: stop.location,
-                        radius: 100, // Based on geofence_radius_meters from JSON
-                        useRadiusInMeter: true,
-                        color: Colors.green.withValues(alpha: 0.2),
-                        borderColor: Colors.green.withValues(alpha: 0.5),
-                        borderStrokeWidth: 2,
-                      )),
-            ],
-          ),*/
           Obx(() {
-            final double scale = (widget.controller.currentZoom.value / 13.0).clamp(0.6, 2.0);
+            // Hide geofence if trip is upcoming OR proximity-based visibility is false
+            if (widget.controller.isUpcomingTrip.value || 
+                !widget.controller.showGeofence.value) {
+              return const SizedBox.shrink();
+            }
+
+            return CircleLayer(
+              circles: [
+                ...widget.tripData.timeline
+                    .where((stop) => stop.isUserStop)
+                    .map((stop) => CircleMarker(
+                          point: stop.location,
+                          radius: stop.geofenceRadius,
+                          useRadiusInMeter: true,
+                          color: Colors.green.withOpacity(0.15),
+                          borderColor: Colors.green.withOpacity(0.3),
+                          borderStrokeWidth: 2,
+                        )),
+              ],
+            );
+          }),
+          Obx(() {
+            final double scale = (widget.controller.currentZoom.value / 13.0)
+                .clamp(0.6, 2.0);
             final vehicleLocation = widget.controller.vehicleLocation.value;
             final vehicleHeading = widget.controller.vehicleHeading.value;
 
-            final isPickup = widget.tripData.tripType?.toLowerCase() == 'pickup';
+            final isPickup =
+                widget.tripData.tripType?.toLowerCase() == 'pickup';
             final isDrop = widget.tripData.tripType?.toLowerCase() == 'drop';
-            final userStopIndex = widget.tripData.timeline.indexWhere((stop) => stop.isUserStop);
+            final userStopIndex = widget.tripData.timeline.indexWhere(
+              (stop) => stop.isUserStop,
+            );
 
             // Find the latest stop that is reached
             int lastReachedIndex = -1;
@@ -1159,11 +1241,25 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                         widget.tripData.startLocation.longitude,
                       );
                       if (!mounted) return;
-                      showAddressPopup(context, isDrop ? 'School' : 'Start Location', address, widget.primaryColor);
+                      showAddressPopup(
+                        context,
+                        isDrop ? 'School' : 'Start Location',
+                        address,
+                        widget.primaryColor,
+                      );
                     },
-                    child: isDrop 
-                        ? Image.asset('assets/icons/school.png', width: 40 * scale, height: 40 * scale)
-                        : Icon(Icons.location_on, color: Colors.green, size: 40 * scale),
+                    child:
+                        isDrop
+                            ? Image.asset(
+                              'assets/icons/school.png',
+                              width: 40 * scale,
+                              height: 40 * scale,
+                            )
+                            : Icon(
+                              Icons.location_on,
+                              color: Colors.green,
+                              size: 40 * scale,
+                            ),
                   ),
                 ),
 
@@ -1181,166 +1277,213 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                           widget.tripData.endLocation.longitude,
                         );
                         if (!mounted) return;
-                        showAddressPopup(context, isPickup ? 'School' : 'End Location', address, widget.primaryColor);
+                        showAddressPopup(
+                          context,
+                          isPickup ? 'School' : 'End Location',
+                          address,
+                          widget.primaryColor,
+                        );
                       },
-                      child: isPickup 
-                          ? Image.asset('assets/icons/school.png', width: 40 * scale, height: 40 * scale)
-                          : Icon(Icons.location_on, color: Colors.red, size: 40 * scale),
+                      child:
+                          isPickup
+                              ? Image.asset(
+                                'assets/icons/school.png',
+                                width: 40 * scale,
+                                height: 40 * scale,
+                              )
+                              : Icon(
+                                Icons.location_on,
+                                color: Colors.red,
+                                size: 40 * scale,
+                              ),
                     ),
                   ),
 
                 // Stop Markers (Numbered, Check, or Blinking)
-                ...widget.tripData.timeline.asMap().entries
-                .where((entry) {
-                  // For Pickup: Show ALL stops as per requirement
-                  if (isPickup) return true;
-                  // For Drop: Show stops from Start Location to Home Point (User Stop)
-                  if (isDrop && userStopIndex != -1) return entry.key <= userStopIndex;
-                  return true;
-                })
-                .map((entry) {
-                  final index = entry.key + 1;
-                  final stop = entry.value;
-                  final isTargetStop = stop.isUserStop;
-                  final isReached = stop.isStopReached;
-                  final isCrossed = stop.isStopCrossed;
-                  
-                  // Only blink if it's the LATEST reached stop and NOT crossed.
-                  // Previous reached stops should show check icon.
-                  final bool isLatestReached = entry.key == lastReachedIndex;
-                  final bool shouldShowCheck = isCrossed || (isReached && !isLatestReached);
-                  final bool shouldBlink = isReached && isLatestReached && !isCrossed;
+                ...widget.tripData.timeline
+                    .asMap()
+                    .entries
+                    .where((entry) {
+                      // For Pickup: Show ALL stops as per requirement
+                      if (isPickup) return true;
+                      // For Drop: Show stops from Start Location to Home Point (User Stop)
+                      if (isDrop && userStopIndex != -1)
+                        return entry.key <= userStopIndex;
+                      return true;
+                    })
+                    .map((entry) {
+                      final index = entry.key + 1;
+                      final stop = entry.value;
+                      final isTargetStop = stop.isUserStop;
+                      final isReached = stop.isStopReached;
+                      final isCrossed = stop.isStopCrossed;
 
-                  return Marker(
-                    point: stop.location,
-                    width: isTargetStop ? 40 * scale : 30 * scale,
-                    height: isTargetStop ? 40 * scale : 30 * scale,
-                    alignment: Alignment.center,
-                    child: GestureDetector(
-                      onTap: () async {
-                        if (isTargetStop || stop.isUserStop) {
-                          widget.controller.animatedMapMove(stop.location, 16.0, offset: const Offset(0, -0.15));
-                        }
+                      // Only blink if it's the LATEST reached stop and NOT crossed.
+                      // Previous reached stops should show check icon.
+                      final bool isLatestReached =
+                          entry.key == lastReachedIndex;
+                      final bool shouldShowCheck =
+                          isCrossed || (isReached && !isLatestReached);
+                      final bool shouldBlink =
+                          isReached && isLatestReached && !isCrossed;
 
-                        final address = await getAddressFromLatLng(
-                          stop.location.latitude,
-                          stop.location.longitude,
-                        );
-                        if (!mounted) return;
-                        
-                        String title;
-                        if (isTargetStop) {
-                          if (isReached) {
-                            title = isPickup ? 'Picked up' : 'Dropped';
-                          } else {
-                            title = 'Your Location';
-                          }
-                        } else {
-                          title = shouldShowCheck ? 'Stop $index (Reached)' : 'Stop $index';
-                        }
-                        
-                        showAddressPopup(context, title, address, widget.primaryColor);
-                      },
-                      child: isTargetStop
-                          ? Image.asset(
-                              isReached ? 'assets/icons/homemarkerreached.png' : 'assets/icons/homemarker.png',
-                              width: 40 * scale,
-                              height: 40 * scale,
-                            )
-                          : shouldShowCheck 
-                            ? Container(
-                                width: 28 * scale,
-                                height: 28 * scale,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(blurRadius: 2, color: Colors.black26)
-                                  ],
-                                ),
-                                child: Center(
-                                  child:  Image.asset(
-                    'assets/icons/check.png',
-                    width: 22 * scale,
-                    height: 22 * scale,
-                  ),
-                                ),
-                              )
-                            : shouldBlink
-                              ? Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    BlinkingMarker(
-                                      child: Container(
-                                        width: 32 * scale,
-                                        height: 32 * scale,
-                                        decoration: BoxDecoration(
-                                          color: Colors.yellow.withValues(alpha: 0.4),
-                                          shape: BoxShape.circle,
+                      return Marker(
+                        point: stop.location,
+                        width: isTargetStop ? 40 * scale : 30 * scale,
+                        height: isTargetStop ? 40 * scale : 30 * scale,
+                        alignment: Alignment.center,
+                        child: GestureDetector(
+                          onTap: () async {
+                            if (isTargetStop || stop.isUserStop) {
+                              widget.controller.animatedMapMove(
+                                stop.location,
+                                16.0,
+                                offset: const Offset(0, -0.15),
+                              );
+                            }
+
+                            final address = await getAddressFromLatLng(
+                              stop.location.latitude,
+                              stop.location.longitude,
+                            );
+                            if (!mounted) return;
+
+                            String title;
+                            if (isTargetStop) {
+                              if (isReached) {
+                                title = isPickup ? 'Picked up' : 'Dropped';
+                              } else {
+                                title = 'Your Location';
+                              }
+                            } else {
+                              title =
+                                  shouldShowCheck
+                                      ? 'Stop $index (Reached)'
+                                      : 'Stop $index';
+                            }
+
+                            showAddressPopup(
+                              context,
+                              title,
+                              address,
+                              widget.primaryColor,
+                            );
+                          },
+                          child:
+                              isTargetStop
+                                  ? Image.asset(
+                                    isReached
+                                        ? 'assets/icons/homemarkerreached.png'
+                                        : 'assets/icons/homemarker.png',
+                                    width: 40 * scale,
+                                    height: 40 * scale,
+                                  )
+                                  : shouldShowCheck
+                                  ? Container(
+                                    width: 28 * scale,
+                                    height: 28 * scale,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          blurRadius: 2,
+                                          color: Colors.black26,
                                         ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Image.asset(
+                                        'assets/icons/check.png',
+                                        width: 22 * scale,
+                                        height: 22 * scale,
                                       ),
                                     ),
-                                    Container(
-                                      width: 26 * scale,
-                                      height: 26 * scale,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(blurRadius: 2, color: Colors.black26)
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '$index',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 11 * scale,
-                                            color: Colors.black,
-                                            fontFamily: 'Poppins',
+                                  )
+                                  : shouldBlink
+                                  ? Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      BlinkingMarker(
+                                        child: Container(
+                                          width: 32 * scale,
+                                          height: 32 * scale,
+                                          decoration: BoxDecoration(
+                                            color: Colors.yellow.withValues(
+                                              alpha: 0.4,
+                                            ),
+                                            shape: BoxShape.circle,
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                )
-                              : Container(
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(blurRadius: 2, color: Colors.black26)
+                                      Container(
+                                        width: 26 * scale,
+                                        height: 26 * scale,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              blurRadius: 2,
+                                              color: Colors.black26,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '$index',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 11 * scale,
+                                              color: Colors.black,
+                                              fontFamily: 'Poppins',
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ],
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '$index',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12 * scale,
-                                        color: Colors.black,
-                                        fontFamily: 'Poppins',
+                                  )
+                                  : Container(
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          blurRadius: 2,
+                                          color: Colors.black26,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '$index',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12 * scale,
+                                          color: Colors.black,
+                                          fontFamily: 'Poppins',
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                    ),
-                  );
-                }),
+                        ),
+                      );
+                    }),
 
-                // Vehicle Marker (Live) - Only show when socket is connected and trip is active
-                if (vehicleLocation != null && 
-                    !widget.controller.isUpcomingTrip.value && 
-                    widget.controller.isSocketConnected.value)
+                // Vehicle Marker (Live) - Only show when socket is connected AND trip is active
+                if (vehicleLocation != null &&
+                    widget.controller.isSocketConnected.value &&
+                    !widget.controller.isUpcomingTrip.value &&
+                    (widget.controller.currentTrip.value?.status.toLowerCase() == 'active' ||
+                     widget.controller.currentTrip.value?.status.toLowerCase() == 'in-progress' ||
+                     widget.controller.currentTrip.value?.status.toLowerCase() == 'started'))
                   Marker(
                     point: vehicleLocation,
                     width: 50 * scale,
                     height: 50 * scale,
                     alignment: Alignment.center,
                     child: GestureDetector(
-                      onTap: () {
-
-                      },
+                      onTap: () {},
                       child: Transform.rotate(
                         angle: vehicleHeading * (3.14159 / 180),
                         child: Container(
@@ -1348,7 +1491,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                             color: Colors.white,
                             shape: BoxShape.circle,
                             boxShadow: [
-                              BoxShadow(blurRadius: 4, color: Colors.black26)
+                              BoxShadow(blurRadius: 4, color: Colors.black26),
                             ],
                           ),
                           child: Icon(
@@ -1360,8 +1503,6 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
                       ),
                     ),
                   ),
-
-
               ],
             );
           }),
@@ -1373,7 +1514,7 @@ class _LiveTripMapState extends State<LiveTripMap> with TickerProviderStateMixin
 
 class ParentHomePage extends GetView<ParentHomeController> {
   ParentHomePage({super.key});
-  
+
   @override
   String? get tag => 'home';
 
@@ -1384,7 +1525,6 @@ class ParentHomePage extends GetView<ParentHomeController> {
   void _zoomOut() {
     controller.zoomOut();
   }
-
 
   Widget _buildZoomButton(String imagePath, VoidCallback onPressed) {
     return Container(
@@ -1438,11 +1578,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Icon(
-              Icons.fullscreen,
-              color: Colors.blue[800],
-              size: 20,
-            ),
+            child: Icon(Icons.fullscreen, color: Colors.blue[800], size: 20),
           ),
         ),
       ),
@@ -1480,101 +1616,93 @@ class ParentHomePage extends GetView<ParentHomeController> {
     );
   }
 
-    Widget _buildChildLocationButton(VoidCallback onPressed) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+  Widget _buildChildLocationButton(VoidCallback onPressed) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 6,
+            spreadRadius: 0,
+          ),
+        ],
+        border: Border.all(color: Colors.blue[200]!, width: 1.5),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 6,
-              spreadRadius: 0,
-            ),
-          ],
-          border: Border.all(color: Colors.blue[200]!, width: 1.5),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Icon(
-                Icons.my_location,
-                color: Colors.blue[400],
-                size: 20,
-              ),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(Icons.my_location, color: Colors.blue[400], size: 20),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    Widget _buildHomeButton(VoidCallback onPressed) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+  Widget _buildHomeButton(VoidCallback onPressed) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 6,
+            spreadRadius: 0,
+          ),
+        ],
+        border: Border.all(color: Colors.green[200]!, width: 1.5),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 6,
-              spreadRadius: 0,
-            ),
-          ],
-          border: Border.all(color: Colors.green[200]!, width: 1.5),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Image.asset(
-                'assets/icons/homemarker.png',
-                width: 20,
-                height: 20,
-              ),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Image.asset(
+              'assets/icons/homemarker.png',
+              width: 20,
+              height: 20,
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    Widget _buildStartLocationButton(VoidCallback onPressed) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+  Widget _buildStartLocationButton(VoidCallback onPressed) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 6,
+            spreadRadius: 0,
+          ),
+        ],
+        border: Border.all(color: Colors.orange[200]!, width: 1.5),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 6,
-              spreadRadius: 0,
-            ),
-          ],
-          border: Border.all(color: Colors.orange[200]!, width: 1.5),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(12),
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Icon(
-                Icons.flag_rounded,
-                color: Colors.orange,
-                size: 20,
-              ),
-            ),
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Icon(Icons.flag_rounded, color: Colors.orange, size: 20),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
   Widget _buildSOSButton(BuildContext context, Color primaryColor) {
     return Container(
@@ -1608,8 +1736,6 @@ class ParentHomePage extends GetView<ParentHomeController> {
     );
   }
 
-
-
   Future<void> _showSOSDialog(BuildContext context, Color primaryColor) async {
     try {
       showGeneralDialog(
@@ -1620,15 +1746,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
 
         /// 🔥 Slide-up animation
         transitionBuilder: (context, animation, _, child) {
-          final value =
-              Curves.easeOutCubic.transform(animation.value) - 1.0;
+          final value = Curves.easeOutCubic.transform(animation.value) - 1.0;
 
           return Transform.translate(
             offset: Offset(0, value * -300),
-            child: Opacity(
-              opacity: animation.value,
-              child: child,
-            ),
+            child: Opacity(opacity: animation.value, child: child),
           );
         },
 
@@ -1683,8 +1805,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
                       /// Subtitle
                       const Text(
                         'Swipe up to instantly contact the\n'
-                            'registered emergency number for\n'
-                            'your child.',
+                        'registered emergency number for\n'
+                        'your child.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
@@ -1711,8 +1833,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
 
                             if (phoneNumber.isEmpty) return;
 
-                            final status =
-                            await Permission.phone.request();
+                            final status = await Permission.phone.request();
 
                             if (status.isDenied) return;
 
@@ -1735,8 +1856,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
                       /// Info
                       const Text(
                         'Use this option only if your child\n'
-                            'requires immediate assistance during\n'
-                            'the vehicle trip.',
+                        'requires immediate assistance during\n'
+                        'the vehicle trip.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
@@ -1759,7 +1880,10 @@ class ParentHomePage extends GetView<ParentHomeController> {
     }
   }
 
-  Future<void> _showCallDriverDialog(BuildContext context, Color primaryColor) async {
+  Future<void> _showCallDriverDialog(
+    BuildContext context,
+    Color primaryColor,
+  ) async {
     try {
       final isFetching = true.obs;
       final driverName = ''.obs;
@@ -1767,14 +1891,22 @@ class ParentHomePage extends GetView<ParentHomeController> {
       final vehicleNumber = ''.obs;
       final errorMessage = ''.obs;
 
-      _fetchDriverContactData(isFetching, driverName, driverPhone, vehicleNumber, errorMessage);
+      _fetchDriverContactData(
+        isFetching,
+        driverName,
+        driverPhone,
+        vehicleNumber,
+        errorMessage,
+      );
 
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
           return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
             elevation: 12,
             backgroundColor: Colors.transparent,
             child: Container(
@@ -1844,7 +1976,9 @@ class ParentHomePage extends GetView<ParentHomeController> {
                         padding: const EdgeInsets.all(20),
                         child: const Center(
                           child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.green,
+                            ),
                           ),
                         ),
                       );
@@ -1856,7 +1990,9 @@ class ParentHomePage extends GetView<ParentHomeController> {
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
+                          border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.1),
+                          ),
                         ),
                         child: Text(
                           errorMessage.value,
@@ -1891,7 +2027,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                   color: Colors.blue.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.person, color: Colors.blue, size: 20),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: Colors.blue,
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -1922,7 +2062,10 @@ class ParentHomePage extends GetView<ParentHomeController> {
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Divider(height: 1, color: Colors.grey.shade200),
+                            child: Divider(
+                              height: 1,
+                              color: Colors.grey.shade200,
+                            ),
                           ),
                           Row(
                             children: [
@@ -1932,7 +2075,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                   color: primaryColor.withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
-                                child: Icon(Icons.directions_bus, color: primaryColor, size: 20),
+                                child: Icon(
+                                  Icons.directions_bus,
+                                  color: primaryColor,
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -1973,7 +2120,9 @@ class ParentHomePage extends GetView<ParentHomeController> {
                       onPressed: () async {
                         if (driverPhone.value.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Invalid phone number')),
+                            const SnackBar(
+                              content: Text('Invalid phone number'),
+                            ),
                           );
                           return;
                         }
@@ -1981,14 +2130,20 @@ class ParentHomePage extends GetView<ParentHomeController> {
                         _initiateCallWithBackend();
 
                         String phoneNumber = driverPhone.value;
-                        phoneNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+                        phoneNumber = phoneNumber.replaceAll(
+                          RegExp(r'[^\d+]'),
+                          '',
+                        );
 
-                        final permissionStatus = await Permission.phone.request();
+                        final permissionStatus =
+                            await Permission.phone.request();
 
                         if (permissionStatus.isDenied) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Phone permission denied')),
+                              const SnackBar(
+                                content: Text('Phone permission denied'),
+                              ),
                             );
                           }
                           return;
@@ -1997,7 +2152,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
                         if (permissionStatus.isPermanentlyDenied) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enable phone permission in settings')),
+                              const SnackBar(
+                                content: Text(
+                                  'Please enable phone permission in settings',
+                                ),
+                              ),
                             );
                           }
                           openAppSettings();
@@ -2012,7 +2171,9 @@ class ParentHomePage extends GetView<ParentHomeController> {
                         )) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Could not launch phone")),
+                              const SnackBar(
+                                content: Text("Could not launch phone"),
+                              ),
                             );
                           }
                         } else {
@@ -2051,7 +2212,10 @@ class ParentHomePage extends GetView<ParentHomeController> {
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -2107,8 +2271,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
       }
 
       final tripId = tripData.associatedTripId;
-      final childId = controller.parentProfile.value?.endUserId ?? 
-                     Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
+      final childId =
+          controller.parentProfile.value?.endUserId ??
+          Get.find<SessionController>().parentData.value?['end_user_id']
+              ?.toString() ??
+          '';
 
       if (tripId.isEmpty || childId.isEmpty) {
         errorMessage.value = 'Missing trip or child ID';
@@ -2116,17 +2283,21 @@ class ParentHomePage extends GetView<ParentHomeController> {
       }
 
       final baseUrl = trackify_vts.baseUrl;
-      final url = Uri.parse('$baseUrl/parent/driver-contact?tripId=$tripId&childId=$childId');
+      final url = Uri.parse(
+        '$baseUrl/parent/driver-contact?tripId=$tripId&childId=$childId',
+      );
 
       debugPrint('🔍 Fetching Driver Contact: $url');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       debugPrint('📡 Driver Contact Response Status: ${response.statusCode}');
       debugPrint('📡 Driver Contact Response Body: ${response.body}');
@@ -2142,22 +2313,31 @@ class ParentHomePage extends GetView<ParentHomeController> {
         } else {
           errorMessage.value = 'No driver data found';
         }
-      } else if (tripData.scheduledTripId != null && tripData.scheduledTripId != tripId) {
+      } else if (tripData.scheduledTripId != null &&
+          tripData.scheduledTripId != tripId) {
         // Fallback to scheduledTripId if initial call failed
         final fallbackTripId = tripData.scheduledTripId!;
-        debugPrint('🔄 Retrying Driver Contact with fallback ID: $fallbackTripId');
-        
-        final fallbackUrl = Uri.parse('$baseUrl/parent/driver-contact?tripId=$fallbackTripId&childId=$childId');
-        final fallbackResponse = await http.get(
-          fallbackUrl,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ).timeout(const Duration(seconds: 15));
+        debugPrint(
+          '🔄 Retrying Driver Contact with fallback ID: $fallbackTripId',
+        );
 
-        debugPrint('📡 Fallback Response Status: ${fallbackResponse.statusCode}');
-        
+        final fallbackUrl = Uri.parse(
+          '$baseUrl/parent/driver-contact?tripId=$fallbackTripId&childId=$childId',
+        );
+        final fallbackResponse = await http
+            .get(
+              fallbackUrl,
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Content-Type': 'application/json',
+              },
+            )
+            .timeout(const Duration(seconds: 15));
+
+        debugPrint(
+          '📡 Fallback Response Status: ${fallbackResponse.statusCode}',
+        );
+
         if (fallbackResponse.statusCode == 200) {
           final jsonBody = json.decode(fallbackResponse.body);
           final data = jsonBody['data'] as Map<String, dynamic>?;
@@ -2194,8 +2374,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
       }
 
       final tripId = tripData.associatedTripId;
-      final childId = controller.parentProfile.value?.endUserId ?? 
-                     Get.find<SessionController>().parentData.value?['end_user_id']?.toString() ?? '';
+      final childId =
+          controller.parentProfile.value?.endUserId ??
+          Get.find<SessionController>().parentData.value?['end_user_id']
+              ?.toString() ??
+          '';
 
       if (tripId.isEmpty || childId.isEmpty) {
         debugPrint('Error: Missing trip or child ID');
@@ -2204,10 +2387,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
 
       final baseUrl = trackify_vts.baseUrl;
       final url = Uri.parse('$baseUrl/parent/call-driver');
-      final requestBody = {
-        'tripId': tripId,
-        'childId': childId,
-      };
+      final requestBody = {'tripId': tripId, 'childId': childId};
 
       debugPrint('═══════════════════════════════════════════════════════');
       debugPrint('📞 CALLING DRIVER');
@@ -2215,14 +2395,16 @@ class ParentHomePage extends GetView<ParentHomeController> {
       debugPrint('URL: $url');
       debugPrint('Request Body: ${json.encode(requestBody)}');
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(requestBody),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode(requestBody),
+          )
+          .timeout(const Duration(seconds: 15));
 
       debugPrint('Status Code: ${response.statusCode}');
       debugPrint('Response Body: ${response.body}');
@@ -2230,7 +2412,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
       if (response.statusCode == 200) {
         final jsonBody = json.decode(response.body);
         final data = jsonBody['data'] as Map<String, dynamic>?;
-        
+
         debugPrint('\n✅ CALL INITIATED SUCCESSFULLY');
         debugPrint('Call ID: ${data?['call_id']}');
         debugPrint('Driver Phone: ${data?['driver_phone']}');
@@ -2250,22 +2432,14 @@ class ParentHomePage extends GetView<ParentHomeController> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
-
-    try {
-      Get.find<ParentHomeController>(tag: 'home');
-    } catch (e) {
-      debugPrint('❌ [ParentHomePage] Controller not found: $e - Registering now');
-      try {
-        Get.put<ParentHomeController>(
-          ParentHomeController(),
-          tag: 'home',
-          permanent: true,
-        );
-        debugPrint('✅ [ParentHomePage] ParentHomeController registered');
-      } catch (regError) {
-        debugPrint('❌ [ParentHomePage] Failed to register controller: $regError');
-      }
-    }
+    final ParentHomeController controller =
+        Get.isRegistered<ParentHomeController>(tag: 'home')
+            ? Get.find<ParentHomeController>(tag: 'home')
+            : Get.put<ParentHomeController>(
+              ParentHomeController(),
+              tag: 'home',
+              permanent: true,
+            );
 
     return ParentAppLayout(
       navbarCurrentIndex: 0,
@@ -2318,17 +2492,17 @@ class ParentHomePage extends GetView<ParentHomeController> {
             padding: const EdgeInsets.only(right: 16.0, top: 8.0),
             child: Obx(() {
               final parentName = controller.parentProfile.value?.name ?? 'P';
-              final firstLetter = parentName.isNotEmpty 
-                  ? parentName[0].toUpperCase()  
-                  : 'P';
-              
+              final firstLetter =
+                  parentName.isNotEmpty ? parentName[0].toUpperCase() : 'P';
+
               return GestureDetector(
-                onTap: () => Get.to(
-                  () => const ParentProfilePage(),
-                  binding: ParentProfileBinding(),
-                  transition: Transition.rightToLeft,
-                  duration: const Duration(milliseconds: 350),
-                ),
+                onTap:
+                    () => Get.to(
+                      () => const ParentProfilePage(),
+                      binding: ParentProfileBinding(),
+                      transition: Transition.rightToLeft,
+                      duration: const Duration(milliseconds: 350),
+                    ),
                 child: ClipOval(
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -2374,63 +2548,66 @@ class ParentHomePage extends GetView<ParentHomeController> {
             controller.triggerPageVisibilityRefresh();
           }
         });
-        
-        if (!controller.isInitializationComplete.value || controller.isFetchingTripMap.value) {
+
+        if (!controller.isInitializationComplete.value ||
+            controller.isFetchingTripMap.value) {
           return _buildShimmerLoading(primaryColor);
         }
 
-        return Obx(() {
-          final hasTrip = controller.tripMapData.value != null;
-          
-          if (!hasTrip) {
-            return _buildPageContent(context, primaryColor);
-          }
+        final hasTrip = controller.tripMapData.value != null;
+        final tripData = controller.tripMapData.value;
 
-          final tripData = controller.tripMapData.value!;
-          String formatTimeWithAmPm(String time) {
-            try {
-              if (time.isEmpty || time == 'N/A') return '--:--';
-              if (time.contains(':') && !time.contains('-')) {
-                final parts = time.split(':');
-                int hour = int.parse(parts[0]);
-                int minute = int.parse(parts[1]);
-                final amPm = hour >= 12 ? 'PM' : 'AM';
-                hour = hour % 12 == 0 ? 12 : hour % 12;
-                return '$hour:${minute.toString().padLeft(2, '0')} $amPm';
-              }
-              final dt = DateTime.parse(time);
-              final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-              final minute = dt.minute.toString().padLeft(2, '0');
-              final amPm = dt.hour >= 12 ? 'PM' : 'AM';
-              return '$hour:$minute $amPm';
-            } catch (_) {
-              return time.isNotEmpty ? time : '--:--';
+        String formatTimeWithAmPm(String time) {
+          try {
+            if (time.isEmpty || time == 'N/A') return '--:--';
+            if (time.contains(':') && !time.contains('-')) {
+              final parts = time.split(':');
+              int hour = int.parse(parts[0]);
+              int minute = int.parse(parts[1]);
+              final amPm = hour >= 12 ? 'PM' : 'AM';
+              hour = hour % 12 == 0 ? 12 : hour % 12;
+              return '$hour:${minute.toString().padLeft(2, '0')} $amPm';
             }
+            final dt = DateTime.parse(time);
+            final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+            final minute = dt.minute.toString().padLeft(2, '0');
+            final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+            return '$hour:$minute $amPm';
+          } catch (_) {
+            return time.isNotEmpty ? time : '--:--';
           }
+        }
 
-          String startTime = formatTimeWithAmPm(tripData.scheduledStartTime);
+        String startTime =
+            tripData != null
+                ? formatTimeWithAmPm(tripData.scheduledStartTime)
+                : '--:--';
 
-          return Container(
-            color: Colors.grey[50],
-            child: Stack(
-              children: [
-                _buildPageContent(context, primaryColor),
-                
-                // Live Flash Message
-                Positioned(
-                  top: 90, // Below the trip card
-                  left: 0,
-                  right: 0,
-                  child: _buildFlashMessage(context),
-                ),
+        return Container(
+          color: Colors.grey[50],
+          child: Stack(
+            children: [
+              _buildPageContent(context, primaryColor),
 
+              // Live Flash Message
+              Positioned(
+                top: hasTrip ? 88 : 20,
+                left: 0,
+                right: 0,
+                child: _buildFlashMessage(context),
+              ),
+
+              if (hasTrip && tripData != null)
                 Positioned(
                   top: 0,
                   left: 12,
                   right: 12,
                   child: Container(
                     margin: const EdgeInsets.only(top: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
@@ -2445,14 +2622,19 @@ class ParentHomePage extends GetView<ParentHomeController> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.route, color: Color(0xFF2764FF), size: 24),
+                        const Icon(
+                          Icons.route,
+                          color: Color(0xFF2764FF),
+                          size: 24,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
@@ -2467,9 +2649,14 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                   ),
                                   if (controller.isUpcomingTrip.value)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.orange.withValues(alpha: 0.1),
+                                        color: Colors.orange.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(4),
                                         border: Border.all(
                                           color: Colors.orange,
@@ -2488,21 +2675,39 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                     )
                                   else if (tripData.associatedTripId.isNotEmpty)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.green.withValues(alpha: 0.1),
+                                        color: (tripData.status.toLowerCase() ==
+                                                    'completed'
+                                                ? Colors.blue
+                                                : Colors.green)
+                                            .withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(4),
                                         border: Border.all(
-                                          color: Colors.green,
+                                          color:
+                                              tripData.status.toLowerCase() ==
+                                                      'completed'
+                                                  ? Colors.blue
+                                                  : Colors.green,
                                           width: 1,
                                         ),
                                       ),
-                                      child: const Text(
-                                        'Active Trip',
+                                      child: Text(
+                                        tripData.status.toLowerCase() ==
+                                                'completed'
+                                            ? 'Trip Completed'
+                                            : 'Active Trip',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w500,
-                                          color: Colors.green,
+                                          color:
+                                              tripData.status.toLowerCase() ==
+                                                      'completed'
+                                                  ? Colors.blue
+                                                  : Colors.green,
                                           fontFamily: 'Poppins',
                                         ),
                                       ),
@@ -2525,7 +2730,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                     ),
                   ),
                 ),
-                _buildShowStopsButton(primaryColor),
+              _buildShowStopsButton(primaryColor),
 
               Obx(() {
                 if (controller.tripMapData.value == null) {
@@ -2533,7 +2738,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                 }
                 final screenHeight = MediaQuery.of(context).size.height;
                 final double dynamicBottom = (0.35 * screenHeight) + 20;
-                
+
                 return Positioned(
                   bottom: dynamicBottom,
                   left: 16,
@@ -2545,16 +2750,19 @@ class ParentHomePage extends GetView<ParentHomeController> {
                       }),
                       const SizedBox(height: 8),
                       _buildSOSButton(context, primaryColor),
-                      Obx(() => controller.isUpcomingTrip.value 
-                          ? const SizedBox.shrink() 
-                          : Column(
-                              children: [
-                                const SizedBox(height: 8),
-                                _buildChildLocationButton(() {
-                                  controller.focusOnVehicle();
-                                }),
-                              ],
-                            )),
+                      Obx(
+                        () =>
+                            controller.vehicleLocation.value == null
+                                ? const SizedBox.shrink()
+                                : Column(
+                                  children: [
+                                    const SizedBox(height: 8),
+                                    _buildChildLocationButton(() {
+                                      controller.focusOnVehicle();
+                                    }),
+                                  ],
+                                ),
+                      ),
                     ],
                   ),
                 );
@@ -2566,7 +2774,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
                 }
                 final screenHeight = MediaQuery.of(context).size.height;
                 final double dynamicBottom = (0.35 * screenHeight) + 20;
-                
+
                 return Positioned(
                   bottom: dynamicBottom,
                   right: 16,
@@ -2597,11 +2805,13 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                         primaryColor: primaryColor,
                                         mapController: MapController(),
                                         onMapCreated: (mc) {
-                                          controller.fullscreenMapController = mc;
+                                          controller.fullscreenMapController =
+                                              mc;
                                         },
                                       );
                                     }
-                                    final currentLocation = controller.vehicleLocation.value;
+                                    final currentLocation =
+                                        controller.vehicleLocation.value;
                                     if (currentLocation != null) {
                                       return FlutterMap(
                                         mapController: MapController(),
@@ -2615,7 +2825,8 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                         children: [
                                           TileLayer(
                                             urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                                            subdomains: const ['a', 'b', 'c'],
+                                            subdomains: const ['a', 'b', 'c', 'd'],
+                                            userAgentPackageName: 'com.trackify.parent',
                                           ),
                                         ],
                                       );
@@ -2638,16 +2849,22 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                         }),
                                         const SizedBox(height: 8),
                                         _buildSOSButton(context, primaryColor),
-                                        Obx(() => controller.isUpcomingTrip.value 
-                                            ? const SizedBox.shrink() 
-                                            : Column(
-                                                children: [
-                                                  const SizedBox(height: 8),
-                                                  _buildChildLocationButton(() {
-                                                    controller.focusOnVehicle();
-                                                  }),
-                                                ],
-                                              )),
+                                        Obx(
+                                          () =>
+                                              controller.vehicleLocation.value == null
+                                                  ? const SizedBox.shrink()
+                                                  : Column(
+                                                    children: [
+                                                      const SizedBox(height: 8),
+                                                      _buildChildLocationButton(
+                                                        () {
+                                                          controller
+                                                              .focusOnVehicle();
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -2657,20 +2874,30 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        _buildZoomButton('assets/icons/zoom-in.png', () {
-                                          _zoomIn();
-                                        }),
+                                        _buildZoomButton(
+                                          'assets/icons/zoom-in.png',
+                                          () {
+                                            _zoomIn();
+                                          },
+                                        ),
                                         const SizedBox(height: 8),
-                                        _buildZoomButton('assets/icons/zoom-out.png', () {
-                                          _zoomOut();
-                                        }),
+                                        _buildZoomButton(
+                                          'assets/icons/zoom-out.png',
+                                          () {
+                                            _zoomOut();
+                                          },
+                                        ),
                                         const SizedBox(height: 8),
                                         _buildExitFullscreenButton(() {
-                                          controller.fullscreenMapController = null;
+                                          controller.fullscreenMapController =
+                                              null;
                                           Get.back();
-                                          Future.delayed(const Duration(milliseconds: 300), () {
-                                            controller.nudgeMap();
-                                          });
+                                          Future.delayed(
+                                            const Duration(milliseconds: 300),
+                                            () {
+                                              controller.nudgeMap();
+                                            },
+                                          );
                                         }),
                                       ],
                                     ),
@@ -2686,8 +2913,6 @@ class ParentHomePage extends GetView<ParentHomeController> {
                           });
                         });
                       }),
-                   
-                      
                     ],
                   ),
                 );
@@ -2696,93 +2921,143 @@ class ParentHomePage extends GetView<ParentHomeController> {
             ],
           ),
         );
-      });
-    })
+      }),
     );
   }
 
   Widget _buildFlashMessage(BuildContext context) {
+    final controller = Get.find<ParentHomeController>(tag: 'home');
     return Obx(() {
-      if (!controller.showRouteBanner.value || controller.flashMessage.value.isEmpty) {
+      if (!controller.showRouteBanner.value ||
+          controller.flashMessage.value.isEmpty) {
         return const SizedBox.shrink();
       }
 
+      Color barColor;
       Color bgColor;
-      Color textColor;
       IconData icon;
+      String title;
 
       switch (controller.flashMessageType.value) {
         case 'success':
-          bgColor = const Color(0xFFE8F5E9);
-          textColor = const Color(0xFF2E7D32);
-          icon = Icons.check_circle_outline;
+          barColor = const Color(0xFF00C853);
+          bgColor = const Color(0xFFF1FDF5);
+          icon = Icons.check_circle;
+          title = 'Message';
           break;
         case 'warning':
-          bgColor = const Color(0xFFFFF3E0);
-          textColor = const Color(0xFFEF6C00);
-          icon = Icons.warning_amber_rounded;
+          barColor = const Color(0xFFFFB74D);
+          bgColor = const Color(0xFFFFF9F0);
+          icon = Icons.warning;
+          title = 'Message';
           break;
         case 'error':
-          bgColor = const Color(0xFFFFEBEE);
-          textColor = const Color(0xFFC62828);
-          icon = Icons.error_outline_rounded;
+          barColor = const Color(0xFFEF5350);
+          bgColor = const Color(0xFFFFF5F5);
+          icon = Icons.error;
+          title = 'Message';
           break;
         default:
-          bgColor = const Color(0xFFE3F2FD);
-          textColor = const Color(0xFF1565C0);
-          icon = Icons.info_outline_rounded;
+          barColor = const Color(0xFF536DFE);
+          bgColor = const Color(0xFFF5F6FF);
+          icon = Icons.info;
+          title = 'Message';
       }
 
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: textColor.withOpacity(0.3)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: textColor, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                controller.flashMessage.value,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Poppins',
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 6, color: barColor),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: barColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              controller.flashMessage.value,
+                              style: TextStyle(
+                                color: Colors.grey[800],
+                                fontSize: 13,
+                                height: 1.4,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => controller.showRouteBanner.value = false,
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.grey[600],
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            IconButton(
-              icon: Icon(Icons.close, color: textColor, size: 20),
-              onPressed: () => controller.showRouteBanner.value = false,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     });
   }
 
   Widget _buildPageContent(BuildContext context, Color primaryColor) {
+    final controller = Get.find<ParentHomeController>(tag: 'home');
     return Obx(() {
       if (controller.isServerError.value) {
         return _buildServerErrorView(context, primaryColor);
       }
 
       if (controller.tripMapData.value != null) {
-        return _buildFullScreenMap(context, controller.tripMapData.value!, primaryColor);
+        return _buildFullScreenMap(
+          context,
+          controller.tripMapData.value!,
+          primaryColor,
+        );
       }
 
       return _buildNoActiveTripView();
@@ -2790,6 +3065,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
   }
 
   Widget _buildNoActiveTripView() {
+    final controller = Get.find<ParentHomeController>(tag: 'home');
     return Container(
       color: Colors.white,
       width: double.infinity,
@@ -2820,18 +3096,20 @@ class ParentHomePage extends GetView<ParentHomeController> {
             ),
           ),
           const SizedBox(height: 12),
-          Obx(() => Text(
-            controller.tripError.value.isNotEmpty 
-                ? controller.tripError.value 
-                : 'There are no ongoing trips for your child at this moment. You\'ll be notified when a trip starts.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey[600],
-              height: 1.5,
-              fontFamily: 'Poppins',
+          Obx(
+            () => Text(
+              controller.tripError.value.isNotEmpty
+                  ? controller.tripError.value
+                  : 'There are no ongoing trips for your child at this moment. You\'ll be notified when a trip starts.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey[600],
+                height: 1.5,
+                fontFamily: 'Poppins',
+              ),
             ),
-          )),
+          ),
           const SizedBox(height: 40),
           OutlinedButton(
             onPressed: () => controller.refreshAllData(),
@@ -2858,6 +3136,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
   }
 
   Widget _buildServerErrorView(BuildContext context, Color primaryColor) {
+    final controller = Get.find<ParentHomeController>(tag: 'home');
     return Container(
       color: Colors.white,
       width: double.infinity,
@@ -2934,7 +3213,12 @@ class ParentHomePage extends GetView<ParentHomeController> {
     );
   }
 
-  Widget _buildFullScreenMap(BuildContext context, ParentLiveTripData tripData, Color primaryColor) {
+  Widget _buildFullScreenMap(
+    BuildContext context,
+    ParentLiveTripData tripData,
+    Color primaryColor,
+  ) {
+    final controller = Get.find<ParentHomeController>(tag: 'home');
     return LiveTripMap(
       tripData: tripData,
       controller: controller,
@@ -2946,7 +3230,12 @@ class ParentHomePage extends GetView<ParentHomeController> {
     );
   }
 
-  Widget _buildCurrentLocationMap(BuildContext context, LatLng currentLocation, Color primaryColor) {
+  Widget _buildCurrentLocationMap(
+    BuildContext context,
+    LatLng currentLocation,
+    Color primaryColor,
+  ) {
+    final controller = Get.find<ParentHomeController>(tag: 'home');
     return CurrentLocationMapWithSocket(
       initialLocation: currentLocation,
       primaryColor: primaryColor,
@@ -2961,55 +3250,74 @@ class ParentHomePage extends GetView<ParentHomeController> {
   final RxDouble _sheetSnapSize = RxDouble(0.35);
   final RxDouble _sheetExtent = RxDouble(0.35);
   final GlobalKey _sheetKey = GlobalKey();
-  final DraggableScrollableController _sheetController = DraggableScrollableController();
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
 
-  Widget _buildRouteStopsCardContent(BuildContext context, Color primaryColor, ParentLiveTripData tripData) {
+  Widget _buildRouteStopsCardContent(
+    BuildContext context,
+    Color primaryColor,
+    ParentLiveTripData tripData,
+  ) {
     final isPickup = tripData.tripType?.toLowerCase() == 'pickup';
     final isDrop = tripData.tripType?.toLowerCase() == 'drop';
-    final userStopIndex = tripData.timeline.indexWhere((stop) => stop.isUserStop);
+    final userStopIndex = tripData.timeline.indexWhere(
+      (stop) => stop.isUserStop,
+    );
 
     final List<TripStop> stops = [];
 
     if (isPickup) {
       // Add Start point
-      stops.add(TripStop(
-        id: 'start',
-        name: tripData.startAddress.isNotEmpty ? tripData.startAddress : 'Start Location',
-        location: tripData.startLocation,
-        sequence: -1,
-        address: tripData.startAddress,
-        landmark: '',
-        scheduledTime: '',
-        isCompleted: false,
-        isUserStop: false,
-      ));
+      stops.add(
+        TripStop(
+          id: 'start',
+          name:
+              tripData.startAddress.isNotEmpty
+                  ? tripData.startAddress
+                  : 'Start Location',
+          location: tripData.startLocation,
+          sequence: -1,
+          address: tripData.startAddress,
+          landmark: '',
+          scheduledTime: '',
+          isCompleted: false,
+          isUserStop: false,
+        ),
+      );
       // Add ALL stops
       stops.addAll(tripData.timeline);
       // Add School terminal
-      stops.add(TripStop(
-        id: 'school',
-        name: tripData.endAddress.isNotEmpty ? tripData.endAddress : 'School',
-        location: tripData.endLocation,
-        sequence: 9999,
-        address: tripData.endAddress,
-        landmark: '',
-        scheduledTime: '',
-        isCompleted: false,
-        isUserStop: false,
-      ));
+      stops.add(
+        TripStop(
+          id: 'school',
+          name: tripData.endAddress.isNotEmpty ? tripData.endAddress : 'School',
+          location: tripData.endLocation,
+          sequence: 9999,
+          address: tripData.endAddress,
+          landmark: '',
+          scheduledTime: '',
+          isCompleted: false,
+          isUserStop: false,
+        ),
+      );
     } else if (isDrop) {
       // Add School terminal
-      stops.add(TripStop(
-        id: 'school',
-        name: tripData.startAddress.isNotEmpty ? tripData.startAddress : 'School',
-        location: tripData.startLocation,
-        sequence: -1,
-        address: tripData.startAddress,
-        landmark: '',
-        scheduledTime: '',
-        isCompleted: false,
-        isUserStop: false,
-      ));
+      stops.add(
+        TripStop(
+          id: 'school',
+          name:
+              tripData.startAddress.isNotEmpty
+                  ? tripData.startAddress
+                  : 'School',
+          location: tripData.startLocation,
+          sequence: -1,
+          address: tripData.startAddress,
+          landmark: '',
+          scheduledTime: '',
+          isCompleted: false,
+          isUserStop: false,
+        ),
+      );
       if (userStopIndex != -1) {
         stops.addAll(tripData.timeline.sublist(0, userStopIndex + 1));
       }
@@ -3029,253 +3337,263 @@ class ParentHomePage extends GetView<ParentHomeController> {
         break;
       }
     }
-    
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: List.generate(
-          stops.length,
-          (index) {
-            final stop = stops[index];
-            final isLast = index == stops.length - 1;
-            final isHome = stop.isUserStop;
-            final isSchool = stop.id == 'school';
-            final isStart = stop.id == 'start';
-            final isReached = stop.isStopReached;
-            final isCrossed = stop.isStopCrossed;
+        children: List.generate(stops.length, (index) {
+          final stop = stops[index];
+          final isLast = index == stops.length - 1;
+          final isHome = stop.isUserStop;
+          final isSchool = stop.id == 'school';
+          final isStart = stop.id == 'start';
+          final isReached = stop.isStopReached;
+          final isCrossed = stop.isStopCrossed;
 
-            final bool isLatestReached = index == lastReachedIndexInList;
-            final bool shouldShowCheck = isCrossed || (isReached && !isLatestReached);
-            final bool shouldBlink = isReached && isLatestReached && !isCrossed;
+          final bool isLatestReached = index == lastReachedIndexInList;
+          final bool shouldShowCheck =
+              isCrossed || (isReached && !isLatestReached);
+          final bool shouldBlink = isReached && isLatestReached && !isCrossed;
 
-            String stopLabel;
-            if (isHome) {
-              if (isReached) {
-                stopLabel = isPickup ? 'Picked up' : 'Dropped';
-              } else {
-                stopLabel = 'Home';
-              }
-            } else if (isSchool) {
-              stopLabel = 'School';
-            } else if (isStart) {
-              stopLabel = 'Start';
+          String stopLabel;
+          if (isHome) {
+            if (isReached) {
+              stopLabel = isPickup ? 'Picked up' : 'Dropped';
             } else {
-              stopLabel = shouldShowCheck ? 'Stop $index (Reached)' : 'Stop $index';
+              stopLabel = 'Home';
             }
+          } else if (isSchool) {
+            stopLabel = 'School';
+          } else if (isStart) {
+            stopLabel = 'Start';
+          } else {
+            stopLabel =
+                shouldShowCheck ? 'Stop $index (Reached)' : 'Stop $index';
+          }
 
-            return Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 30,
-                      child: Column(
-                        children: [
-                          if (isHome)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Image.asset(
-                                isReached ? 'assets/icons/homemarkerreached.png' : 'assets/icons/homemarker.png',
-                                width: 18,
-                                height: 18,
-                              ),
-                            )
-                          else if (isSchool)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Image.asset(
-                                'assets/icons/school.png',
-                                width: 22,
-                                height: 22,
-                              ),
-                            )
-                          else if (isStart)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Icon(
-                                Icons.location_on,
-                                color: Colors.green,
-                                size: 22,
-                              ),
-                            )
-                          else if (shouldShowCheck)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Container(
-                                width: 20,
-                                height: 20,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(blurRadius: 1, color: Colors.black12)
-                                  ],
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                    size: 16,
-                                  ),
-                                ),
-                              ),
-                            )
-                          else if (shouldBlink)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  BlinkingMarker(
-                                    child: Container(
-                                      width: 22,
-                                      height: 22,
-                                      decoration: BoxDecoration(
-                                        color: Colors.yellow.withValues(alpha: 0.4),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    width: 18,
-                                    height: 18,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(blurRadius: 1, color: Colors.black12)
-                                      ],
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '$index',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 9,
-                                          color: Colors.black,
-                                          fontFamily: 'Poppins',
-                                        ),
-                                      ),
-                                    ),
+          return Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 30,
+                    child: Column(
+                      children: [
+                        if (isHome)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Image.asset(
+                              isReached
+                                  ? 'assets/icons/homemarkerreached.png'
+                                  : 'assets/icons/homemarker.png',
+                              width: 18,
+                              height: 18,
+                            ),
+                          )
+                        else if (isSchool)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Image.asset(
+                              'assets/icons/school.png',
+                              width: 22,
+                              height: 22,
+                            ),
+                          )
+                        else if (isStart)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Icon(
+                              Icons.location_on,
+                              color: Colors.green,
+                              size: 22,
+                            ),
+                          )
+                        else if (shouldShowCheck)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Container(
+                              width: 20,
+                              height: 20,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    blurRadius: 1,
+                                    color: Colors.black12,
                                   ),
                                 ],
                               ),
-                            )
-                          else
-                            Container(
-                              width: 10,
-                              height: 10,
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              decoration: BoxDecoration(
-                                color: primaryColor,
-                                shape: BoxShape.circle,
+                              child: Center(
+                                child: Image.asset(
+                                  'assets/icons/check.png',
+                                  width: 16,
+                                  height: 16,
+                                ),
                               ),
                             ),
-                          if (!isLast)
-                            Container(
-                              width: 2,
-                              height: 32,
-                              color: primaryColor.withValues(alpha: 0.3),
+                          )
+                        else if (shouldBlink)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                BlinkingMarker(
+                                  child: Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: Colors.yellow.withValues(
+                                        alpha: 0.4,
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  width: 18,
+                                  height: 18,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        blurRadius: 1,
+                                        color: Colors.black12,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '$index',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 9,
+                                        color: Colors.black,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                          )
+                        else
+                          Container(
+                            width: 10,
+                            height: 10,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        if (!isLast)
+                          Container(
+                            width: 2,
+                            height: 32,
+                            color: primaryColor.withValues(alpha: 0.3),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$stopLabel: ${stop.name}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (stop.landmark.isNotEmpty)
+                                  Text(
+                                    'Landmark: ${stop.landmark}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[400],
+                                      fontFamily: 'Poppins',
+                                    ),
+                                  )
+                                else if (isReached)
+                                  Text(
+                                    isStart
+                                        ? 'Started'
+                                        : (isLast ? 'Destination reached' : ''),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.green[400],
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (stop.scheduledTime.isNotEmpty)
+                            Text(
+                              'Estimated: ${stop.scheduledTime}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey.shade400,
+                            size: 22,
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Colors.grey.shade200,
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '$stopLabel: ${stop.name}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                      fontFamily: 'Poppins',
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (stop.landmark.isNotEmpty)
-                                    Text(
-                                      'Landmark: ${stop.landmark}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey[400],
-                                        fontFamily: 'Poppins',
-                                      ),
-                                    )
-                                  else if (isReached)
-                                    Text(
-                                      isStart ? 'Started' : (isLast ? 'Destination reached' : ''),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.green[400],
-                                        fontFamily: 'Poppins',
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            if (stop.scheduledTime.isNotEmpty)
-                              Text(
-                                'Estimated: ${stop.scheduledTime}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[600],
-                                  fontFamily: 'Poppins',
-                                ),
-                              ),
-                            Icon(
-                              Icons.chevron_right,
-                              color: Colors.grey.shade400,
-                              size: 22,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (index < stops.length - 1)
-                  const SizedBox(height: 6),
-              ],
-            );
-          },
-        ),
+                  ),
+                ],
+              ),
+              if (index < stops.length - 1) const SizedBox(height: 6),
+            ],
+          );
+        }),
       ),
     );
   }
 
   Widget _buildRouteStopsCard(BuildContext context, Color primaryColor) {
+    final controller = Get.find<ParentHomeController>(tag: 'home');
     String getTripTypeMessage(String? tripType) {
-  switch (tripType?.toLowerCase()) {
-    case 'pickup':
-      return 'On the way to pick up your child';
-    case 'drop':
-      return 'On the way to drop your child ';
-    default:
-      return 'Trip information not available';
-  }
-}
+      switch (tripType?.toLowerCase()) {
+        case 'pickup':
+          return 'On the way to pick up your child';
+        case 'drop':
+          return 'On the way to drop your child ';
+        default:
+          return 'Trip information not available';
+      }
+    }
+
     return Obx(() {
       final tripData = controller.tripMapData.value;
-      
+
       if (tripData == null) {
         _addressCache.clear();
         return const SizedBox.shrink();
@@ -3331,7 +3649,11 @@ class ParentHomePage extends GetView<ParentHomeController> {
                       controller: scrollController,
                       padding: const EdgeInsets.only(top: 82),
                       children: [
-                        _buildRouteStopsCardContent(context, primaryColor, tripData),
+                        _buildRouteStopsCardContent(
+                          context,
+                          primaryColor,
+                          tripData,
+                        ),
                       ],
                     ),
                   ),
@@ -3353,22 +3675,40 @@ class ParentHomePage extends GetView<ParentHomeController> {
                           GestureDetector(
                             onVerticalDragUpdate: (details) {
                               final currentExtent = _sheetExtent.value;
-                              final newExtent = (currentExtent - details.delta.dy / MediaQuery.of(context).size.height).clamp(0.0, 0.95);
+                              final newExtent = (currentExtent -
+                                      details.delta.dy /
+                                          MediaQuery.of(context).size.height)
+                                  .clamp(0.0, 0.95);
                               _sheetExtent.value = newExtent;
                               _sheetController.jumpTo(newExtent);
                             },
                             onVerticalDragEnd: (details) {
                               if (_sheetExtent.value < 0.15) {
-                                _sheetController.animateTo(0.0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                                _sheetController.animateTo(
+                                  0.0,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
                               } else if (_sheetExtent.value < 0.65) {
-                                _sheetController.animateTo(0.35, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                                _sheetController.animateTo(
+                                  0.35,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
                               } else {
-                                _sheetController.animateTo(0.95, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                                _sheetController.animateTo(
+                                  0.95,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
                               }
                             },
                             child: Center(
                               child: Padding(
-                                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                                padding: const EdgeInsets.only(
+                                  top: 12,
+                                  bottom: 8,
+                                ),
                                 child: Container(
                                   width: 50,
                                   height: 4,
@@ -3384,27 +3724,49 @@ class ParentHomePage extends GetView<ParentHomeController> {
                             behavior: HitTestBehavior.opaque,
                             onVerticalDragUpdate: (details) {
                               final currentExtent = _sheetExtent.value;
-                              final newExtent = (currentExtent - details.delta.dy / MediaQuery.of(context).size.height).clamp(0.0, 0.95);
+                              final newExtent = (currentExtent -
+                                      details.delta.dy /
+                                          MediaQuery.of(context).size.height)
+                                  .clamp(0.0, 0.95);
                               _sheetExtent.value = newExtent;
                               _sheetController.jumpTo(newExtent);
                             },
                             onVerticalDragEnd: (details) {
                               if (_sheetExtent.value < 0.15) {
-                                _sheetController.animateTo(0.0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                                _sheetController.animateTo(
+                                  0.0,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
                               } else if (_sheetExtent.value < 0.65) {
-                                _sheetController.animateTo(0.35, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                                _sheetController.animateTo(
+                                  0.35,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
                               } else {
-                                _sheetController.animateTo(0.95, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                                _sheetController.animateTo(
+                                  0.95,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
                               }
                             },
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                10,
+                                20,
+                                14,
+                              ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
@@ -3421,23 +3783,32 @@ class ParentHomePage extends GetView<ParentHomeController> {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-  getTripTypeMessage(tripData.tripType),
-  style: const TextStyle(
-    fontSize: 10,
-    fontWeight: FontWeight.w500,
-    color: Colors.grey,
-  ),
-),
+                                          getTripTypeMessage(tripData.tripType),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
                                   const SizedBox(width: 5),
                                   GestureDetector(
-                                    onTap: () => _showCallDriverDialog(context, primaryColor),
+                                    onTap:
+                                        () => _showCallDriverDialog(
+                                          context,
+                                          primaryColor,
+                                        ),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 5,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.green.withValues(alpha: 0.15),
+                                        color: Colors.green.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(
@@ -3466,7 +3837,12 @@ class ParentHomePage extends GetView<ParentHomeController> {
                               ),
                             ),
                           ),
-                          Divider(height: 1, color: Colors.grey[200], indent: 20, endIndent: 20),
+                          Divider(
+                            height: 1,
+                            color: Colors.grey[200],
+                            indent: 20,
+                            endIndent: 20,
+                          ),
                         ],
                       ),
                     ),
@@ -3481,66 +3857,70 @@ class ParentHomePage extends GetView<ParentHomeController> {
   }
 
   Widget _buildShowStopsButton(Color primaryColor) {
-  return Obx(() {
-    if (_modalVisible.value) {
-      return const SizedBox.shrink();
-    }
+    return Obx(() {
+      if (_modalVisible.value) {
+        return const SizedBox.shrink();
+      }
 
-    return Positioned(
-      bottom: 70,
-      right: 16,
-      child: ScaleTransition(
-        scale: const AlwaysStoppedAnimation(1.0),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            color: const Color.fromARGB(255, 3, 64, 144), // Dark navy blue
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black38,
-                blurRadius: 12,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                _sheetController.animateTo(
-                  0.35,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-              },
+      return Positioned(
+        bottom: 70,
+        right: 16,
+        child: ScaleTransition(
+          scale: const AlwaysStoppedAnimation(1.0),
+          child: Container(
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(30),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      Icons.touch_app_rounded, // Tap related icon
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Tap to Open',
-                      style: TextStyle(
+              color: const Color.fromARGB(255, 3, 64, 144), // Dark navy blue
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black38,
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  _sheetController.animateTo(
+                    0.35,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  );
+                },
+                borderRadius: BorderRadius.circular(30),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(
+                        Icons.touch_app_rounded, // Tap related icon
                         color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
+                        size: 20,
                       ),
-                    ),
-                  ],
+                      SizedBox(width: 8),
+                      Text(
+                        'Tap to Open',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-  });
-}}
+      );
+    });
+  }
+}

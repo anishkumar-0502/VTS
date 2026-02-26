@@ -402,19 +402,25 @@ if (!await launchUrl(
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.withValues(alpha: 0.1),
+                                    color: (tripData.status.toLowerCase() == 'completed' ? Colors.blue : Colors.green).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                     border: Border.all(
-                                      color: Colors.green,
+                                      color: tripData.status.toLowerCase() == 'completed' ? Colors.blue : Colors.green,
                                       width: 1,
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Active Trip',
+                                  child: Text(
+                                    tripData.status.toLowerCase() == 'completed' 
+                                        ? 'Trip Completed' 
+                                        : (tripData.status.toLowerCase() == 'active' || 
+                                           tripData.status.toLowerCase() == 'in-progress' ||
+                                           tripData.status.toLowerCase() == 'started')
+                                            ? 'Active Trip'
+                                            : tripData.status,
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w500,
-                                      color: Colors.green,
+                                      color: tripData.status.toLowerCase() == 'completed' ? Colors.blue : Colors.green,
                                       fontFamily: 'Poppins',
                                     ),
                                   ),
@@ -446,7 +452,7 @@ if (!await launchUrl(
           child: Obx(() {
             if (controller.tripMapData.value != null) {
               return GestureDetector(
-                onTap: controller.showRouteBannerTemporarily,
+                onTap: controller.showRouteBannerPersistently,
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -495,7 +501,7 @@ if (!await launchUrl(
         children: [
           TileLayer(
             urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-            subdomains: const ['a', 'b', 'c'],
+            subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'com.trackify.parent',
           ),
           Obx(() {
@@ -577,9 +583,9 @@ if (!await launchUrl(
               ...tripData.timeline.asMap().entries.map((entry) {
                 final index = entry.key + 1;
                 final stop = entry.value;
-                final isTargetStop = controller.targetLocation.value != null &&
+                final isTargetStop = stop.isUserStop || (controller.targetLocation.value != null &&
                     (stop.location.latitude - controller.targetLocation.value!.latitude).abs() < 0.0001 &&
-                    (stop.location.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001;
+                    (stop.location.longitude - controller.targetLocation.value!.longitude).abs() < 0.0001);
 
                 return Marker(
                   width: 40.0 * innerScale,
@@ -655,7 +661,11 @@ if (!await launchUrl(
                   ),
                 ),
               if (controller.assignedVehicleId != null &&
-                  controller.vehicleLocations.containsKey(controller.assignedVehicleId)) ...[
+                  controller.vehicleLocations.containsKey(controller.assignedVehicleId) &&
+                  !controller.isUpcomingTrip.value &&
+                  (controller.currentTrip.value?.status.toLowerCase() == 'active' ||
+                   controller.currentTrip.value?.status.toLowerCase() == 'in-progress' ||
+                   controller.currentTrip.value?.status.toLowerCase() == 'started')) ...[
                 Marker(
                   width: 50.0 * innerScale,
                   height: 50.0 * innerScale,

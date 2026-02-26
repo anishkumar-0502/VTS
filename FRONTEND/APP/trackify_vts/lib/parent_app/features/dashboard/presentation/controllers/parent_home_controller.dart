@@ -37,6 +37,8 @@ class ParentHomeController extends GetxController
   final RxString tripError = ''.obs;
   final RxBool isServerError = false.obs;
   final RxBool isUpcomingTrip = false.obs;
+  final RxBool showGeofence = false.obs;
+  bool _hasReachedUserStop = false;
 
   final Rx<ParentLiveTripData?> tripMapData = Rxn<ParentLiveTripData>();
   final RxBool isFetchingTripMap = false.obs;
@@ -60,6 +62,9 @@ class ParentHomeController extends GetxController
   String? assignedVehicleId;
   String? assignedVehicleNumber;
   String? assignedDeviceId;
+
+  final Set<String> _geofenceAlertTriggered = {};
+  final Distance _distance = const Distance();
 
   bool _autoZoomDone = false;
   final RxBool isInitializationComplete = false.obs;
@@ -89,6 +94,11 @@ class ParentHomeController extends GetxController
     });
   }
 
+  void showRouteBannerPersistently() {
+    _bannerTimer?.cancel();
+    showRouteBanner.value = true;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -104,7 +114,7 @@ class ParentHomeController extends GetxController
 });
 
     ever(vehicleLocation, (loc) {
-      if (loc != null && !_autoFitLocked && !isUpcomingTrip.value) {
+      if (loc != null && !_autoFitLocked) {
         _autoFitLocked = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           fitMapToVehicle();
@@ -124,7 +134,9 @@ class ParentHomeController extends GetxController
       }
     });
 
-    _initializeData();
+    if (sessionController.token.value.isNotEmpty) {
+      _initializeData();
+    }
   }
 
   void clearState() {
@@ -146,11 +158,17 @@ class ParentHomeController extends GetxController
     isInitializationComplete.value = false;
     tripError.value = '';
     tripMapError.value = '';
-    _socketIOService.dispose();
+    _socketIOService.disconnect();
+    _geofenceAlertTriggered.clear();
+    showGeofence.value = false;
+    _hasReachedUserStop = false;
   }
 
   Future<void> _initializeData() async {
     try {
+      debugPrint('[ParentHome] 🚀 Starting fresh initialization (clearing stale state)');
+      clearState(); // Force clear all reactive variables (markers, locations, etc.)
+
       // Ensure session is initialized before proceeding
       await sessionController.ensureInitialized();
 
@@ -181,6 +199,15 @@ class ParentHomeController extends GetxController
 
   Future<void> fetchCurrentTrip({bool showLoading = false}) async {
     try {
+      // Cooldown to prevent spamming refreshes
+      final now = DateTime.now();
+      if (!showLoading && _lastRefreshTime != null && 
+          now.difference(_lastRefreshTime!) < _refreshCooldown) {
+        debugPrint('[Home] Skipping trip fetch (cooldown)');
+        return;
+      }
+      _lastRefreshTime = now;
+
       isServerError.value = false;
       final token = sessionController.token.value;
       if (token.isEmpty) {
@@ -196,13 +223,29 @@ class ParentHomeController extends GetxController
 
       if (showLoading) isFetchingTrip.value = true;
 
+      debugPrint('[Home] 🛰️ Calling API: /parent/current-trip?childId=$childId');
       final response = await _profileRepository.getCurrentTrip(token, childId);
 
       if (!response.error && response.data != null) {
         currentTrip.value = response.data;
         isUpcomingTrip.value =
             response.data!.status.toLowerCase() == 'scheduled' ||
+            response.data!.status.toLowerCase() == 'pending' ||
             response.message.toLowerCase().contains('upcoming');
+
+        // Handle flash message ONLY for completed trips
+        if (response.message.isNotEmpty) {
+          if (response.message.toLowerCase().contains('trip already completed') || 
+              response.data!.status.toLowerCase() == 'completed') {
+            flashMessage.value = response.message;
+            flashMessageType.value = 'success'; // Green for completed
+            showRouteBannerPersistently();
+          } else {
+            // Hide banner for all other states (upcoming, active, etc)
+            showRouteBanner.value = false;
+          }
+        }
+
         tripError.value = '';
         debugPrint(
           '[Home] Current trip set: ${currentTrip.value?.tripId} (Upcoming: ${isUpcomingTrip.value})',
@@ -248,8 +291,7 @@ class ParentHomeController extends GetxController
 
       if (showLoading) isFetchingTripMap.value = true;
 
-      debugPrint('[Home] 📍 Fetching trip map data for childId: $childId');
-
+      debugPrint('[Home] 📍 Fetching trip map data: /parent/current-trip?childId=$childId');
       final response = await _profileRepository.getCurrentTrip(token, childId);
       debugPrint(
         '[Home] 📊 API Response - Error: ${response.error}, Has Data: ${response.data != null}',
@@ -317,6 +359,7 @@ class ParentHomeController extends GetxController
                         isUserStop: rp.isUserStop,
                         isStopReached: rp.isStopReached,
                         isStopCrossed: rp.isStopCrossed,
+                        geofenceRadius: (rp.geofenceRadiusMeters as num?)?.toDouble() ?? 100.0,
                       ),
                     )
                     .toList(),
@@ -342,7 +385,7 @@ class ParentHomeController extends GetxController
 
       // Filter timeline and set targetLocation based on trip_type
       final profile = parentProfile.value;
-      if (profile != null) {
+      if (profile != null && baseData != null) {
         LatLng? userTarget;
         if (baseData.tripType?.toLowerCase() == 'drop') {
           if (profile.dropoffLocation != null) {
@@ -365,6 +408,36 @@ class ParentHomeController extends GetxController
           debugPrint(
             '[Home] 🎯 Target location set: $userTarget for tripType: ${baseData.tripType}',
           );
+          
+          // 🛡️ Ensure isUserStop is set in the timeline for the stop matching targetLocation
+          bool userStopMarked = baseData.timeline.any((s) => s.isUserStop);
+          if (!userStopMarked) {
+            debugPrint('[Home] 🛡️ No user stop marked in API, searching by proximity...');
+            final List<TripStop> updatedTimeline = [];
+            double minDistance = double.infinity;
+            int closestIndex = -1;
+            
+            for (int i = 0; i < baseData.timeline.length; i++) {
+              final dist = _distance.as(LengthUnit.Meter, userTarget, baseData.timeline[i].location);
+              if (dist < minDistance) {
+                minDistance = dist;
+                closestIndex = i;
+              }
+            }
+            
+            // If we found a stop within 100m, mark it
+            if (closestIndex != -1 && minDistance < 100) {
+              for (int i = 0; i < baseData.timeline.length; i++) {
+                if (i == closestIndex) {
+                  updatedTimeline.add(baseData.timeline[i].copyWith(isUserStop: true));
+                  debugPrint('[Home] ✅ Marked stop ${baseData.timeline[i].name} as user stop (dist: $minDistance m)');
+                } else {
+                  updatedTimeline.add(baseData.timeline[i]);
+                }
+              }
+              baseData = baseData.copyWith(timeline: updatedTimeline);
+            }
+          }
         }
       }
 
@@ -389,12 +462,14 @@ class ParentHomeController extends GetxController
         debugPrint('[Home] 🚗 Tracking vehicle confirmed: $assignedVehicleId');
       }
 
-      await _generateRoutePolyline(baseData);
-
       tripMapData.value = baseData;
       tripMapError.value = '';
 
       if (showLoading) isFetchingTripMap.value = false;
+
+      // 🛣️ Fetch polyline in background to avoid blocking the UI loading state
+      // If the road-following route takes too long, the UI will still show the map
+      _generateRoutePolyline(baseData);
     } on exceptions.HttpException catch (e) {
       debugPrint(
         '[Home] ❌ HttpException while fetching trip map: ${e.message}',
@@ -450,6 +525,9 @@ class ParentHomeController extends GetxController
       coordinates.add(tripData.startLocation);
       coordinates.add(tripData.endLocation);
     }
+
+    // Set initial straight-line route as fallback while fetching road-following route
+    routePolylinePoints.value = coordinates;
 
     try {
       debugPrint('[Home] 🛣️ Fetching road-following route for ${coordinates.length} points');
@@ -566,54 +644,205 @@ class ParentHomeController extends GetxController
     _socketIOService.addFrameUpdateListener(_frameUpdateCallback);
   }
 
+  DateTime? _lastRefreshTime;
+  static const _refreshCooldown = Duration(seconds: 30);
+
+  void _updateStateFromSocketFrame(Map data) {
+    try {
+      debugPrint('[ParentHome] 🔄 Updating UI state directly from socket frame (No API call)');
+      final tripData = data['trip_data'];
+      if (tripData == null || tripData is! Map) return;
+
+      // Update currentTrip status if provided
+      if (tripData['status'] != null && currentTrip.value != null) {
+        final newStatus = tripData['status'].toString();
+        currentTrip.value = currentTrip.value!.copyWith(
+          status: newStatus,
+        );
+        
+        // Also update isUpcomingTrip if the trip has started
+        if (newStatus.toLowerCase() == 'active' || 
+            newStatus.toLowerCase() == 'in-progress' || 
+            newStatus.toLowerCase() == 'started') {
+          isUpcomingTrip.value = false;
+        }
+      }
+
+      // Update tripMapData timeline (stop statuses) if provided
+      final routePoints = tripData['route_points'] as List?;
+      if (routePoints != null && tripMapData.value != null) {
+        final List<TripStop> oldTimeline = tripMapData.value!.timeline;
+        final List<TripStop> updatedTimeline = [];
+        
+        for (var point in routePoints) {
+          if (point is Map<String, dynamic>) {
+            final newStop = TripStop.fromRoutePointJson(point);
+            
+            // 🛡️ Preserve isUserStop flag from existing timeline
+            // Check both stop_id and location (in case ID changes but it's the same stop)
+            final oldStop = oldTimeline.firstWhereOrNull((s) => 
+              s.id == newStop.id || 
+              (s.location.latitude == newStop.location.latitude && s.location.longitude == newStop.location.longitude)
+            );
+            
+            bool isUserStop = newStop.isUserStop;
+            if (oldStop != null && oldStop.isUserStop) {
+              isUserStop = true;
+            }
+            
+            if (isUserStop != newStop.isUserStop) {
+              updatedTimeline.add(newStop.copyWith(isUserStop: isUserStop));
+            } else {
+              updatedTimeline.add(newStop);
+            }
+          }
+        }
+        
+        if (updatedTimeline.isNotEmpty) {
+          tripMapData.value = tripMapData.value!.copyWith(
+            status: tripData['status']?.toString(),
+            timeline: updatedTimeline,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[ParentHome] Error updating state from socket: $e');
+    }
+  }
+
   void _handleSocketData(Map data) {
     try {
-      final type = (data['type'] ?? data['event'])?.toString();
+      debugPrint('[ParentHome] 📦 SOCKET FRAME RECEIVED: $data');
       
-      // Handle Trip Started and Stop Reached messages
-      final isPickup = tripMapData.value?.tripType?.toLowerCase() == 'pickup';
-      final tripPrefix = isPickup ? 'Pick up' : 'Drop';
+      // Handle nested data if it exists
+      Map actualData = data;
+      if (data.containsKey('data') && data['data'] is Map) {
+        actualData = data['data'];
+        debugPrint('[ParentHome] 📦 Using nested data: $actualData');
+      }
 
-      if (type == 'trip_started') {
-        debugPrint('═══════════════════════════════════════════════════════');
-        debugPrint('[ParentHome] 🚀 TRIP STARTED EVENT RECEIVED');
-        debugPrint('[ParentHome] Frame Data: $data');
-        debugPrint('═══════════════════════════════════════════════════════');
+      final type = (data['type'] ?? data['event'] ?? actualData['type'] ?? actualData['event'])?.toString();
+      
+      // Handle Trip Started, Stop Reached, and trp_updation messages
+      final isDrop = tripMapData.value?.tripType?.toLowerCase() == 'drop';
+      final isPickup = !isDrop;
+
+      if (type == 'trip_started' || 
+          type == 'trp_updation' || 
+          type == 'destination_reached' || 
+          type == 'source_reached' ||
+          type == 'stop_status_update') {
         
         // Extract tripId from nested data if available, otherwise from top level
-        final eventData = data['data'];
-        final tripId = (eventData is Map ? eventData['tripId'] ?? eventData['trip_id'] : data['tripId'] ?? data['trip_id'])?.toString();
+        final tripId = (actualData['tripId'] ?? actualData['trip_id'] ?? data['tripId'] ?? data['trip_id'])?.toString();
+        
+        // Also check inside trip_data if it exists
+        String? frameScheduledTripId;
+        if (actualData.containsKey('trip_data') && actualData['trip_data'] is Map) {
+          frameScheduledTripId = actualData['trip_data']['scheduled_trip_id']?.toString();
+        }
+        frameScheduledTripId ??= (actualData['scheduledTripId'] ?? actualData['scheduled_trip_id'])?.toString();
         
         if (tripId != null && currentTrip.value != null) {
           final currentTripId = currentTrip.value!.tripId;
-          debugPrint('[ParentHome] Comparing tripId: $tripId with current: $currentTripId');
+          final currentScheduledTripId = currentTrip.value!.scheduledTripId;
           
-          if (tripId == currentTripId) {
-            debugPrint('[ParentHome] ✅ Match! Refreshing trip data...');
-            isUpcomingTrip.value = false; // Immediately clear upcoming status for UI
-            fetchCurrentTrip(showLoading: true);
-            fetchTripMapData(showLoading: true);
+          bool isTripMatch = (tripId == currentTripId || tripId == currentScheduledTripId || 
+                             (frameScheduledTripId != null && (frameScheduledTripId == currentTripId || frameScheduledTripId == currentScheduledTripId)));
+          
+          if (isTripMatch) {
+            debugPrint('[ParentHome] ✅ Match! Event: $type');
+            
+            if (type == 'trip_started') {
+              isUpcomingTrip.value = false;
+            }
+
+            // Handle stop_status_update (reached)
+            if (type == 'stop_status_update' && (actualData['type'] == 'reached' || actualData['type'] == 'stop_reached')) {
+              final stopName = (actualData['name'] ?? data['name'])?.toString() ?? 'Stop';
+              final stopId = (actualData['stop_id'] ?? actualData['stopId'] ?? data['stop_id'] ?? data['stopId'])?.toString();
+              
+              debugPrint('[ParentHome] 📍 Stop reached: $stopName (ID: $stopId)');
+
+              if (isDrop && tripMapData.value != null) {
+                final lat = (actualData['latitude'] ?? data['latitude'])?.toDouble();
+                final lng = (actualData['longitude'] ?? data['longitude'])?.toDouble();
+                
+                final userStop = tripMapData.value!.timeline.firstWhereOrNull((s) {
+                  bool idMatch = (stopId != null && s.id == stopId);
+                  bool nameMatch = (s.name != null && stopName != null && s.name == stopName);
+                  bool proximityMatch = false;
+                  if (lat != null && lng != null) {
+                    final d = _distance.as(LengthUnit.Meter, LatLng(lat, lng), s.location);
+                    proximityMatch = d < 100; // Increased proximity range for better matching
+                  }
+                  return idMatch || nameMatch || proximityMatch;
+                });
+                
+                if (userStop != null && userStop.isUserStop) {
+                  debugPrint('[ParentHome] 🎉 User stop reached! Hiding live marker.');
+                  _hasReachedUserStop = true;
+                  vehicleLocation.value = null;
+                  showGeofence.value = false;
+                  flashMessage.value = 'Your child has been successfully dropped';
+                  flashMessageType.value = 'success';
+                  showRouteBannerPersistently();
+                }
+              }
+              
+              // Update stop locally if trip_data missing
+              if (!actualData.containsKey('trip_data') && tripMapData.value != null) {
+                final updatedTimeline = tripMapData.value!.timeline.map((stop) {
+                  if ((stopId != null && stop.id == stopId) || stop.name == stopName) {
+                    return stop.copyWith(isStopReached: true);
+                  }
+                  return stop;
+                }).toList();
+                tripMapData.value = tripMapData.value!.copyWith(timeline: updatedTimeline);
+              }
+            }
+
+            // Handle destination_reached
+            if (type == 'destination_reached') {
+              // Print exactly "destination reached" to terminal as requested
+              debugPrint('destination reached');
+              
+              if (currentTrip.value != null) {
+                currentTrip.value = currentTrip.value!.copyWith(status: 'completed');
+              }
+              if (tripMapData.value != null) {
+                tripMapData.value = tripMapData.value!.copyWith(status: 'completed');
+              }
+
+              if (isDrop) {
+                debugPrint('[ParentHome] 🏁 Destination reached for drop trip. Hiding live marker.');
+                _hasReachedUserStop = true;
+                vehicleLocation.value = null;
+                showGeofence.value = false;
+                flashMessage.value = 'Your child has been successfully dropped';
+                flashMessageType.value = 'success';
+                showRouteBannerPersistently();
+              } else {
+                debugPrint('[ParentHome] Pickup trip destination reached.');
+              }
+            }
+
+            // Update state from trip_data if available
+            if (actualData.containsKey('trip_data')) {
+              _updateStateFromSocketFrame(actualData);
+            }
           }
         }
-
-        flashMessage.value = '$tripPrefix: Trip started';
-        flashMessageType.value = 'success';
-        showRouteBannerTemporarily();
-      } else if (type == 'reached') {
-        final stopName = data['name']?.toString() ?? 'Stop';
-        flashMessage.value = '$tripPrefix: $stopName reached';
-        flashMessageType.value = 'info';
-        showRouteBannerTemporarily();
       }
 
       final vehicleId =
-          (data['vehicleId'] ?? data['vehicle_id'] ?? data['id'])?.toString();
-      final gpsDeviceId = data['gpsDeviceId']?.toString();
-      final latitude = data['latitude'];
-      final longitude = data['longitude'];
-      final timestamp = data['timestamp'];
-      final vehicleNumber = data['vehicleNumber'] ?? data['vehicle_number'];
-      final course = data['course'] ?? data['heading'] ?? 0.0;
+          (actualData['vehicleId'] ?? actualData['vehicle_id'] ?? actualData['id'] ?? data['vehicleId'] ?? data['vehicle_id'] ?? data['id'])?.toString();
+      final gpsDeviceId = (actualData['gpsDeviceId'] ?? data['gpsDeviceId'])?.toString();
+      final latitude = actualData['latitude'] ?? data['latitude'];
+      final longitude = actualData['longitude'] ?? data['longitude'];
+      final timestamp = actualData['timestamp'] ?? data['timestamp'];
+      final vehicleNumber = actualData['vehicleNumber'] ?? actualData['vehicle_number'] ?? data['vehicleNumber'] ?? data['vehicle_number'];
+      final course = actualData['course'] ?? actualData['heading'] ?? data['course'] ?? data['heading'] ?? 0.0;
 
       if (vehicleId != null && latitude != null && longitude != null) {
         // Ensure latitude and longitude are doubles
@@ -677,6 +906,8 @@ class ParentHomeController extends GetxController
         String? gdidTrim = gpsDeviceId?.trim();
         String? adidTrim = assignedDeviceId?.trim();
 
+        debugPrint('[ParentHome] 🔍 Checking Match - Incoming: $vidTrim (GID: $gdidTrim) vs Assigned: $avidTrim (GID: $adidTrim)');
+
         if (avidTrim != null && vidTrim == avidTrim) {
           isMatch = true;
         } else if (adidTrim != null &&
@@ -686,11 +917,72 @@ class ParentHomeController extends GetxController
         }
 
         if (isMatch) {
-          vehicleLocation.value = location;
-          vehicleHeading.value = heading;
-          debugPrint(
-            '[ParentHome] ✅ MATCHED VEHICLE: Updated vehicleLocation for $vidTrim: $location, Heading: $heading',
-          );
+          final tripStatus = currentTrip.value?.status.toLowerCase();
+          
+          if (tripStatus == 'active' || tripStatus == 'in-progress' || tripStatus == 'started') {
+            final isDrop = tripMapData.value?.tripType?.toLowerCase() == 'drop';
+            
+            // 🏠 If it's a drop trip and user home reached, don't update location (keep marker hidden)
+            if (isDrop && _hasReachedUserStop) {
+              vehicleLocation.value = null;
+              debugPrint('[ParentHome] 🏠 Child dropped. Keeping live marker hidden.');
+            } else {
+              vehicleLocation.value = location;
+              vehicleHeading.value = heading;
+            }
+            
+            // 🛡️ Proximity-Based Geofencing Logic
+            if (isUpcomingTrip.value || targetLocation.value == null) {
+              showGeofence.value = false;
+              _hasReachedUserStop = false;
+            } else {
+              final double dist = _distance.as(
+                LengthUnit.Meter,
+                location,
+                targetLocation.value!,
+              );
+
+              // Enable geofencing when vehicle is near user home (within 100m)
+              if (dist <= 100) {
+                if (!showGeofence.value) {
+                  showGeofence.value = true;
+                  debugPrint('[ParentHome] 🛡️ Geofencing ENABLED (Vehicle within 100m)');
+                }
+
+                // Track if we've actually reached/passed the stop (within 10m)
+                if (dist <= 10) {
+                  if (!_hasReachedUserStop && isDrop) {
+                    flashMessage.value = 'Your child has been successfully dropped';
+                    flashMessageType.value = 'success';
+                    showRouteBannerPersistently();
+                    debugPrint('[ParentHome] 🏠 Proximity-based drop detected (dist <= 10m)');
+                  }
+                  _hasReachedUserStop = true;
+                  showGeofence.value = false;
+                }
+              }
+              // Disable geofencing after 10m of user stop (after having reached it)
+              else if (_hasReachedUserStop && dist > 10) {
+                showGeofence.value = false;
+                // Only reset _hasReachedUserStop for PICKUP trips so marker can reappear if needed
+                // For DROP trips, we want to KEEP it true so marker stays hidden
+                if (!isDrop) {
+                  _hasReachedUserStop = false; 
+                  debugPrint('[ParentHome] 🛡️ Geofencing DISABLED (Vehicle passed stop by 10m)');
+                } else {
+                  debugPrint('[ParentHome] 🛡️ Geofencing DISABLED (Child already dropped)');
+                }
+              }
+            }
+
+            debugPrint(
+              '[ParentHome] ✅ MATCHED VEHICLE: Updated vehicleLocation for $vidTrim: $location, Heading: $heading, GeofenceVisible: ${showGeofence.value}',
+            );
+          } else if (tripStatus != 'active' && tripStatus != 'in-progress' && tripStatus != 'started') {
+            // Clear location if trip is not active (upcoming or completed)
+            vehicleLocation.value = null;
+            debugPrint('[ParentHome] ℹ️ Matched vehicle $vidTrim but trip status is "$tripStatus". Live marker hidden.');
+          }
         } else {
           debugPrint(
             '[ParentHome] ℹ️ No match for $vidTrim. (Assigned VID: $avidTrim, Frame GID: $gdidTrim, Assigned GID: $adidTrim)',

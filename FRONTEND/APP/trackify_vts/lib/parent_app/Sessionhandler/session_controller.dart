@@ -22,6 +22,8 @@ class SessionController extends GetxController {
   
   static const String _sessionTimestampKey = 'sessionTimestamp';
   static const String _sessionExpiryKey = 'sessionExpiry';
+  static const String _appStateVersionKey = 'app_state_version'; // Added version key
+  static const int _currentAppStateVersion = 2; // Increment to force reset after APK update
   static const int _sessionDurationHours = 24;
 
   SessionController() {
@@ -31,6 +33,7 @@ class SessionController extends GetxController {
   Future<void> _initializePrefs() async {
     try {
       prefs = await SharedPreferences.getInstance();
+      _checkVersionAndReset(); // Detect app update and clear stale cache
       _applySessionFromPrefs();
       _validateSession();
       if (!_initCompleter.isCompleted) {
@@ -41,6 +44,24 @@ class SessionController extends GetxController {
       if (!_initCompleter.isCompleted) {
         _initCompleter.complete();
       }
+    }
+  }
+
+  void _checkVersionAndReset() {
+    final lastVersion = prefs.getInt(_appStateVersionKey) ?? 0;
+    if (lastVersion < _currentAppStateVersion) {
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('[SessionController] 🔄 APP UPDATE DETECTED (v$lastVersion -> v$_currentAppStateVersion)');
+      debugPrint('[SessionController] Resetting stale parentData and marker state...');
+      debugPrint('═══════════════════════════════════════════════════════');
+      
+      // Clear specific data that might cause marker state persistence
+      prefs.remove('parentData');
+      prefs.remove('last_vehicle_id');
+      prefs.remove('last_child_location');
+      
+      // Update to current version
+      prefs.setInt(_appStateVersionKey, _currentAppStateVersion);
     }
   }
 

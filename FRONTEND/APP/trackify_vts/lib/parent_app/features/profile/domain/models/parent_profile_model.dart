@@ -749,6 +749,40 @@ class CurrentTrip {
     this.scheduledStartTime,
   });
 
+  CurrentTrip copyWith({
+    String? tripId,
+    String? associatedTripId,
+    String? status,
+    Location? currentLocation,
+    TripDetails? tripDetails,
+    TripVehicleDetails? vehicle,
+    OperatorDetails? driver,
+    String? routeName,
+    List<TripRoutePoint>? routePoints,
+    Location? startLocation,
+    Location? endLocation,
+    String? scheduledTripId,
+    String? tripType,
+    String? scheduledStartTime,
+  }) {
+    return CurrentTrip(
+      tripId: tripId ?? this.tripId,
+      associatedTripId: associatedTripId ?? this.associatedTripId,
+      status: status ?? this.status,
+      currentLocation: currentLocation ?? this.currentLocation,
+      tripDetails: tripDetails ?? this.tripDetails,
+      vehicle: vehicle ?? this.vehicle,
+      driver: driver ?? this.driver,
+      routeName: routeName ?? this.routeName,
+      routePoints: routePoints ?? this.routePoints,
+      startLocation: startLocation ?? this.startLocation,
+      endLocation: endLocation ?? this.endLocation,
+      scheduledTripId: scheduledTripId ?? this.scheduledTripId,
+      tripType: tripType ?? this.tripType,
+      scheduledStartTime: scheduledStartTime ?? this.scheduledStartTime,
+    );
+  }
+
   factory CurrentTrip.fromJson(Map<String, dynamic> json) {
     // Determine vehicle details
     TripVehicleDetails vehicleDetails;
