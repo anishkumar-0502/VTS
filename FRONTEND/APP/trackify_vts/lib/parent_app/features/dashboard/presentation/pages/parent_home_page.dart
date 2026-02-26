@@ -2591,7 +2591,7 @@ class ParentHomePage extends GetView<ParentHomeController> {
 
               // Live Flash Message
               Positioned(
-                top: hasTrip ? 88 : 20,
+                top: hasTrip ? 86 : 20,
                 left: 0,
                 right: 0,
                 child: _buildFlashMessage(context),
